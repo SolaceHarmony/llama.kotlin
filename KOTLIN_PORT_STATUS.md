@@ -34,7 +34,7 @@ The project is in its early stages of development. Here's what has been accompli
 
 5. **Functionality**:
    - Basic structure and interfaces implemented
-   - No actual computation functionality yet
+   - Initial computation implemented via `GGMLComputeOps`
    - Main function only prints startup messages
 
 ## Progress Checklist
@@ -198,12 +198,10 @@ This design document provides a roadmap for future implementation without riskin
 ## Next Steps
 The immediate next steps for the project are:
 
-1. Implement actual computation functionality for tensor operations
+1. Refine tensor computation functionality
    - Follow the implementation strategy outlined in the [Tensor Operations Design Document](./TENSOR_OPERATIONS_DESIGN.md)
-   - Create the `GGMLComputeOps.kt` file with utility functions, element-wise operations, matrix operations, and activation functions
-   - Integrate the computation functions with the existing code in `GGMLOps.kt`
-   - Implement the actual computation logic for addition, multiplication, and matrix multiplication
-   - Implement more advanced tensor operations like activation functions
+   - Computation functions implemented in `GGMLComputeOps.kt` and integrated with `GGMLOps.kt`
+   - Expand support for additional tensor data types
    - Optimize tensor operations for performance
 
 2. Implement the computation graph execution
