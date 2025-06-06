@@ -13,7 +13,7 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [ ] Create a detailed map of all C/C++ files and their dependencies
   - [ ] Identify platform-specific code (CUDA, Metal, AVX, etc.)
   - [ ] Document all external dependencies
-  - [ ] Separate code related to supported backends (CPU, Metal) from unsupported backends
+  - [x] Separate code related to supported backends (CPU, Metal) from unsupported backends
 
 - [ ] Design Kotlin Native Architecture
   - [x] Design package structure (ai.solace.llamakotlin.*)
