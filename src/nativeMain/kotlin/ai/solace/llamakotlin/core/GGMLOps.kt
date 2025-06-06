@@ -138,8 +138,18 @@ fun createTensor2D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int): GG
  * @return The result tensor
  */
 fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // This is a placeholder implementation
-    return GGMLTensor()
+    // Set up the operation node
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.ADD
+    result.src[0] = a
+    result.src[1] = b
+
+    // If the context requests immediate computation, perform it now
+    return if (context.computeImmediately) {
+        computeAdd(context, a, b)
+    } else {
+        result
+    }
 }
 
 /**
@@ -151,8 +161,16 @@ fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
  * @return The result tensor
  */
 fun mul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // This is a placeholder implementation
-    return GGMLTensor()
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.MUL
+    result.src[0] = a
+    result.src[1] = b
+
+    return if (context.computeImmediately) {
+        computeMul(context, a, b)
+    } else {
+        result
+    }
 }
 
 /**
@@ -164,6 +182,14 @@ fun mul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
  * @return The result tensor
  */
 fun matMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // This is a placeholder implementation
-    return GGMLTensor()
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.MUL_MAT
+    result.src[0] = a
+    result.src[1] = b
+
+    return if (context.computeImmediately) {
+        computeMatMul(context, a, b)
+    } else {
+        result
+    }
 }

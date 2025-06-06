@@ -36,7 +36,7 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
   - [x] Define element-wise operations interfaces (add, mul)
   - [x] Define matrix multiplication interface (matMul)
-  - [x] Implement actual computation for tensor operations (computeAdd, computeMul, computeMatMul)
+  - [x] Implement actual computation for tensor operations (computeAdd, computeMul, computeMatMul) and integrate with high-level ops
   - [x] Implement activation functions (computeRelu, computeGelu)
   - [ ] Implement support for all tensor data types (currently only F32 and I32 are supported)
   - [ ] Implement optimized versions of tensor operations
