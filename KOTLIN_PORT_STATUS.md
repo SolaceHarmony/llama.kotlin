@@ -45,8 +45,8 @@ The project is in its early stages of development. Here's what has been accompli
   - [x] Configure build system (Gradle with Kotlin DSL)
   - [x] Setup project structure following Kotlin conventions
 - [ ] Analyze C/C++ Codebase with Scope Focus
-  - [ ] Identify and separate code related to CUDA, hipBLAS, Vulkan, SYCL, MUSA, and CANN backends
-  - [ ] Create an archive folder structure for non-supported backends
+  - [x] Identify and separate code related to CUDA, hipBLAS, Vulkan, SYCL, MUSA, and CANN backends
+  - [x] Create an archive folder structure for non-supported backends
   - [ ] Document the core CPU and Metal implementation components
   - [ ] Map dependencies between core components and backend-specific code
 - [ ] Design Kotlin Native Architecture
