@@ -11,9 +11,9 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 - [ ] Analyze C/C++ Codebase
   - [ ] Create a detailed map of all C/C++ files and their dependencies
-  - [ ] Identify platform-specific code (CUDA, Metal, AVX, etc.)
+  - [ ] Identify platform-specific code (Metal, AVX, etc.)
   - [ ] Document all external dependencies
-  - [x] Separate code related to supported backends (CPU, Metal) from unsupported backends
+  - [x] Separate code related to supported backends (CPU, Metal) from unsupported backends (GPU backends moved to archive)
 
 - [ ] Design Kotlin Native Architecture
   - [x] Design package structure (ai.solace.llamakotlin.*)
@@ -221,6 +221,8 @@ The project is set up as a Kotlin Multiplatform project with the following struc
 - **Status Document**: KOTLIN_PORT_STATUS.md
 
 The project targets macOS platforms (both x64 and arm64) and uses Gradle for building. The entry point for the application is defined as "ai.solace.llamakotlin.main".
+
+Note: C/C++ build files (CMakeLists.txt, CMakePresets.json, Makefile) and non-Kotlin related build tools (cmake directory) have been moved to the archive/build-tools folder. GPU backends (CUDA, SYCL, Vulkan, etc.) have been moved to the archive folder. Instead of symbolic links, actual copies of header files are used in the spm-headers directory for Windows compatibility.
 
 ## Challenges and Considerations
 
