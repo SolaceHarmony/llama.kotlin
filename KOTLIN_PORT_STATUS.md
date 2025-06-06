@@ -63,7 +63,8 @@ The project is in its early stages of development. Here's what has been accompli
   - [x] Define tensor creation functions
   - [x] Define matrix multiplication interface
   - [x] Define element-wise operations interfaces
-  - [ ] Implement actual computation for tensor operations
+  - [x] Implement actual computation for tensor operations
+  - [x] Implement activation functions (ReLU, GELU)
 - [ ] Implement Computation Graph
   - [ ] Implement forward pass computation
   - [ ] Implement automatic differentiation
