@@ -160,7 +160,7 @@ class GGMLDynTensorAllocator {
             if (lastBlock.size >= alignedSize) {
                 bestFitBlock = freeBlocks.size - 1
             } else {
-                throw IllegalStateException("Not enough space in the buffer to allocate ${alignedSize} bytes")
+                throw IllegalStateException("Not enough space in the buffer to allocate $alignedSize bytes")
             }
         }
 

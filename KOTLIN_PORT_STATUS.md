@@ -87,7 +87,11 @@ The project is in its early stages of development. Here's what has been accompli
   - [x] Implement activation functions (ReLU, GELU)
 - [ ] Implement Computation Graph
   - [x] Implement forward pass computation
-  - [ ] Implement automatic differentiation
+  - [x] Implement automatic differentiation (partial implementation)
+    - [x] Implement backward pass for ADD, SUB, MUL operations
+    - [x] Implement backward pass for RELU, GELU activation functions
+    - [x] Implement backward pass for MUL_MAT (matrix multiplication)
+    - [ ] Implement backward pass for remaining operations
   - [ ] Implement graph optimization
 - [ ] Implement Quantization Support
   - [ ] Implement 1.5-bit, 2-bit, 3-bit, 4-bit, 5-bit, 6-bit, and 8-bit integer quantization

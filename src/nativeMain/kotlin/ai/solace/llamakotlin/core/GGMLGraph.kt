@@ -176,19 +176,541 @@ private fun computeBackward(context: GGMLContext, tensor: GGMLTensor, zeroTable:
         GGMLOp.RELU -> {
             if (src0?.grad != null) {
                 // grad_src0 += grad_tensor * (src0 > 0)
-                // TODO: Implement RELU backward pass properly
-                throw NotImplementedError("RELU backward pass not implemented yet")
+                // Create a mask where src0 > 0
+                val mask = GGMLTensor(type = src0.type)
+                for (i in 0 until GGML_MAX_DIMS) {
+                    mask.ne[i] = src0.ne[i]
+                    mask.nb[i] = src0.nb[i]
+                }
+
+                // Calculate total size
+                val totalSize = calculateTotalSize(src0.ne)
+
+                // Create mask data based on the tensor type
+                when (src0.type) {
+                    GGMLType.F32 -> {
+                        val srcData = src0.data as FloatArray
+                        val maskData = FloatArray(totalSize)
+                        for (i in 0 until totalSize) {
+                            maskData[i] = if (srcData[i] > 0.0f) 1.0f else 0.0f
+                        }
+                        mask.data = maskData
+                    }
+                    GGMLType.F16 -> {
+                        val srcData = src0.data as ShortArray
+                        val maskData = ShortArray(totalSize)
+                        for (i in 0 until totalSize) {
+                            maskData[i] = if ((srcData[i].toFloat() / 32768.0f) > 0.0f) 32767.toShort() else 0
+                        }
+                        mask.data = maskData
+                    }
+                    GGMLType.I8 -> {
+                        val srcData = src0.data as ByteArray
+                        val maskData = ByteArray(totalSize)
+                        for (i in 0 until totalSize) {
+                            maskData[i] = if (srcData[i] > 0) 1 else 0
+                        }
+                        mask.data = maskData
+                    }
+                    GGMLType.I16 -> {
+                        val srcData = src0.data as ShortArray
+                        val maskData = ShortArray(totalSize)
+                        for (i in 0 until totalSize) {
+                            maskData[i] = if (srcData[i] > 0) 1 else 0
+                        }
+                        mask.data = maskData
+                    }
+                    GGMLType.I32 -> {
+                        val srcData = src0.data as IntArray
+                        val maskData = IntArray(totalSize)
+                        for (i in 0 until totalSize) {
+                            maskData[i] = if (srcData[i] > 0) 1 else 0
+                        }
+                        mask.data = maskData
+                    }
+                    GGMLType.I64 -> {
+                        val srcData = src0.data as LongArray
+                        val maskData = LongArray(totalSize)
+                        for (i in 0 until totalSize) {
+                            maskData[i] = if (srcData[i] > 0) 1 else 0
+                        }
+                        mask.data = maskData
+                    }
+                    else -> {
+                        // For other types, we'll implement later
+                        throw NotImplementedError("RELU backward pass not implemented for type ${src0.type}")
+                    }
+                }
+
+                // Multiply gradient by mask: grad_tensor * (src0 > 0)
+                val gradMasked = mul(context, tensor.grad!!, mask)
+
+                // Add to source gradient
+                src0.grad = addOrSet(context, src0.grad, gradMasked, zeroTable)
             }
         }
         GGMLOp.GELU -> {
             if (src0?.grad != null) {
-                // TODO: Implement GELU backward pass
-                throw NotImplementedError("GELU backward pass not implemented yet")
+                // The derivative of GELU approximation
+                // GELU(x) ≈ x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+                // We need to compute the derivative of this with respect to x
+
+                // Create a tensor for the derivative
+                val derivative = GGMLTensor(type = src0.type)
+                for (i in 0 until GGML_MAX_DIMS) {
+                    derivative.ne[i] = src0.ne[i]
+                    derivative.nb[i] = src0.nb[i]
+                }
+
+                // Calculate total size
+                val totalSize = calculateTotalSize(src0.ne)
+
+                // Compute the derivative based on the tensor type
+                when (src0.type) {
+                    GGMLType.F32 -> {
+                        val srcData = src0.data as FloatArray
+                        val derivativeData = FloatArray(totalSize)
+
+                        for (i in 0 until totalSize) {
+                            val x = srcData[i]
+                            val x2 = x * x
+                            val x3 = x2 * x
+
+                            // Constants from the GELU approximation
+                            val sqrt2OverPi = 0.797885f // sqrt(2/π)
+                            val coef = 0.044715f
+
+                            // Inner term: sqrt(2/π) * (x + 0.044715 * x^3)
+                            val inner = sqrt2OverPi * (x + coef * x3)
+
+                            // tanh and sech^2 terms
+                            val tanhInner = kotlin.math.tanh(inner)
+                            val sech2 = 1.0f - tanhInner * tanhInner // sech^2(x) = 1 - tanh^2(x)
+
+                            // Derivative of GELU
+                            // 0.5 * (1 + tanh(inner) + x * sech^2(inner) * sqrt(2/π) * (1 + 3 * 0.044715 * x^2))
+                            val derivTerm = sqrt2OverPi * (1.0f + 3.0f * coef * x2)
+                            derivativeData[i] = 0.5f * (1.0f + tanhInner + x * sech2 * derivTerm)
+                        }
+
+                        derivative.data = derivativeData
+                    }
+                    GGMLType.F16 -> {
+                        val srcData = src0.data as ShortArray
+                        val derivativeData = ShortArray(totalSize)
+
+                        for (i in 0 until totalSize) {
+                            // Convert short to float
+                            val x = srcData[i].toFloat() / 32768.0f
+                            val x2 = x * x
+                            val x3 = x2 * x
+
+                            // Constants from the GELU approximation
+                            val sqrt2OverPi = 0.797885f // sqrt(2/π)
+                            val coef = 0.044715f
+
+                            // Inner term: sqrt(2/π) * (x + 0.044715 * x^3)
+                            val inner = sqrt2OverPi * (x + coef * x3)
+
+                            // tanh and sech^2 terms
+                            val tanhInner = kotlin.math.tanh(inner)
+                            val sech2 = 1.0f - tanhInner * tanhInner // sech^2(x) = 1 - tanh^2(x)
+
+                            // Derivative of GELU
+                            val derivTerm = sqrt2OverPi * (1.0f + 3.0f * coef * x2)
+                            val derivValue = 0.5f * (1.0f + tanhInner + x * sech2 * derivTerm)
+
+                            // Convert back to short
+                            derivativeData[i] = (derivValue * 32768.0f).toInt().toShort()
+                        }
+
+                        derivative.data = derivativeData
+                    }
+                    GGMLType.I8, GGMLType.I16, GGMLType.I32, GGMLType.I64 -> {
+                        // For integer types, convert to float, compute derivative, then convert back
+
+                        // Create a float array for intermediate calculations
+                        val floatData = FloatArray(totalSize)
+
+                        // Convert input data to float
+                        when (src0.type) {
+                            GGMLType.I8 -> {
+                                val srcData = src0.data as ByteArray
+                                for (i in 0 until totalSize) {
+                                    floatData[i] = srcData[i].toFloat()
+                                }
+                            }
+                            GGMLType.I16 -> {
+                                val srcData = src0.data as ShortArray
+                                for (i in 0 until totalSize) {
+                                    floatData[i] = srcData[i].toFloat()
+                                }
+                            }
+                            GGMLType.I32 -> {
+                                val srcData = src0.data as IntArray
+                                for (i in 0 until totalSize) {
+                                    floatData[i] = srcData[i].toFloat()
+                                }
+                            }
+                            GGMLType.I64 -> {
+                                val srcData = src0.data as LongArray
+                                for (i in 0 until totalSize) {
+                                    floatData[i] = srcData[i].toFloat()
+                                }
+                            }
+                            else -> {} // Should not happen due to the when condition
+                        }
+
+                        // Compute derivative in float
+                        for (i in 0 until totalSize) {
+                            val x = floatData[i]
+                            val x2 = x * x
+                            val x3 = x2 * x
+
+                            // Constants from the GELU approximation
+                            val sqrt2OverPi = 0.797885f // sqrt(2/π)
+                            val coef = 0.044715f
+
+                            // Inner term: sqrt(2/π) * (x + 0.044715 * x^3)
+                            val inner = sqrt2OverPi * (x + coef * x3)
+
+                            // tanh and sech^2 terms
+                            val tanhInner = kotlin.math.tanh(inner)
+                            val sech2 = 1.0f - tanhInner * tanhInner // sech^2(x) = 1 - tanh^2(x)
+
+                            // Derivative of GELU
+                            val derivTerm = sqrt2OverPi * (1.0f + 3.0f * coef * x2)
+                            floatData[i] = 0.5f * (1.0f + tanhInner + x * sech2 * derivTerm)
+                        }
+
+                        // Convert back to the original type
+                        when (src0.type) {
+                            GGMLType.I8 -> {
+                                val derivativeData = ByteArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = floatData[i].toInt().toByte()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            GGMLType.I16 -> {
+                                val derivativeData = ShortArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = floatData[i].toInt().toShort()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            GGMLType.I32 -> {
+                                val derivativeData = IntArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = floatData[i].toInt()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            GGMLType.I64 -> {
+                                val derivativeData = LongArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = floatData[i].toLong()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            else -> {} // Should not happen due to the when condition
+                        }
+                    }
+                    else -> {
+                        // For other types, we'll implement later
+                        throw NotImplementedError("GELU backward pass not implemented for type ${src0.type}")
+                    }
+                }
+
+                // Multiply gradient by derivative: grad_tensor * derivative
+                val gradDerivative = mul(context, tensor.grad!!, derivative)
+
+                // Add to source gradient
+                src0.grad = addOrSet(context, src0.grad, gradDerivative, zeroTable)
             }
         }
         GGMLOp.MUL_MAT -> {
-            // TODO: Implement MUL_MAT backward pass
-            throw NotImplementedError("MUL_MAT backward pass not implemented yet")
+            // For matrix multiplication C = A @ B:
+            // grad_A = grad_C @ B^T
+            // grad_B = A^T @ grad_C
+
+            if (src0?.grad != null) {
+                // Compute grad_A = grad_C @ B^T
+
+                // First, we need to transpose B (src1)
+                val bTransposed = GGMLTensor(type = src1!!.type)
+
+                // Set dimensions for the transposed tensor
+                // If B is (n x p), B^T will be (p x n)
+                bTransposed.ne[0] = src1.ne[1]
+                bTransposed.ne[1] = src1.ne[0]
+                for (i in 2 until GGML_MAX_DIMS) {
+                    bTransposed.ne[i] = src1.ne[i]
+                }
+
+                // Set strides for the transposed tensor
+                val typeSize = when (src1.type) {
+                    GGMLType.F32 -> 4u
+                    GGMLType.F16 -> 2u
+                    GGMLType.I8 -> 1u
+                    GGMLType.I16 -> 2u
+                    GGMLType.I32 -> 4u
+                    GGMLType.I64 -> 8u
+                    else -> 1u // Default for quantized types
+                }
+
+                bTransposed.nb[0] = src1.nb[1]
+                bTransposed.nb[1] = src1.nb[0]
+                for (i in 2 until GGML_MAX_DIMS) {
+                    bTransposed.nb[i] = src1.nb[i]
+                }
+
+                // Calculate total size
+                val totalSize = (src1.ne[0] * src1.ne[1]).toInt()
+
+                // Create transposed data
+                when (src1.type) {
+                    GGMLType.F32 -> {
+                        val srcData = src1.data as FloatArray
+                        val transposedData = FloatArray(totalSize)
+
+                        val rows = src1.ne[0].toInt()
+                        val cols = src1.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        bTransposed.data = transposedData
+                    }
+                    GGMLType.F16 -> {
+                        val srcData = src1.data as ShortArray
+                        val transposedData = ShortArray(totalSize)
+
+                        val rows = src1.ne[0].toInt()
+                        val cols = src1.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        bTransposed.data = transposedData
+                    }
+                    GGMLType.I8 -> {
+                        val srcData = src1.data as ByteArray
+                        val transposedData = ByteArray(totalSize)
+
+                        val rows = src1.ne[0].toInt()
+                        val cols = src1.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        bTransposed.data = transposedData
+                    }
+                    GGMLType.I16 -> {
+                        val srcData = src1.data as ShortArray
+                        val transposedData = ShortArray(totalSize)
+
+                        val rows = src1.ne[0].toInt()
+                        val cols = src1.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        bTransposed.data = transposedData
+                    }
+                    GGMLType.I32 -> {
+                        val srcData = src1.data as IntArray
+                        val transposedData = IntArray(totalSize)
+
+                        val rows = src1.ne[0].toInt()
+                        val cols = src1.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        bTransposed.data = transposedData
+                    }
+                    GGMLType.I64 -> {
+                        val srcData = src1.data as LongArray
+                        val transposedData = LongArray(totalSize)
+
+                        val rows = src1.ne[0].toInt()
+                        val cols = src1.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        bTransposed.data = transposedData
+                    }
+                    else -> {
+                        // For other types, we'll implement later
+                        throw NotImplementedError("MUL_MAT backward pass not implemented for type ${src1.type}")
+                    }
+                }
+
+                // Compute grad_A = grad_C @ B^T
+                val gradA = matMul(context, tensor.grad!!, bTransposed)
+
+                // Add to source gradient
+                src0.grad = addOrSet(context, src0.grad, gradA, zeroTable)
+            }
+
+            if (src1?.grad != null) {
+                // Compute grad_B = A^T @ grad_C
+
+                // First, we need to transpose A (src0)
+                val aTransposed = GGMLTensor(type = src0!!.type)
+
+                // Set dimensions for the transposed tensor
+                // If A is (m x n), A^T will be (n x m)
+                aTransposed.ne[0] = src0.ne[1]
+                aTransposed.ne[1] = src0.ne[0]
+                for (i in 2 until GGML_MAX_DIMS) {
+                    aTransposed.ne[i] = src0.ne[i]
+                }
+
+                // Set strides for the transposed tensor
+                val typeSize = when (src0.type) {
+                    GGMLType.F32 -> 4u
+                    GGMLType.F16 -> 2u
+                    GGMLType.I8 -> 1u
+                    GGMLType.I16 -> 2u
+                    GGMLType.I32 -> 4u
+                    GGMLType.I64 -> 8u
+                    else -> 1u // Default for quantized types
+                }
+
+                aTransposed.nb[0] = src0.nb[1]
+                aTransposed.nb[1] = src0.nb[0]
+                for (i in 2 until GGML_MAX_DIMS) {
+                    aTransposed.nb[i] = src0.nb[i]
+                }
+
+                // Calculate total size
+                val totalSize = (src0.ne[0] * src0.ne[1]).toInt()
+
+                // Create transposed data
+                when (src0.type) {
+                    GGMLType.F32 -> {
+                        val srcData = src0.data as FloatArray
+                        val transposedData = FloatArray(totalSize)
+
+                        val rows = src0.ne[0].toInt()
+                        val cols = src0.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        aTransposed.data = transposedData
+                    }
+                    GGMLType.F16 -> {
+                        val srcData = src0.data as ShortArray
+                        val transposedData = ShortArray(totalSize)
+
+                        val rows = src0.ne[0].toInt()
+                        val cols = src0.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        aTransposed.data = transposedData
+                    }
+                    GGMLType.I8 -> {
+                        val srcData = src0.data as ByteArray
+                        val transposedData = ByteArray(totalSize)
+
+                        val rows = src0.ne[0].toInt()
+                        val cols = src0.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        aTransposed.data = transposedData
+                    }
+                    GGMLType.I16 -> {
+                        val srcData = src0.data as ShortArray
+                        val transposedData = ShortArray(totalSize)
+
+                        val rows = src0.ne[0].toInt()
+                        val cols = src0.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        aTransposed.data = transposedData
+                    }
+                    GGMLType.I32 -> {
+                        val srcData = src0.data as IntArray
+                        val transposedData = IntArray(totalSize)
+
+                        val rows = src0.ne[0].toInt()
+                        val cols = src0.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        aTransposed.data = transposedData
+                    }
+                    GGMLType.I64 -> {
+                        val srcData = src0.data as LongArray
+                        val transposedData = LongArray(totalSize)
+
+                        val rows = src0.ne[0].toInt()
+                        val cols = src0.ne[1].toInt()
+
+                        for (i in 0 until rows) {
+                            for (j in 0 until cols) {
+                                transposedData[j * rows + i] = srcData[i * cols + j]
+                            }
+                        }
+
+                        aTransposed.data = transposedData
+                    }
+                    else -> {
+                        // For other types, we'll implement later
+                        throw NotImplementedError("MUL_MAT backward pass not implemented for type ${src0.type}")
+                    }
+                }
+
+                // Compute grad_B = A^T @ grad_C
+                val gradB = matMul(context, aTransposed, tensor.grad!!)
+
+                // Add to source gradient
+                src1.grad = addOrSet(context, src1.grad, gradB, zeroTable)
+            }
         }
         else -> {
             // For other operations, we'll implement later

@@ -43,8 +43,11 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 - [ ] Implement Computation Graph
   - [x] Implement forward pass computation
-  - [x] Implement graph traversal and execution
-  - [ ] Implement automatic differentiation
+  - [x] Implement automatic differentiation (partial implementation)
+    - [x] Implement backward pass for ADD, SUB, MUL operations
+    - [x] Implement backward pass for RELU, GELU activation functions
+    - [x] Implement backward pass for MUL_MAT (matrix multiplication)
+    - [ ] Implement backward pass for remaining operations
   - [ ] Implement graph optimization
 
 - [ ] Implement Quantization Support
