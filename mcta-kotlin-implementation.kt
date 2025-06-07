@@ -103,7 +103,7 @@ class AdvancedQuantumLTCNeuron(
             hSlow[i] += (hFast[i] - hSlow[i]) * (dt / tauS)
         }
 
-        return hSlow.clone()
+        return hSlow.copyOf()
     }
 }
 
@@ -130,7 +130,7 @@ class HebbianLearning(
     val decay: Double = 0.001
 ) {
     fun updateWeights(weights: DoubleArray, hI: DoubleArray, hJ: DoubleArray): DoubleArray {
-        val result = weights.clone()
+        val result = weights.copyOf()
         for (i in weights.indices) {
             result[i] += learningRate * (hI[i % hI.size] * hJ[i % hJ.size] - decay * weights[i])
         }
@@ -224,8 +224,8 @@ class LTCNeuronActor(
             val ltcState = ltcNeuron.update(memOutput, dt)
 
             // Capture internal states for logging
-            val hFast = ltcNeuron.hFast.clone()
-            val hSlow = ltcNeuron.hSlow.clone()
+            val hFast = ltcNeuron.hFast.copyOf()
+            val hSlow = ltcNeuron.hSlow.copyOf()
 
             outputChannel.send(mapOf(
                 "ltc_state" to ltcState,
@@ -344,14 +344,14 @@ class SimulationCoordinator(
             val error = motorMsg["error"] as Double
 
             // Log results
-            log["mem_states"]?.add(memOutputs.average())
-            log["ltc_states"]?.add(ltcState.average())
-            log["motor_outputs"]?.add(motorOutput)
-            log["errors"]?.add(error)
-            log["times"]?.add(t)
-            log["ltc_fast"]?.add(ltcMsg["h_fast"] as DoubleArray)
-            log["ltc_slow"]?.add(ltcMsg["h_slow"] as DoubleArray)
-            log["mem_all"]?.add(memOutputs.toDoubleArray())
+            (log["mem_states"] as MutableList<Double>).add(memOutputs.average())
+            (log["ltc_states"] as MutableList<Double>).add(ltcState.average())
+            (log["motor_outputs"] as MutableList<Double>).add(motorOutput)
+            (log["errors"] as MutableList<Double>).add(error)
+            (log["times"] as MutableList<Double>).add(t)
+            (log["ltc_fast"] as MutableList<DoubleArray>).add(ltcMsg["h_fast"] as DoubleArray)
+            (log["ltc_slow"] as MutableList<DoubleArray>).add(ltcMsg["h_slow"] as DoubleArray)
+            (log["mem_all"] as MutableList<DoubleArray>).add(memOutputs.toDoubleArray())
 
             delay(1) // Yield to other coroutines
         }

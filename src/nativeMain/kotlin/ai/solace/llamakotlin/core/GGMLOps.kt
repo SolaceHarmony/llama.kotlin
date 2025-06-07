@@ -14,6 +14,7 @@ package ai.solace.llamakotlin.core
  * @param type The tensor data type
  * @return The new tensor
  */
+@Suppress("unused")
 fun createTensor(context: GGMLContext, type: GGMLType): GGMLTensor {
     val tensor = GGMLTensor(type = type)
 
@@ -34,7 +35,7 @@ fun createTensor(context: GGMLContext, type: GGMLType): GGMLTensor {
         else -> 1u // Default for quantized types
     }
 
-    tensor.nb[0] = typeSize
+    tensor.nb[0] = typeSize.toULong()
     for (i in 1 until GGML_MAX_DIMS) {
         tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
     }
@@ -62,15 +63,49 @@ fun createTensor(context: GGMLContext, type: GGMLType): GGMLTensor {
  * @param ne0 The number of elements in the first dimension
  * @return The new tensor
  */
+@Suppress("unused")
 fun createTensor1D(context: GGMLContext, type: GGMLType, ne0: Int): GGMLTensor {
     // Create a new tensor with the specified type
     val tensor = GGMLTensor(type = type)
 
     // Set the dimensions
     tensor.ne[0] = ne0.toLong()
+    for (i in 1 until GGML_MAX_DIMS) {
+        tensor.ne[i] = 1
+    }
 
-    // Initialize the tensor (in a real implementation, we would allocate memory)
-    // For now, we'll just return the tensor with updated dimensions
+    // Set strides based on the data type
+    val typeSize = when (type) {
+        GGMLType.F32 -> 4u
+        GGMLType.F16 -> 2u
+        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
+        GGMLType.I16 -> 2u
+        GGMLType.I32 -> 4u
+        GGMLType.I64 -> 8u
+        else -> 1u // Default for quantized types
+    }
+
+    tensor.nb[0] = typeSize.toULong()
+    for (i in 1 until GGML_MAX_DIMS) {
+        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+    }
+
+    // Allocate memory for the tensor if context is provided
+    if (context.memBuffer != null && !context.noAlloc) {
+        // Calculate total size
+        val totalSize = ne0
+
+        // Allocate memory based on the tensor type
+        when (type) {
+            GGMLType.F32 -> tensor.data = FloatArray(totalSize) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(totalSize) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(totalSize) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(totalSize) { 0L }
+            else -> tensor.data = null // For quantized types, we'll implement later
+        }
+    }
 
     return tensor
 }
@@ -106,7 +141,7 @@ fun createTensor2D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int): GG
         else -> 1u // Default for quantized types
     }
 
-    tensor.nb[0] = typeSize
+    tensor.nb[0] = typeSize.toULong()
     tensor.nb[1] = tensor.nb[0] * tensor.ne[0].toULong()
     for (i in 2 until GGML_MAX_DIMS) {
         tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
@@ -120,9 +155,12 @@ fun createTensor2D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int): GG
         // Allocate memory based on the tensor type
         when (type) {
             GGMLType.F32 -> tensor.data = FloatArray(totalSize) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(totalSize) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(totalSize) { 0 }
             GGMLType.I32 -> tensor.data = IntArray(totalSize) { 0 }
             GGMLType.I64 -> tensor.data = LongArray(totalSize) { 0L }
-            else -> tensor.data = null // For other types, we'll implement later
+            else -> tensor.data = null // For quantized types, we'll implement later
         }
     }
 

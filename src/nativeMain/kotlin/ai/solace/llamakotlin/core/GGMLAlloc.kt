@@ -6,8 +6,23 @@ package ai.solace.llamakotlin.core
  */
 
 /**
+ * Calculates the offset aligned to the specified alignment.
+ *
+ * @param offset The original offset
+ * @param alignment The alignment requirement (must be a power of 2)
+ * @return The aligned offset
+ */
+@OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+fun alignedOffset(offset: ULong, alignment: UInt): ULong {
+    // Ensure alignment is a power of 2
+    assert(alignment > 0u && (alignment and (alignment - 1u)) == 0u)
+
+    val align = (alignment - (offset % alignment)) % alignment
+    return offset + align
+}
+
+/**
  * Tensor allocator for managing memory allocation for individual tensors.
- * This is a simplified implementation that will be expanded in future versions.
  */
 class GGMLTensorAllocator {
     // Buffer where tensors are allocated
@@ -17,10 +32,23 @@ class GGMLTensorAllocator {
     var base: Any? = null
 
     // Alignment requirement for tensor data
-    var alignment: Int = 16
+    var alignment: UInt = 16u
 
     // Current offset in the buffer
-    var offset: Int = 0
+    var offset: ULong = 0u
+
+    /**
+     * Creates a new tensor allocator.
+     *
+     * @param buffer The buffer to allocate from
+     * @param alignment The alignment requirement for tensor data
+     */
+    constructor(buffer: Any? = null, alignment: UInt = 16u) {
+        this.buffer = buffer
+        this.base = buffer
+        this.alignment = alignment
+        this.offset = 0u
+    }
 
     /**
      * Allocates memory for a tensor.
@@ -28,27 +56,221 @@ class GGMLTensorAllocator {
      * @param tensor The tensor to allocate memory for
      */
     fun allocate(tensor: GGMLTensor) {
-        // In a real implementation, this would:
-        // 1. Calculate the size of the tensor
-        // 2. Align the offset to the required alignment
-        // 3. Set the tensor data pointer
-        // 4. Update the offset
+        // Calculate the size of the tensor
+        val size = calculateTensorSize(tensor)
 
-        // For now, we'll just set the data to null
-        tensor.data = null
+        // Align the offset to the required alignment
+        offset = alignedOffset(offset, alignment)
+
+        // Allocate memory for the tensor based on its type
+        when (tensor.type) {
+            GGMLType.F32 -> tensor.data = FloatArray(size.toInt()) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(size.toInt()) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(size.toInt()) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(size.toInt()) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(size.toInt()) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(size.toInt()) { 0L }
+            else -> tensor.data = ByteArray(size.toInt()) { 0 } // Default for quantized types
+        }
+
+        // Update the offset
+        offset += size
+    }
+
+    /**
+     * Calculates the size of a tensor in elements.
+     *
+     * @param tensor The tensor to calculate the size for
+     * @return The size of the tensor in elements
+     */
+    private fun calculateTensorSize(tensor: GGMLTensor): ULong {
+        var size = 1UL
+        for (i in 0 until GGML_MAX_DIMS) {
+            size *= tensor.ne[i].toULong()
+        }
+        return size
+    }
+
+    /**
+     * Resets the allocator.
+     */
+    @Suppress("unused")
+    fun reset() {
+        offset = 0u
+    }
+}
+
+/**
+ * Free block for dynamic memory allocation.
+ */
+class FreeBlock(
+    var offset: ULong = 0u,
+    var size: ULong = 0u
+)
+
+/**
+ * Dynamic tensor allocator for managing memory allocation with free blocks.
+ */
+class GGMLDynTensorAllocator {
+    // Alignment requirement for tensor data
+    var alignment: UInt = 16u
+
+    // Free blocks
+    var freeBlocks = mutableListOf<FreeBlock>()
+
+    // Maximum size allocated
+    var maxSize: ULong = 0u
+
+    /**
+     * Creates a new dynamic tensor allocator.
+     *
+     * @param alignment The alignment requirement for tensor data
+     */
+    constructor(alignment: UInt = 16u) {
+        this.alignment = alignment
+        reset()
+    }
+
+    /**
+     * Allocates memory for a tensor.
+     *
+     * @param size The size to allocate in bytes
+     * @param tensor The tensor to allocate memory for (used for debugging)
+     * @return The offset of the allocated memory
+     */
+    fun allocate(size: ULong, @Suppress("unused") tensor: GGMLTensor): ULong {
+        // Align the size to the required alignment
+        val alignedSize = alignedOffset(size, alignment)
+
+        // Find the best fitting free block
+        var bestFitBlock = -1
+        var bestFitSize = ULong.MAX_VALUE
+
+        for (i in 0 until freeBlocks.size - 1) {
+            val block = freeBlocks[i]
+            if (block.size >= alignedSize && block.size <= bestFitSize) {
+                bestFitBlock = i
+                bestFitSize = block.size
+            }
+        }
+
+        // If no best fit found, use the last block
+        if (bestFitBlock == -1) {
+            val lastBlock = freeBlocks.last()
+            if (lastBlock.size >= alignedSize) {
+                bestFitBlock = freeBlocks.size - 1
+            } else {
+                throw IllegalStateException("Not enough space in the buffer to allocate ${alignedSize} bytes")
+            }
+        }
+
+        // Allocate from the best fit block
+        val block = freeBlocks[bestFitBlock]
+        val offset = block.offset
+        block.offset += alignedSize
+        block.size -= alignedSize
+
+        // Remove the block if it's empty
+        if (block.size == 0UL) {
+            freeBlocks.removeAt(bestFitBlock)
+        }
+
+        // Update the maximum size
+        maxSize = maxOf(maxSize, offset + alignedSize)
+
+        return offset
+    }
+
+    /**
+     * Frees memory for a tensor.
+     *
+     * @param offset The offset of the memory to free
+     * @param size The size of the memory to free
+     * @param tensor The tensor to free memory for (used for debugging)
+     */
+    fun freeTensor(offset: ULong, size: ULong, @Suppress("unused") tensor: GGMLTensor) {
+        // Align the size to the required alignment
+        val alignedSize = alignedOffset(size, alignment)
+
+        // Try to merge with an existing block
+        for (i in freeBlocks.indices) {
+            val block = freeBlocks[i]
+
+            // Check if the memory is at the end of the block
+            if (block.offset + block.size == offset) {
+                block.size += alignedSize
+
+                // Check if we can merge with the next block
+                if (i < freeBlocks.size - 1 && block.offset + block.size == freeBlocks[i + 1].offset) {
+                    block.size += freeBlocks[i + 1].size
+                    freeBlocks.removeAt(i + 1)
+                }
+                return
+            }
+
+            // Check if the memory is at the beginning of the block
+            if (offset + alignedSize == block.offset) {
+                block.offset = offset
+                block.size += alignedSize
+
+                // Check if we can merge with the previous block
+                if (i > 0 && freeBlocks[i - 1].offset + freeBlocks[i - 1].size == block.offset) {
+                    freeBlocks[i - 1].size += block.size
+                    freeBlocks.removeAt(i)
+                }
+                return
+            }
+        }
+
+        // Add a new block
+        val newBlock = FreeBlock(offset, alignedSize)
+
+        // Insert the new block in the correct position to keep the array sorted by address
+        var insertPos = 0
+        while (insertPos < freeBlocks.size && freeBlocks[insertPos].offset < offset) {
+            insertPos++
+        }
+
+        freeBlocks.add(insertPos, newBlock)
+    }
+
+    /**
+     * Resets the allocator.
+     */
+    fun reset() {
+        freeBlocks.clear()
+        freeBlocks.add(FreeBlock(0u, ULong.MAX_VALUE / 2u)) // Restrict maximum size to half ULong.MAX_VALUE to avoid overflows
+        maxSize = 0u
+    }
+
+    /**
+     * Gets the maximum size allocated.
+     *
+     * @return The maximum size allocated
+     */
+    fun getMaxSize(): ULong {
+        return maxSize
     }
 }
 
 /**
  * Graph allocator for managing memory allocation for computation graphs.
- * This is a simplified implementation that will be expanded in future versions.
  */
 class GGMLGraphAllocator {
-    // Buffer type for the allocator
-    var bufferType: Any? = null
+    // Tensor allocator for each buffer
+    var tensorAllocators = mutableListOf<GGMLDynTensorAllocator>()
 
-    // Array of buffers
-    var buffers: Array<Any?> = emptyArray()
+    // Buffers
+    var buffers = mutableListOf<Any?>()
+
+    /**
+     * Creates a new graph allocator.
+     */
+    constructor() {
+        // Create a default tensor allocator
+        tensorAllocators.add(GGMLDynTensorAllocator())
+        buffers.add(null)
+    }
 
     /**
      * Allocates memory for all tensors in a computation graph.
@@ -57,14 +279,77 @@ class GGMLGraphAllocator {
      * @return True if allocation was successful, false otherwise
      */
     fun allocateGraph(graph: GGMLCGraph): Boolean {
-        // This is a simplified implementation
-        // In a real implementation, we would need to:
-        // 1. Analyze the graph to determine the optimal memory layout
-        // 2. Allocate memory for each tensor in the graph
-        // 3. Handle input and output tensors specially
+        // Reset the allocators
+        for (allocator in tensorAllocators) {
+            allocator.reset()
+        }
 
-        // For now, we'll just return true to indicate success
+        // Allocate memory for leaf nodes
+        for (i in 0 until graph.nLeafs) {
+            val leaf = graph.leafs[i] ?: continue
+            if (leaf.data == null && !ggml_is_view(leaf)) {
+                allocateTensor(leaf, 0)
+            }
+        }
+
+        // Allocate memory for internal nodes
+        for (i in 0 until graph.nNodes) {
+            val node = graph.nodes[i] ?: continue
+
+            // Allocate memory for source tensors if needed
+            for (j in 0 until GGML_MAX_SRC) {
+                val src = node.src[j] ?: continue
+                if (src.data == null && !ggml_is_view(src)) {
+                    allocateTensor(src, 0)
+                }
+            }
+
+            // Allocate memory for the node itself
+            if (node.data == null && !ggml_is_view(node)) {
+                allocateTensor(node, 0)
+            }
+        }
+
         return true
+    }
+
+    /**
+     * Allocates memory for a tensor.
+     *
+     * @param tensor The tensor to allocate memory for
+     * @param bufferId The ID of the buffer to allocate from
+     */
+    private fun allocateTensor(tensor: GGMLTensor, bufferId: Int) {
+        // Calculate the size of the tensor
+        val size = calculateTensorSize(tensor)
+
+        // Allocate memory from the tensor allocator
+        @Suppress("unused") val offset = tensorAllocators[bufferId].allocate(size, tensor)
+
+        // Allocate memory for the tensor based on its type
+        when (tensor.type) {
+            GGMLType.F32 -> tensor.data = FloatArray(size.toInt()) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(size.toInt()) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(size.toInt()) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(size.toInt()) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(size.toInt()) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(size.toInt()) { 0L }
+            else -> tensor.data = ByteArray(size.toInt()) { 0 } // Default for quantized types
+        }
+    }
+
+    /**
+     * Calculates the size of a tensor in elements.
+     *
+     * @param tensor The tensor to calculate the size for
+     * @return The size of the tensor in elements
+     */
+    private fun calculateTensorSize(tensor: GGMLTensor): ULong {
+        var size = 1UL
+        for (i in 0 until GGML_MAX_DIMS) {
+            size *= tensor.ne[i].toULong()
+        }
+        return size
     }
 
     /**
@@ -73,14 +358,57 @@ class GGMLGraphAllocator {
      * @param graph The computation graph to reserve memory for
      * @return True if reservation was successful, false otherwise
      */
+    @Suppress("unused")
     fun reserveGraph(graph: GGMLCGraph): Boolean {
-        // This is a simplified implementation
-        // In a real implementation, we would need to:
-        // 1. Analyze the graph to determine the memory requirements
-        // 2. Reserve memory for the graph
+        // This is similar to allocateGraph, but doesn't actually allocate memory
+        // It just calculates the memory requirements
 
-        // For now, we'll just return true to indicate success
+        // Reset the allocators
+        for (allocator in tensorAllocators) {
+            allocator.reset()
+        }
+
+        // Calculate memory requirements for leaf nodes
+        for (i in 0 until graph.nLeafs) {
+            val leaf = graph.leafs[i] ?: continue
+            if (leaf.data == null && !ggml_is_view(leaf)) {
+                reserveTensor(leaf, 0)
+            }
+        }
+
+        // Calculate memory requirements for internal nodes
+        for (i in 0 until graph.nNodes) {
+            val node = graph.nodes[i] ?: continue
+
+            // Calculate memory requirements for source tensors if needed
+            for (j in 0 until GGML_MAX_SRC) {
+                val src = node.src[j] ?: continue
+                if (src.data == null && !ggml_is_view(src)) {
+                    reserveTensor(src, 0)
+                }
+            }
+
+            // Calculate memory requirements for the node itself
+            if (node.data == null && !ggml_is_view(node)) {
+                reserveTensor(node, 0)
+            }
+        }
+
         return true
+    }
+
+    /**
+     * Reserves memory for a tensor without actually allocating it.
+     *
+     * @param tensor The tensor to reserve memory for
+     * @param bufferId The ID of the buffer to reserve from
+     */
+    private fun reserveTensor(tensor: GGMLTensor, bufferId: Int) {
+        // Calculate the size of the tensor
+        val size = calculateTensorSize(tensor)
+
+        // Reserve memory from the tensor allocator
+        tensorAllocators[bufferId].allocate(size, tensor)
     }
 
     /**
@@ -89,11 +417,21 @@ class GGMLGraphAllocator {
      * @param bufferId The ID of the buffer
      * @return The size of the buffer in bytes
      */
-    fun getBufferSize(bufferId: Int): Int {
-        // This is a simplified implementation
-        // In a real implementation, we would need to track buffer sizes
+    fun getBufferSize(bufferId: Int): ULong {
+        if (bufferId < 0 || bufferId >= tensorAllocators.size) {
+            return 0u
+        }
 
-        // For now, we'll just return 0
-        return 0
+        return tensorAllocators[bufferId].getMaxSize()
     }
+}
+
+/**
+ * Checks if a tensor is a view.
+ *
+ * @param tensor The tensor to check
+ * @return True if the tensor is a view, false otherwise
+ */
+fun ggml_is_view(tensor: GGMLTensor): Boolean {
+    return tensor.viewSrc != null
 }

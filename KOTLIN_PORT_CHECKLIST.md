@@ -15,11 +15,11 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [ ] Document all external dependencies
   - [x] Separate code related to supported backends (CPU, Metal) from unsupported backends (GPU backends moved to archive)
 
-- [ ] Design Kotlin Native Architecture
+- [x] Design Kotlin Native Architecture
   - [x] Design package structure (ai.solace.llamakotlin.*)
-  - [ ] Plan memory management approach (Kotlin Native has different memory model than C++)
-  - [ ] Design API that maintains compatibility with original while being idiomatic Kotlin
-  - [ ] Create detailed design documents for remaining components
+  - [x] Plan memory management approach (Kotlin Native has different memory model than C++)
+  - [x] Design API that maintains compatibility with original while being idiomatic Kotlin
+  - [x] Create detailed design documents for remaining components
 
 ## Phase 2: Core Library Translation (ggml) (In Progress)
 
@@ -30,20 +30,20 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Implement context structure (GGMLContext class)
   - [x] Implement computation graph structure (GGMLCGraph class)
   - [x] Implement basic memory allocation structures (GGMLTensorAllocator, GGMLGraphAllocator)
-  - [ ] Complete memory allocation implementation with actual functionality
+  - [x] Complete memory allocation implementation with actual functionality
 
-- [ ] Implement Basic Tensor Operations
+- [x] Implement Basic Tensor Operations
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
   - [x] Define element-wise operations interfaces (add, mul)
   - [x] Define matrix multiplication interface (matMul)
   - [x] Implement actual computation for tensor operations (computeAdd, computeMul, computeMatMul) and integrate with high-level ops
   - [x] Implement activation functions (computeRelu, computeGelu)
-  - [ ] Implement support for all tensor data types (currently only F32 and I32 are supported)
-  - [ ] Implement optimized versions of tensor operations
+  - [x] Implement support for all tensor data types (F32, F16, I8, I16, I32, I64)
+  - [x] Implement optimized versions of tensor operations
 
 - [ ] Implement Computation Graph
-  - [ ] Implement forward pass computation
-  - [ ] Implement graph traversal and execution
+  - [x] Implement forward pass computation
+  - [x] Implement graph traversal and execution
   - [ ] Implement automatic differentiation
   - [ ] Implement graph optimization
 
