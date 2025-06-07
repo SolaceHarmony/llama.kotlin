@@ -133,3 +133,6 @@ poetry.toml
 # Test models for lora adapters
 /lora-tests
 /.kotlin/metadata/
+
+# Embedded projects
+ember-ml-kotlin/
