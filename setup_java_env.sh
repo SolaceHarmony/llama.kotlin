@@ -35,6 +35,12 @@ export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
 echo "export JAVA_HOME=$JAVA_HOME" >> /etc/profile.d/java_env.sh
 echo "Java installation completed. JAVA_HOME set to $JAVA_HOME"
 
+# Optionally install Java with SDKMAN to avoid SSL issues
+if command -v sdk >/dev/null 2>&1; then
+    echo "Installing Java 17 using sdkman..."
+    yes | sdk install java 17.0.9-tem || true
+fi
+
 # Extract Gradle version from wrapper properties
 GRADLE_WRAPPER_PROPERTIES="gradle/wrapper/gradle-wrapper.properties"
 if [ -f "$GRADLE_WRAPPER_PROPERTIES" ]; then
@@ -55,8 +61,18 @@ mv /opt/gradle/gradle-${GRADLE_VERSION} /opt/gradle/latest
 ln -s /opt/gradle/latest/bin/gradle /usr/bin/gradle
 rm /tmp/gradle.zip
 
+# Optionally install Gradle with SDKMAN if SSL errors occur
+if command -v sdk >/dev/null 2>&1; then
+    echo "Installing Gradle $GRADLE_VERSION using sdkman..."
+    yes | sdk install gradle ${GRADLE_VERSION} || true
+fi
+
 # Verify Gradle installation
 gradle --version
+
+# Use system certificate store to avoid Gradle SSL handshake issues
+export GRADLE_OPTS="-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts"
+echo "export GRADLE_OPTS=$GRADLE_OPTS" >> /etc/profile.d/gradle_env.sh
 # Set up GRADLE_HOME
 export GRADLE_HOME=/opt/gradle/latest
 echo "export GRADLE_HOME=$GRADLE_HOME" >> /etc/profile.d/gradle_env.sh
