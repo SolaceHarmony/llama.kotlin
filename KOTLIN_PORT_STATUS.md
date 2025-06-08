@@ -88,9 +88,13 @@ The project is in its early stages of development. Here's what has been accompli
 - [ ] Implement Computation Graph
   - [x] Implement forward pass computation
   - [x] Implement automatic differentiation (partial implementation)
-    - [x] Implement backward pass for ADD, SUB, MUL operations
+    - [x] Implement backward pass for ADD, SUB, MUL, NEG operations
     - [x] Implement backward pass for RELU, GELU activation functions
     - [x] Implement backward pass for MUL_MAT (matrix multiplication)
+    - [x] Implement backward pass for DIV, SQR, SQRT operations
+    - [x] Implement backward pass for SUM, MEAN operations
+    - [x] Implement backward pass for REPEAT operation
+    - [x] Implement backward pass for ABS, SGN, STEP operations
     - [ ] Implement backward pass for remaining operations
   - [ ] Implement graph optimization
 - [ ] Implement Quantization Support
