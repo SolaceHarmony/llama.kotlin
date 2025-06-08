@@ -983,3 +983,319 @@ fun computeGelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTe
 
     return result
 }
+
+/**
+ * Subtracts one tensor from another element-wise.
+ *
+ * @param context The GGML context
+ * @param a The first tensor
+ * @param b The second tensor
+ * @return The result tensor (a - b)
+ */
+fun computeSub(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    // Check that the tensors have compatible dimensions
+    for (i in 0 until GGML_MAX_DIMS) {
+        if (a.ne[i] != b.ne[i]) {
+            throw IllegalArgumentException("Incompatible dimensions for subtraction")
+        }
+    }
+
+    // Create a new tensor for the result with the same dimensions as a
+    val result = GGMLTensor(type = a.type)
+    for (i in 0 until GGML_MAX_DIMS) {
+        result.ne[i] = a.ne[i]
+        result.nb[i] = a.nb[i]
+    }
+
+    // Calculate total size
+    val totalSize = calculateTotalSize(a.ne)
+
+    // Perform the subtraction based on the tensor type
+    when (a.type) {
+        GGMLType.F32 -> {
+            val aData = a.data as FloatArray
+            val bData = b.data as FloatArray
+            val resultData = FloatArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = aData[j] - bData[j]
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.F16 -> {
+            val aData = a.data as ShortArray
+            val bData = b.data as ShortArray
+            val resultData = ShortArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    // Convert shorts to floats, subtract, then convert back to short
+                    val aFloat = aData[j].toFloat() / 32768.0f
+                    val bFloat = bData[j].toFloat() / 32768.0f
+                    val diff = aFloat - bFloat
+                    resultData[j] = (diff * 32768.0f).toInt().toShort()
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I8 -> {
+            val aData = a.data as ByteArray
+            val bData = b.data as ByteArray
+            val resultData = ByteArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = (aData[j] - bData[j]).toByte()
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I16 -> {
+            val aData = a.data as ShortArray
+            val bData = b.data as ShortArray
+            val resultData = ShortArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = (aData[j] - bData[j]).toShort()
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I32 -> {
+            val aData = a.data as IntArray
+            val bData = b.data as IntArray
+            val resultData = IntArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = aData[j] - bData[j]
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I64 -> {
+            val aData = a.data as LongArray
+            val bData = b.data as LongArray
+            val resultData = LongArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = aData[j] - bData[j]
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            // Basic implementation for quantized types - dequantize, subtract, then requantize
+            // This is a placeholder and should be optimized in the future
+
+            // For now, we'll convert to F32, perform the operation, and convert back
+            // In a real implementation, we would have specialized code for each quantized type
+
+            // Create temporary F32 tensors
+            val aF32 = dequantizeTensor(a)
+            val bF32 = dequantizeTensor(b)
+
+            // Perform subtraction in F32
+            val resultF32 = computeSub(context, aF32, bF32)
+
+            // Requantize to the original type
+            result.data = quantizeTensor(resultF32, a.type).data
+        }
+        else -> {
+            // For other types, we'll implement later
+            result.data = null
+        }
+    }
+
+    return result
+}
+
+/**
+ * Negates a tensor element-wise.
+ *
+ * @param context The GGML context
+ * @param a The input tensor
+ * @return The result tensor (-a)
+ */
+fun computeNeg(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    // Create a new tensor for the result with the same dimensions as a
+    val result = GGMLTensor(type = a.type)
+    for (i in 0 until GGML_MAX_DIMS) {
+        result.ne[i] = a.ne[i]
+        result.nb[i] = a.nb[i]
+    }
+
+    // Calculate total size
+    val totalSize = calculateTotalSize(a.ne)
+
+    // Perform the negation based on the tensor type
+    when (a.type) {
+        GGMLType.F32 -> {
+            val aData = a.data as FloatArray
+            val resultData = FloatArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = -aData[j]
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.F16 -> {
+            val aData = a.data as ShortArray
+            val resultData = ShortArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    // Convert short to float, negate, then convert back to short
+                    val aFloat = aData[j].toFloat() / 32768.0f
+                    val negated = -aFloat
+                    resultData[j] = (negated * 32768.0f).toInt().toShort()
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I8 -> {
+            val aData = a.data as ByteArray
+            val resultData = ByteArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = (-aData[j]).toByte()
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I16 -> {
+            val aData = a.data as ShortArray
+            val resultData = ShortArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = (-aData[j]).toShort()
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I32 -> {
+            val aData = a.data as IntArray
+            val resultData = IntArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = -aData[j]
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.I64 -> {
+            val aData = a.data as LongArray
+            val resultData = LongArray(totalSize)
+
+            // Process in chunks for better cache utilization
+            val chunkSize = 128
+            var i = 0
+            while (i < totalSize) {
+                val end = minOf(i + chunkSize, totalSize)
+                for (j in i until end) {
+                    resultData[j] = -aData[j]
+                }
+                i = end
+            }
+
+            result.data = resultData
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            // Basic implementation for quantized types - dequantize, negate, then requantize
+            // This is a placeholder and should be optimized in the future
+
+            // For now, we'll convert to F32, perform the operation, and convert back
+            // In a real implementation, we would have specialized code for each quantized type
+
+            // Create temporary F32 tensor
+            val aF32 = dequantizeTensor(a)
+
+            // Perform negation in F32
+            val resultF32 = computeNeg(context, aF32)
+
+            // Requantize to the original type
+            result.data = quantizeTensor(resultF32, a.type).data
+        }
+        else -> {
+            // For other types, we'll implement later
+            result.data = null
+        }
+    }
+
+    return result
+}

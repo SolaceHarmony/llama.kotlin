@@ -231,3 +231,102 @@ fun matMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
         result
     }
 }
+
+/**
+ * Subtracts one tensor from another element-wise.
+ *
+ * @param context The GGML context
+ * @param a The first tensor
+ * @param b The second tensor
+ * @return The result tensor (a - b)
+ */
+fun sub(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.SUB
+    result.src[0] = a
+    result.src[1] = b
+
+    return if (context.computeImmediately) {
+        computeSub(context, a, b)
+    } else {
+        result
+    }
+}
+
+/**
+ * Negates a tensor element-wise.
+ *
+ * @param context The GGML context
+ * @param a The input tensor
+ * @return The result tensor (-a)
+ */
+fun neg(context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.NEG
+    result.src[0] = a
+
+    return if (context.computeImmediately) {
+        computeNeg(context, a)
+    } else {
+        result
+    }
+}
+
+/**
+ * Applies the ReLU activation function to a tensor.
+ *
+ * @param context The GGML context
+ * @param a The input tensor
+ * @return The result tensor
+ */
+fun relu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.RELU
+    result.src[0] = a
+
+    return if (context.computeImmediately) {
+        computeRelu(context, a)
+    } else {
+        result
+    }
+}
+
+/**
+ * Applies the GELU activation function to a tensor.
+ *
+ * @param context The GGML context
+ * @param a The input tensor
+ * @return The result tensor
+ */
+fun gelu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.GELU
+    result.src[0] = a
+
+    return if (context.computeImmediately) {
+        computeGelu(context, a)
+    } else {
+        result
+    }
+}
+
+/**
+ * Divides one tensor by another element-wise.
+ *
+ * @param context The GGML context
+ * @param a The numerator tensor
+ * @param b The denominator tensor
+ * @return The result tensor (a / b)
+ */
+fun div(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type)
+    result.op = GGMLOp.DIV
+    result.src[0] = a
+    result.src[1] = b
+
+    return if (context.computeImmediately) {
+        computeDiv(context, a, b)
+    } else {
+        result
+    }
+}

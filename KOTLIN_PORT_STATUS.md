@@ -227,12 +227,21 @@ The immediate next steps for the project are:
    - ✓ Computation functions implemented in `GGMLComputeOps.kt` and integrated with `GGMLOps.kt`
    - ✓ Expand support for additional tensor data types (F16, I8, I16, I64)
    - ✓ Fix type mismatch issues in tensor operations
+   - ✓ Implement additional tensor operations (SUB, NEG, RELU, GELU)
    - Optimize tensor operations for performance
 
 2. Continue implementing the computation graph
    - ✓ Implement forward pass computation (completed)
    - ✓ Implement graph traversal and execution (completed)
    - Implement automatic differentiation
+     - ✓ Implement backward pass for ADD, SUB, MUL, NEG operations
+     - ✓ Implement backward pass for RELU, GELU activation functions
+     - ✓ Implement backward pass for MUL_MAT (matrix multiplication)
+     - ✓ Implement backward pass for DIV, SQR, SQRT operations
+     - ✓ Implement backward pass for SUM, MEAN operations
+     - ✓ Implement backward pass for REPEAT operation
+     - ✓ Implement backward pass for ABS, SGN, STEP operations
+     - Implement backward pass for remaining operations
    - Implement optimization for the computation graph
 
 3. Set up unit tests for the implemented components
