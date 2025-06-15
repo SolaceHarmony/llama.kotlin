@@ -1,6 +1,45 @@
 package ai.solace.llamakotlin.core
 
 import kotlin.native.concurrent.SharedImmutable
+import kotlin.Short.Companion.SIZE_BYTES
+
+// Numeric conversion functions (assuming they are in the same package or imported)
+// import ai.solace.llamakotlin.core.halfToFloat // Not needed if in same file/package
+// import ai.solace.llamakotlin.core.floatToHalf // Not needed if in same file/package
+
+// Helper functions for Little Endian byte conversions
+internal fun ByteArray.getIntLe(offset: Int): Int {
+    if (offset + 3 >= size) throw IndexOutOfBoundsException("Not enough bytes to read an Int at offset $offset")
+    return (this[offset].toInt() and 0xFF) or
+            ((this[offset + 1].toInt() and 0xFF) shl 8) or
+            ((this[offset + 2].toInt() and 0xFF) shl 16) or
+            ((this[offset + 3].toInt() and 0xFF) shl 24)
+}
+
+internal fun ByteArray.getFloatLe(offset: Int): Float = Float.fromBits(this.getIntLe(offset))
+
+internal fun ByteArray.setIntLe(offset: Int, value: Int) {
+    if (offset + 3 >= size) throw IndexOutOfBoundsException("Not enough bytes to write an Int at offset $offset")
+    this[offset] = (value and 0xFF).toByte()
+    this[offset + 1] = ((value shr 8) and 0xFF).toByte()
+    this[offset + 2] = ((value shr 16) and 0xFF).toByte()
+    this[offset + 3] = ((value shr 24) and 0xFF).toByte()
+}
+
+internal fun ByteArray.setFloatLe(offset: Int, value: Float) = this.setIntLe(offset, value.toRawBits())
+
+internal fun ByteArray.getShortLe(offset: Int): Short {
+    if (offset + 1 >= size) throw IndexOutOfBoundsException("Not enough bytes to read a Short at offset $offset")
+    return ((this[offset].toInt() and 0xFF) or
+            ((this[offset + 1].toInt() and 0xFF) shl 8)).toShort()
+}
+
+internal fun ByteArray.setShortLe(offset: Int, value: Short) {
+    if (offset + 1 >= size) throw IndexOutOfBoundsException("Not enough bytes to write a Short at offset $offset")
+    this[offset] = (value.toInt() and 0xFF).toByte()
+    this[offset + 1] = ((value.toInt() shr 8) and 0xFF).toByte()
+}
+
 
 import kotlin.Short.Companion.SIZE_BYTES
 
