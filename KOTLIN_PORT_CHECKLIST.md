@@ -155,10 +155,13 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Phase 8: Testing and Validation
 
-- [ ] Implement Unit Tests
-  - [ ] Test core tensor operations
+- [~] Implement Unit Tests
+  - [ ] Test core tensor operations (computation logic in GGMLComputeOps)
   - [ ] Test model inference
   - [ ] Test quantization accuracy
+  - [x] Test `GGMLDynTensorAllocator` (dynamic memory allocation within a buffer).
+  - [x] Test `GGMLGraphAllocator` (graph-level memory planning: reserve, inplace allocation, freeing).
+  - [x] Test `GGMLTensor` data accessors (low-level read/write for F32, I32, I16, F16).
 
 - [ ] Implement Integration Tests
   - [ ] Test end-to-end model loading and inference
