@@ -117,9 +117,9 @@ fun computeAdd(
         GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
             val aF32 = dequantizeTensor(graphAllocator, a)
             val bF32 = dequantizeTensor(graphAllocator, b)
-            val resultF32 = computeAdd(graphAllocator, context, aF32, bF32) // This F32 result has its own data
-            val quantizedResult = quantizeTensor(graphAllocator, resultF32, a.type) // This creates another tensor with own data
-            result.data = quantizedResult.data // Copying data array; result tensor itself is not using graphAllocator here.
+            val resultF32 = computeAdd(graphAllocator, context, aF32, bF32)
+            val quantizedResult = quantizeTensor(graphAllocator, resultF32, a.type)
+            result.data = quantizedResult.data
         }
         else -> throw NotImplementedError("computeAdd not implemented for type ${a.type}")
     }
@@ -140,18 +140,42 @@ private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTen
         for(d in 0 until GGML_MAX_DIMS) result.nb[d] = 0uL
     }
 
-    val totalSize = calculateTotalSize(tensor.ne)
-    val resultDataArray = FloatArray(totalSize)
+    val numElements = tensor.numElements().toInt()
+    val resultDataArray = FloatArray(numElements)
 
     when (tensor.type) {
         GGMLType.F16 -> {
-            applyNDIter(tensor, totalSize) { flatIdx, indices ->
-                if (flatIdx < totalSize) resultDataArray[flatIdx] = tensor.getHalf(graphAllocator, *indices)
+            applyNDIter(tensor, numElements) { flatIdx, indices ->
+                if (flatIdx < numElements) resultDataArray[flatIdx] = tensor.getHalf(graphAllocator, *indices)
             }
         }
         GGMLType.F32 -> {
-            applyNDIter(tensor, totalSize) { flatIdx, indices ->
-                if (flatIdx < totalSize) resultDataArray[flatIdx] = tensor.getFloat(graphAllocator, *indices)
+            applyNDIter(tensor, numElements) { flatIdx, indices ->
+                if (flatIdx < numElements) resultDataArray[flatIdx] = tensor.getFloat(graphAllocator, *indices)
+            }
+        }
+        GGMLType.Q8_0 -> {
+            val numBlocks = tensor.getNumBlocks().toInt()
+            var f32DataIndex = 0
+            for (blockIdx in 0 until numBlocks) {
+                val scale = tensor.getQ8_0BlockScale(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK8_0) { // QK8_0 is accessible from GGMLTypes.kt
+                    if (f32DataIndex < numElements) {
+                        val qWeight = tensor.getQ8_0Weight(graphAllocator, blockIdx, itemIdxInBlock)
+                        resultDataArray[f32DataIndex++] = scale * qWeight.toFloat()
+                    } else {
+                        if(f32DataIndex > 0)
+                           println("Warning: Dequantizing Q8_0 tensor ${tensor.name}, f32DataIndex $f32DataIndex exceeded numElements $numElements at block $blockIdx, item $itemIdxInBlock.")
+                        break
+                    }
+                }
+                if (f32DataIndex >= numElements && blockIdx < numBlocks - 1) {
+                     println("Warning: Filled f32DataArray for Q8_0 tensor ${tensor.name} before processing all blocks. Processed $f32DataIndex elements out of $numElements expected.")
+                    break
+                }
+            }
+            if (f32DataIndex != numElements && numElements > 0) {
+                 println("Warning: Dequantization of Q8_0 tensor ${tensor.name} resulted in $f32DataIndex dequantized elements, but tensor.numElements() is $numElements.")
             }
         }
         else -> {
@@ -184,6 +208,7 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
     }
 
     val totalSize = calculateTotalSize(tensorF32.ne)
+
     when (targetType) {
         GGMLType.F16 -> {
             val resultDataArray = ShortArray(totalSize)
@@ -262,18 +287,16 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
                 for (j in 0 until n_cols) { // Col of result (and b)
                     var sum = 0.0f
                     for (l_idx in 0 until k_common) { // Common dimension
-                        // Access a[i, l_idx] and b[l_idx, j]
-                        // Assuming ne[0] is rows, ne[1] is columns for indexing
                         sum += a.getFloat(graphAllocator, l_idx, i) * b.getFloat(graphAllocator, j, l_idx)
                     }
-                    result.setFloat(graphAllocator, sum, j, i) // Set result[i, j]
+                    result.setFloat(graphAllocator, sum, j, i)
                 }
             }
         }
         GGMLType.F16 -> {
              for (i in 0 until m_rows) {
                 for (j in 0 until n_cols) {
-                    var sum = 0.0f // Accumulate in F32 for precision
+                    var sum = 0.0f
                     for (l_idx in 0 until k_common) {
                         sum += a.getHalf(graphAllocator, l_idx, i) * b.getHalf(graphAllocator, j, l_idx)
                     }

@@ -66,6 +66,7 @@ const val GGML_MAX_OP_PARAMS = 32
  */
 const val GGML_MAX_NAME = 64
 const val GGML_TENSOR_FLAG_OUTPUT = 1 shl 0
+internal const val QK8_0: Int = 32 // Block size for Q8_0 blocks
 
 /**
  * Tensor data types
@@ -83,7 +84,8 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     Q4_1("q4_1", 0uL),   // 4-bit quantized with different scaling
     Q5_0("q5_0", 0uL),   // 5-bit quantized
     Q5_1("q5_1", 0uL),   // 5-bit quantized with different scaling
-    Q8_0("q8_0", 0uL),   // 8-bit quantized (often 1 byte per element before block structure)
+    // Q8_0 byteSize is per block: sizeof(Float16 for scale) + QK8_0 * sizeof(Int8 for weights)
+    Q8_0("q8_0", 2uL + QK8_0.toULong()),   // 8-bit quantized, 34 bytes per block (2 + 32*1)
     Q8_1("q8_1", 0uL),   // 8-bit quantized with different scaling
     Q2_K("q2_k", 0uL),   // 2-bit quantized for K-quants
     Q3_K("q3_k", 0uL),   // 3-bit quantized for K-quants
@@ -187,6 +189,39 @@ class GGMLTensor(
     var dataOffset: ULong = 0u
 ) {
     fun isOutput(): Boolean = (this.flags and GGML_TENSOR_FLAG_OUTPUT) != 0
+
+    /**
+     * Calculates the rank of the tensor (number of dimensions > 1).
+     * Or 0 for a scalar that might have ne=[1,1,1,1] or ne=[].
+     * Or 1 for a vector that might be ne=[N,1,1,1].
+     */
+    internal fun rank(): Int {
+        if (ne.all { it <= 1L }) { // Covers scalars like [1,1,1,1] and true 0-rank like [] if ne can be empty
+            return if (ne.any { it > 0L}) 1 else 0 // Treat ne=[1,1,1,1] as rank 1 for element calculation if needed
+        }
+        return ne.indexOfLast { it > 1L } + 1
+    }
+
+    /**
+     * Calculates the total number of elements in the tensor.
+     * For block-quantized types, this is the total number of fundamental elements (e.g., individual weights).
+     */
+    fun numElements(): Long {
+        if (ne.isEmpty()) return 0L
+        var count = 1L
+        // Only multiply dimensions that are part of the tensor's actual rank
+        // or all dimensions if it's a scalar represented by [1,1,1,1]
+        val r = rank()
+        if (r == 0 && ne.all { it <= 1L}) return 1L // Scalar, effectively 1 element
+        if (r == 0 && ne.any { it == 0L}) return 0L // Not a valid tensor shape for elements typically
+
+        for (i in 0 until r.coerceAtLeast(1)) { // Iterate at least once for scalars like ne=[N]
+             if (ne[i] == 0L && r > 1) return 0L // Invalid dimension in a multi-dim tensor
+             if (ne[i] > 0L) count *= ne[i]
+        }
+        return count
+    }
+
 
     // Helper to calculate byte offset of an element given its indices
     private fun getElementByteOffset(vararg indices: Int): ULong {
@@ -314,6 +349,92 @@ class GGMLTensor(
         }
         val shortBits = floatToHalf(value) // floatToHalf is in NumericConversions.kt, assumed imported or accessible
         buffer.setShortLe(finalByteOffset.toInt(), shortBits)
+    }
+
+    // --- Q8_0 Accessors ---
+
+    /**
+     * For Q8_0 and similar block-quantized types, calculates the number of blocks.
+     * Assumes ne holds the number of fundamental elements (e.g., individual weights).
+     */
+    fun getNumBlocks(): Long {
+        if (type != GGMLType.Q8_0) { // Add other block types here in future
+            // Or throw IllegalArgumentException("getNumBlocks is only for block-quantized types")
+            return 0L
+        }
+        val totalElements = numElements()
+        if (totalElements == 0L) return 0L
+
+        val elementsPerBlock = when (type) {
+            GGMLType.Q8_0 -> QK8_0
+            // Future block types:
+            // GGMLType.Q4_0 -> QK4_0 (assuming similar const)
+            else -> return 0L // Should not happen if type check above is exhaustive
+        }
+        if (elementsPerBlock == 0) return 0L // Avoid division by zero
+
+        // Ensure that total elements are a multiple of block size, as per ggml constraints.
+        // If not, it indicates an issue with tensor setup or understanding of its true dimensions.
+        if (totalElements % elementsPerBlock != 0L) {
+            // This is usually an error in ggml, as tensors are expected to be whole blocks.
+            // However, some implementations might pad. For strictness, one might throw here.
+            // For now, simple integer division, implying full blocks.
+            println("Warning: Tensor ${name} of type ${type} has total elements $totalElements which is not perfectly divisible by block size $elementsPerBlock.")
+        }
+        return totalElements / elementsPerBlock
+    }
+
+    /**
+     * Retrieves the F16 scale for a specific block in a Q8_0 quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @return The scale value as a Float.
+     */
+    fun getQ8_0BlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q8_0) { "Tensor type must be Q8_0 to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        // type.byteSize for Q8_0 is the size of one block (e.g., 34 bytes)
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalScaleByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated for tensor '$name'.")
+
+        // The scale is the first F16 (2 bytes) in the block
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + SHORT_SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Q8_0 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - SHORT_SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset.")
+        }
+
+        val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
+        return halfToFloat(scaleBits)
+    }
+
+    /**
+     * Retrieves a single quantized weight (Int8/Byte) from a specific block in a Q8_0 tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK8_0 - 1).
+     * @return The quantized weight as a Byte.
+     */
+    fun getQ8_0Weight(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == GGMLType.Q8_0) { "Tensor type must be Q8_0 to get weight." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK8_0) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${QK8_0 -1}) for Q8_0 block in tensor '$name'."}
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize // type.byteSize is block size for Q8_0
+        val qsArrayBaseOffsetInBlock = 2uL // The F16 scale takes the first 2 bytes of the block
+        val finalWeightByteOffset = dataOffset + blockByteOffset + qsArrayBaseOffsetInBlock + itemIndexInBlock.toULong()
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated for tensor '$name'.")
+
+        if (finalWeightByteOffset.toInt() < 0 || finalWeightByteOffset.toInt() + Byte.SIZE_BYTES > buffer.size) {
+             throw IndexOutOfBoundsException("Attempt to read Q8_0 weight at offset ${finalWeightByteOffset.toInt()} for block $blockIndex, item $itemIndexInBlock in tensor '$name' is out of buffer bounds (0-${buffer.size - Byte.SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset, ItemOffset: $qsArrayBaseOffsetInBlock + $itemIndexInBlock.")
+        }
+        return buffer[finalWeightByteOffset.toInt()]
     }
 }
 
