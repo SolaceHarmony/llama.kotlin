@@ -81,7 +81,7 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [x] Defined Q8_0 block structure (F16 scale + 32xI8 weights, type.byteSize = 34).
     - [x] Implemented data accessors for Q8_0 blocks (`getQ8_0BlockScale`, `getQ8_0Weight`).
     - [x] Implemented Q8_0 to F32 dequantization in `dequantizeTensor`.
-    - [ ] Implement Q8_0 quantization (F32 to Q8_0) in `quantizeTensor`.
+    - [x] Implement Q8_0 quantization (F32 to Q8_0) in `quantizeTensor`.
     - [ ] Implement optimized Q8_0 dot product routines (e.g., for MatMul with F32).
   - [ ] Implement quantized operations
 
