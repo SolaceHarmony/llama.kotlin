@@ -59,13 +59,15 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Implement forward pass computation
   - [x] Implement automatic differentiation (partial implementation)
     - [x] Implement backward pass for ADD, SUB, MUL, NEG operations
-    - [x] Implement backward pass for RELU, GELU activation functions
+    - [x] Implement backward pass for RELU, GELU, SILU activation functions
     - [x] Implement backward pass for MUL_MAT (matrix multiplication)
     - [x] Implement backward pass for DIV, SQR, SQRT operations
     - [x] Implement backward pass for SUM, MEAN operations
     - [x] Implement backward pass for REPEAT operation
     - [x] Implement backward pass for ABS, SGN, STEP operations
-    - [ ] Implement backward pass for remaining operations
+    - [x] Implement backward pass for NORM, RMS_NORM operations
+    - [x] Implement backward pass for SCALE operation
+    - [ ] Implement backward pass for remaining operations (CPY, RESHAPE, VIEW, PERMUTE, TRANSPOSE, GET_ROWS, DIAG_MASK_INF, SOFT_MAX, ROPE, CONV_1D_1S, CONV_1D_2S, FLASH_ATTN, FLASH_FF, MAP_UNARY, MAP_BINARY)
   - [ ] Implement graph optimization
 
 - [ ] Implement Quantization Support
