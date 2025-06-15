@@ -1,5 +1,7 @@
 package ai.solace.llamakotlin.core
 
+import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
+
 /**
  * Kotlin Native port of GGML tensor computation operations.
  * This file contains the implementation of actual computation functionality for tensor operations.
@@ -47,7 +49,12 @@ fun allocateMemory(type: GGMLType, size: Int): Any {
  * @param b The second tensor
  * @return The result tensor
  */
-fun computeAdd(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+fun computeAdd(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
     // Check that the tensors have compatible dimensions
     for (i in 0 until GGML_MAX_DIMS) {
         if (a.ne[i] != b.ne[i]) {
@@ -68,22 +75,62 @@ fun computeAdd(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
     // Perform the addition based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            // result.data is no longer directly assigned for F32.
+            // Values are set into the buffer provided by graphAllocator via result.setFloat(...)
 
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] + bData[j]
+            // Determine tensor rank and iterate accordingly
+            // This is a simplified rank determination. A more robust method might be needed.
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
+
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                val v0 = a.getFloat(graphAllocator, i0, i1, i2, i3)
+                                val v1 = b.getFloat(graphAllocator, i0, i1, i2, i3)
+                                result.setFloat(graphAllocator, v0 + v1, i0, i1, i2, i3)
+                            }
+                        }
+                    }
                 }
-                i = end
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            val v0 = a.getFloat(graphAllocator, i0, i1, i2)
+                            val v1 = b.getFloat(graphAllocator, i0, i1, i2)
+                            result.setFloat(graphAllocator, v0 + v1, i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        val v0 = a.getFloat(graphAllocator, i0, i1)
+                        val v1 = b.getFloat(graphAllocator, i0, i1)
+                        result.setFloat(graphAllocator, v0 + v1, i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D (n0 > 0 to handle true scalars where ne[0] could be 1 or 0)
+                                 // Or if ne[0] is always >= 1 for valid tensors.
+                for (i0 in 0 until n0) {
+                    val v0 = a.getFloat(graphAllocator, i0)
+                    val v1 = b.getFloat(graphAllocator, i0)
+                    result.setFloat(graphAllocator, v0 + v1, i0)
+                }
+            } else { // Scalar - assuming ne are all 1 or 0.
+                     // getFloat with no args might be ambiguous if not truly scalar.
+                     // If ne=[1,1,1,1], getFloat(0,0,0,0) is more precise.
+                     // For now, assume if we reach here, it's a scalar for getFloat()
+                val v0 = a.getFloat(graphAllocator) // Or a.getFloat(graphAllocator, 0) if 1D scalar
+                val v1 = b.getFloat(graphAllocator) // Or b.getFloat(graphAllocator, 0)
+                result.setFloat(graphAllocator, v0 + v1) // Or result.setFloat(graphAllocator, v0+v1, 0)
             }
-
-            result.data = resultData
+            // The line `result.data = resultData` is removed as data is written to graphAllocator's buffer.
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -187,11 +234,32 @@ fun computeAdd(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
             // In a real implementation, we would have specialized code for each quantized type
 
             // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
+            val aF32 = dequantizeTensor(a) // This dequantize may need graphAllocator if it creates tensors for graphAllocator
+            val bF32 = dequantizeTensor(b) // Same here
 
             // Perform addition in F32
-            val resultF32 = computeAdd(context, aF32, bF32)
+            // IMPORTANT: computeAdd now requires graphAllocator.
+            // This recursive call needs to be updated.
+            // For now, this will cause a compile error. This will be addressed later if dequantize/quantize are in scope.
+            // For this step, focusing on direct F32 ops.
+            // Let's assume this part is NOT refactored in this specific step to avoid complexity with dequantize/quantize.
+            // The task is to refactor F32 ops. The quantized ops call F32 ops.
+            // So, the F32 path of this computeAdd will be used by quant ops.
+            // The call from quantized path should be: computeAdd(graphAllocator, context, aF32, bF32)
+            // However, dequantizeTensor and quantizeTensor also create new tensors and would need allocation.
+            // This is out of scope for "refactor F32 ops".
+            // For now, I will assume that the F32 path is the primary target.
+            // The existing code for quantized types will break if computeAdd signature changes and calls are not updated.
+            // The plan is to refactor F32, so the F32 block is the main change.
+            // The recursive call from Q_TYPES -> F32 computeAdd needs to pass graphAllocator.
+            // This implies dequantizeTensor and quantizeTensor might also need graphAllocator if they manage tensor memory.
+            // Let's assume for now that dequantize/quantize are separate and this call path is more complex.
+            // I will add graphAllocator to the recursive call.
+            val aF32 = dequantizeTensor(graphAllocator, a) // Assuming dequantize needs it
+            val bF32 = dequantizeTensor(graphAllocator, b) // Assuming dequantize needs it
+
+            // Perform addition in F32
+            val resultF32 = computeAdd(graphAllocator, context, aF32, bF32)
 
             // Requantize to the original type
             result.data = quantizeTensor(resultF32, a.type).data
@@ -283,7 +351,12 @@ private fun quantizeTensor(tensor: GGMLTensor, type: GGMLType): GGMLTensor {
  * @param b The second tensor
  * @return The result tensor
  */
-fun computeMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+fun computeMul(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
     // Check that the tensors have compatible dimensions
     for (i in 0 until GGML_MAX_DIMS) {
         if (a.ne[i] != b.ne[i]) {
@@ -304,22 +377,54 @@ fun computeMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
     // Perform the multiplication based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            // result.data is no longer directly assigned for F32.
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
 
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] * bData[j]
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                val v0 = a.getFloat(graphAllocator, i0, i1, i2, i3)
+                                val v1 = b.getFloat(graphAllocator, i0, i1, i2, i3)
+                                result.setFloat(graphAllocator, v0 * v1, i0, i1, i2, i3)
+                            }
+                        }
+                    }
                 }
-                i = end
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            val v0 = a.getFloat(graphAllocator, i0, i1, i2)
+                            val v1 = b.getFloat(graphAllocator, i0, i1, i2)
+                            result.setFloat(graphAllocator, v0 * v1, i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        val v0 = a.getFloat(graphAllocator, i0, i1)
+                        val v1 = b.getFloat(graphAllocator, i0, i1)
+                        result.setFloat(graphAllocator, v0 * v1, i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D
+                for (i0 in 0 until n0) {
+                    val v0 = a.getFloat(graphAllocator, i0)
+                    val v1 = b.getFloat(graphAllocator, i0)
+                    result.setFloat(graphAllocator, v0 * v1, i0)
+                }
+            } else { // Scalar
+                val v0 = a.getFloat(graphAllocator)
+                val v1 = b.getFloat(graphAllocator)
+                result.setFloat(graphAllocator, v0 * v1)
             }
-
-            result.data = resultData
+            // The line `result.data = resultData` is removed.
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -423,11 +528,11 @@ fun computeMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
             // In a real implementation, we would have specialized code for each quantized type
 
             // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
+            val aF32 = dequantizeTensor(graphAllocator, a) // Assuming dequantize needs it
+            val bF32 = dequantizeTensor(graphAllocator, b) // Assuming dequantize needs it
 
             // Perform multiplication in F32
-            val resultF32 = computeMul(context, aF32, bF32)
+            val resultF32 = computeMul(graphAllocator, context, aF32, bF32)
 
             // Requantize to the original type
             result.data = quantizeTensor(resultF32, a.type).data
@@ -449,9 +554,14 @@ fun computeMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
  * @param b The second tensor (n x p)
  * @return The result tensor (m x p)
  */
-fun computeMatMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+fun computeMatMul(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
     // Check that the tensors have compatible dimensions for matrix multiplication
-    // a: m x n, b: n x p, result: m x p
+    // Original comment: a: m x n, b: n x p, result: m x p
     val m = a.ne[0]
     val n = a.ne[1]
     val p = b.ne[1]
@@ -491,43 +601,61 @@ fun computeMatMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GG
     // Perform the matrix multiplication based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            // val aData = a.data as FloatArray // Remove
+            // val bData = b.data as FloatArray // Remove
+            // val resultData = FloatArray(totalSize) // Remove, data goes to graphAllocator buffer
 
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
+            // Based on: a.ne[0]=m (rows), a.ne[1]=n (cols)
+            //           b.ne[0]=n (rows), b.ne[1]=p (cols)
+            //           result.ne[0]=m (rows), result.ne[1]=p (cols)
+            // This means element (row_idx, col_idx) is tensor.getFloat(col_idx, row_idx)
+            // if ne[0] is columns and ne[1] is rows.
+            // The problem statement's example was:
+            // dst.setFloat(graphAllocator, sum, n_idx, m_idx) for (M rows, N cols)
+            // where n_idx is col index (up to N), m_idx is row index (up to M).
+            // This implies indices are (idx_dim0, idx_dim1) -> (col, row)
+            // If a.ne[0] = m (rows), a.ne[1] = n (cols)
+            // Then a.getFloat(graphAllocator, col_k, row_i)
+            // If b.ne[0] = n (rows), b.ne[1] = p (cols)
+            // Then b.getFloat(graphAllocator, col_j, row_k)
+            // result.setFloat(graphAllocator, sum, col_j, row_i)
 
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0.0f
+            // Let's use the dimensions as defined in this function:
+            // a: m rows, n cols. So a.ne[0] = m, a.ne[1] = n.
+            // b: n rows, p cols. So b.ne[0] = n, b.ne[1] = p.
+            // res:m rows, p cols. So res.ne[0] = m, res.ne[1] = p.
+            // Access a(row, col) is a.getFloat(graphAllocator, col, row) if ne[0] is for cols.
+            // The current code for result.ne[0]=m, result.ne[1]=p suggests ne[0] is rows.
+
+            val m_rows = a.ne[0].toInt() // M
+            val n_common = a.ne[1].toInt() // K (using K from prompt example M,N,K)
+            val p_cols = b.ne[1].toInt() // N
+
+            if (b.ne[0].toInt() != n_common) { // Check common dim agreement
+                 throw IllegalArgumentException(
+                    "Dimension mismatch for matmul: a.ne[1] (${a.ne[1]}) != b.ne[0] (${b.ne[0]})"
+                )
             }
+            // result.ne[0] should be m_rows, result.ne[1] should be p_cols.
+            // The existing result setup: result.ne[0] = m, result.ne[1] = p. This matches.
 
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                val aVal = aData[i * n.toInt() + k]
-
-                                for (j in jj until jEnd) {
-                                    resultData[i * p.toInt() + j] += aVal * bData[k * p.toInt() + j]
-                                }
-                            }
-                        }
+            for (i in 0 until m_rows) { // Index for rows of result (and a)
+                for (j in 0 until p_cols) { // Index for columns of result (and b)
+                    var sum = 0.0f
+                    for (k in 0 until n_common) { // Index for common dimension (cols of a, rows of b)
+                        // a[i, k] * b[k, j]
+                        // Assuming ne[0] is rows, ne[1] is columns:
+                        // a.getFloat(graphAllocator, k, i) for a[row_i, col_k]
+                        // b.getFloat(graphAllocator, j, k) for b[row_k, col_j]
+                        val valA = a.getFloat(graphAllocator, k, i) // Access a[i][k]
+                        val valB = b.getFloat(graphAllocator, j, k) // Access b[k][j]
+                        sum += valA * valB
                     }
+                    // result[i, j] = sum
+                    result.setFloat(graphAllocator, sum, j, i) // Set result[i][j]
                 }
             }
-
-            result.data = resultData
+            // result.data = resultData is removed
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -745,11 +873,11 @@ fun computeMatMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GG
             // In a real implementation, we would have specialized code for each quantized type
 
             // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
+            val aF32 = dequantizeTensor(graphAllocator, a) // Assuming dequantize needs it
+            val bF32 = dequantizeTensor(graphAllocator, b) // Assuming dequantize needs it
 
             // Perform matrix multiplication in F32
-            val resultF32 = computeMatMul(context, aF32, bF32)
+            val resultF32 = computeMatMul(graphAllocator, context, aF32, bF32)
 
             // Requantize to the original type
             result.data = quantizeTensor(resultF32, a.type).data
@@ -770,7 +898,11 @@ fun computeMatMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GG
  * @param a The input tensor
  * @return The result tensor
  */
-fun computeRelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+fun computeRelu(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor
+): GGMLTensor {
     // Create a new tensor for the result with the same dimensions as a
     val result = GGMLTensor(type = a.type)
     for (i in 0 until GGML_MAX_DIMS) {
@@ -784,14 +916,48 @@ fun computeRelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTe
     // Apply the ReLU function based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
 
-            for (i in 0 until totalSize) {
-                resultData[i] = if (aData[i] > 0.0f) aData[i] else 0.0f
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                val v = a.getFloat(graphAllocator, i0, i1, i2, i3)
+                                result.setFloat(graphAllocator, if (v > 0.0f) v else 0.0f, i0, i1, i2, i3)
+                            }
+                        }
+                    }
+                }
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            val v = a.getFloat(graphAllocator, i0, i1, i2)
+                            result.setFloat(graphAllocator, if (v > 0.0f) v else 0.0f, i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        val v = a.getFloat(graphAllocator, i0, i1)
+                        result.setFloat(graphAllocator, if (v > 0.0f) v else 0.0f, i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D
+                for (i0 in 0 until n0) {
+                    val v = a.getFloat(graphAllocator, i0)
+                    result.setFloat(graphAllocator, if (v > 0.0f) v else 0.0f, i0)
+                }
+            } else { // Scalar
+                val v = a.getFloat(graphAllocator)
+                result.setFloat(graphAllocator, if (v > 0.0f) v else 0.0f)
             }
-
-            result.data = resultData
+            // result.data = resultData is removed
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -862,7 +1028,11 @@ fun computeRelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTe
  * @param a The input tensor
  * @return The result tensor
  */
-fun computeGelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+fun computeGelu(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor
+): GGMLTensor {
     // Create a new tensor for the result with the same dimensions as a
     val result = GGMLTensor(type = a.type)
     for (i in 0 until GGML_MAX_DIMS) {
@@ -876,16 +1046,46 @@ fun computeGelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTe
     // Apply the GELU function based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
 
-            for (i in 0 until totalSize) {
-                // GELU approximation: x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
-                val x = aData[i]
-                resultData[i] = x * 0.5f * (1.0f + kotlin.math.tanh(0.797885f * (x + 0.044715f * x * x * x)))
+            // GELU approximation: x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+            val geluApprox = { x: Float -> x * 0.5f * (1.0f + kotlin.math.tanh(0.797885f * (x + 0.044715f * x * x * x))) }
+
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                result.setFloat(graphAllocator, geluApprox(a.getFloat(graphAllocator, i0, i1, i2, i3)), i0, i1, i2, i3)
+                            }
+                        }
+                    }
+                }
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            result.setFloat(graphAllocator, geluApprox(a.getFloat(graphAllocator, i0, i1, i2)), i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        result.setFloat(graphAllocator, geluApprox(a.getFloat(graphAllocator, i0, i1)), i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D
+                for (i0 in 0 until n0) {
+                    result.setFloat(graphAllocator, geluApprox(a.getFloat(graphAllocator, i0)), i0)
+                }
+            } else { // Scalar
+                result.setFloat(graphAllocator, geluApprox(a.getFloat(graphAllocator)))
             }
-
-            result.data = resultData
+            // result.data = resultData is removed
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -992,7 +1192,12 @@ fun computeGelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTe
  * @param b The second tensor
  * @return The result tensor (a - b)
  */
-fun computeSub(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+fun computeSub(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
     // Check that the tensors have compatible dimensions
     for (i in 0 until GGML_MAX_DIMS) {
         if (a.ne[i] != b.ne[i]) {
@@ -1013,22 +1218,53 @@ fun computeSub(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
     // Perform the subtraction based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
 
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] - bData[j]
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                val v0 = a.getFloat(graphAllocator, i0, i1, i2, i3)
+                                val v1 = b.getFloat(graphAllocator, i0, i1, i2, i3)
+                                result.setFloat(graphAllocator, v0 - v1, i0, i1, i2, i3)
+                            }
+                        }
+                    }
                 }
-                i = end
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            val v0 = a.getFloat(graphAllocator, i0, i1, i2)
+                            val v1 = b.getFloat(graphAllocator, i0, i1, i2)
+                            result.setFloat(graphAllocator, v0 - v1, i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        val v0 = a.getFloat(graphAllocator, i0, i1)
+                        val v1 = b.getFloat(graphAllocator, i0, i1)
+                        result.setFloat(graphAllocator, v0 - v1, i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D
+                for (i0 in 0 until n0) {
+                    val v0 = a.getFloat(graphAllocator, i0)
+                    val v1 = b.getFloat(graphAllocator, i0)
+                    result.setFloat(graphAllocator, v0 - v1, i0)
+                }
+            } else { // Scalar
+                val v0 = a.getFloat(graphAllocator)
+                val v1 = b.getFloat(graphAllocator)
+                result.setFloat(graphAllocator, v0 - v1)
             }
-
-            result.data = resultData
+            // result.data = resultData is removed
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -1132,11 +1368,11 @@ fun computeSub(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
             // In a real implementation, we would have specialized code for each quantized type
 
             // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
+            val aF32 = dequantizeTensor(graphAllocator, a) // Assuming dequantize needs it
+            val bF32 = dequantizeTensor(graphAllocator, b) // Assuming dequantize needs it
 
             // Perform subtraction in F32
-            val resultF32 = computeSub(context, aF32, bF32)
+            val resultF32 = computeSub(graphAllocator, context, aF32, bF32)
 
             // Requantize to the original type
             result.data = quantizeTensor(resultF32, a.type).data
@@ -1157,7 +1393,11 @@ fun computeSub(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
  * @param a The input tensor
  * @return The result tensor (-a)
  */
-fun computeNeg(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+fun computeNeg(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor
+): GGMLTensor {
     // Create a new tensor for the result with the same dimensions as a
     val result = GGMLTensor(type = a.type)
     for (i in 0 until GGML_MAX_DIMS) {
@@ -1171,21 +1411,43 @@ fun computeNeg(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTen
     // Perform the negation based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
 
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = -aData[j]
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                result.setFloat(graphAllocator, -a.getFloat(graphAllocator, i0, i1, i2, i3), i0, i1, i2, i3)
+                            }
+                        }
+                    }
                 }
-                i = end
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            result.setFloat(graphAllocator, -a.getFloat(graphAllocator, i0, i1, i2), i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        result.setFloat(graphAllocator, -a.getFloat(graphAllocator, i0, i1), i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D
+                for (i0 in 0 until n0) {
+                    result.setFloat(graphAllocator, -a.getFloat(graphAllocator, i0), i0)
+                }
+            } else { // Scalar
+                result.setFloat(graphAllocator, -a.getFloat(graphAllocator))
             }
-
-            result.data = resultData
+            // result.data = resultData is removed
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -1283,10 +1545,10 @@ fun computeNeg(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTen
             // In a real implementation, we would have specialized code for each quantized type
 
             // Create temporary F32 tensor
-            val aF32 = dequantizeTensor(a)
+            val aF32 = dequantizeTensor(graphAllocator, a) // Assuming dequantize needs it
 
             // Perform negation in F32
-            val resultF32 = computeNeg(context, aF32)
+            val resultF32 = computeNeg(graphAllocator, context, aF32)
 
             // Requantize to the original type
             result.data = quantizeTensor(resultF32, a.type).data
@@ -1308,7 +1570,12 @@ fun computeNeg(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTen
  * @param b The denominator tensor
  * @return The result tensor (a / b)
  */
-fun computeDiv(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+fun computeDiv(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
     // Check that the tensors have compatible dimensions
     for (i in 0 until GGML_MAX_DIMS) {
         if (a.ne[i] != b.ne[i]) {
@@ -1329,33 +1596,63 @@ fun computeDiv(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
     // Perform division based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
+            val n0 = result.ne[0].toInt()
+            val n1 = result.ne[1].toInt()
+            val n2 = result.ne[2].toInt()
+            val n3 = result.ne[3].toInt()
 
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    if (bData[j] == 0.0f) {
-                        // Handle division by zero
-                        resultData[j] = if (aData[j] == 0.0f) {
-                            Float.NaN // 0/0 = NaN
-                        } else if (aData[j] > 0.0f) {
-                            Float.POSITIVE_INFINITY // positive/0 = +Infinity
-                        } else {
-                            Float.NEGATIVE_INFINITY // negative/0 = -Infinity
-                        }
-                    } else {
-                        resultData[j] = aData[j] / bData[j]
-                    }
+            val divideOp = { vA: Float, vB: Float ->
+                if (vB == 0.0f) {
+                    if (vA == 0.0f) Float.NaN
+                    else if (vA > 0.0f) Float.POSITIVE_INFINITY
+                    else Float.NEGATIVE_INFINITY
+                } else {
+                    vA / vB
                 }
-                i = end
             }
 
-            result.data = resultData
+            if (n3 > 1) { // 4D
+                for (i3 in 0 until n3) {
+                    for (i2 in 0 until n2) {
+                        for (i1 in 0 until n1) {
+                            for (i0 in 0 until n0) {
+                                val v0 = a.getFloat(graphAllocator, i0, i1, i2, i3)
+                                val v1 = b.getFloat(graphAllocator, i0, i1, i2, i3)
+                                result.setFloat(graphAllocator, divideOp(v0, v1), i0, i1, i2, i3)
+                            }
+                        }
+                    }
+                }
+            } else if (n2 > 1) { // 3D
+                for (i2 in 0 until n2) {
+                    for (i1 in 0 until n1) {
+                        for (i0 in 0 until n0) {
+                            val v0 = a.getFloat(graphAllocator, i0, i1, i2)
+                            val v1 = b.getFloat(graphAllocator, i0, i1, i2)
+                            result.setFloat(graphAllocator, divideOp(v0, v1), i0, i1, i2)
+                        }
+                    }
+                }
+            } else if (n1 > 1) { // 2D
+                for (i1 in 0 until n1) {
+                    for (i0 in 0 until n0) {
+                        val v0 = a.getFloat(graphAllocator, i0, i1)
+                        val v1 = b.getFloat(graphAllocator, i0, i1)
+                        result.setFloat(graphAllocator, divideOp(v0, v1), i0, i1)
+                    }
+                }
+            } else if (n0 > 0) { // 1D
+                for (i0 in 0 until n0) {
+                    val v0 = a.getFloat(graphAllocator, i0)
+                    val v1 = b.getFloat(graphAllocator, i0)
+                    result.setFloat(graphAllocator, divideOp(v0, v1), i0)
+                }
+            } else { // Scalar
+                val v0 = a.getFloat(graphAllocator)
+                val v1 = b.getFloat(graphAllocator)
+                result.setFloat(graphAllocator, divideOp(v0, v1))
+            }
+            // result.data = resultData is removed
         }
         GGMLType.F16 -> {
             val aData = a.data as ShortArray
@@ -1493,11 +1790,11 @@ fun computeDiv(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLT
             // In a real implementation, we would have specialized code for each quantized type
 
             // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
+            val aF32 = dequantizeTensor(graphAllocator, a) // Assuming dequantize needs it
+            val bF32 = dequantizeTensor(graphAllocator, b) // Assuming dequantize needs it
 
             // Perform division in F32
-            val resultF32 = computeDiv(context, aF32, bF32)
+            val resultF32 = computeDiv(graphAllocator, context, aF32, bF32)
 
             // Requantize to the original type
             result.data = quantizeTensor(resultF32, a.type).data

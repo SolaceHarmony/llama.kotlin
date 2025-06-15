@@ -50,6 +50,32 @@ class GGMLTensorAllocator {
         this.offset = 0u
     }
 
+    private fun ensureBufferCapacity(bufferId: Int, requiredSize: ULong) {
+        if (bufferId < 0 || bufferId >= buffers.size || bufferId >= tensorAllocators.size) {
+            throw IllegalArgumentException("Error: Invalid bufferId $bufferId. It must be between 0 and ${buffers.size - 1}, and within the range of tensorAllocators.")
+        }
+
+        val currentBuffer = buffers[bufferId]
+        if (currentBuffer == null || currentBuffer.size < requiredSize.toInt()) {
+            // Ensure requiredSize is not zero if creating a new buffer,
+            // though ULong to Int conversion might cap it.
+            // Consider a minimum practical size or error if requiredSize is too large for Int.
+            val newSize = if (requiredSize > Int.MAX_VALUE.toULong()) {
+                println("Warning: requiredSize $requiredSize exceeds Int.MAX_VALUE. Clamping to Int.MAX_VALUE.")
+                Int.MAX_VALUE
+            } else {
+                requiredSize.toInt()
+            }
+
+            if (newSize <= 0 && requiredSize > 0u) {
+                throw IllegalArgumentException("Invalid buffer allocation: requiredSize $requiredSize resulted in non-positive newSize $newSize. This may indicate an overflow or logical error.")
+            }
+
+            buffers[bufferId] = ByteArray(newSize)
+            tensorAllocators[bufferId].reset(newSize.toULong())
+        }
+    }
+
     /**
      * Allocates memory for a tensor.
      *
@@ -126,9 +152,9 @@ class GGMLDynTensorAllocator {
      *
      * @param alignment The alignment requirement for tensor data
      */
-    constructor(alignment: UInt = 16u) {
+    constructor(alignment: UInt = 16u, bufferSize: ULong? = null) {
         this.alignment = alignment
-        reset()
+        reset(bufferSize)
     }
 
     /**
@@ -237,9 +263,9 @@ class GGMLDynTensorAllocator {
     /**
      * Resets the allocator.
      */
-    fun reset() {
+    fun reset(bufferSize: ULong? = null) {
         freeBlocks.clear()
-        freeBlocks.add(FreeBlock(0u, ULong.MAX_VALUE / 2u)) // Restrict maximum size to half ULong.MAX_VALUE to avoid overflows
+        freeBlocks.add(FreeBlock(0u, bufferSize ?: (ULong.MAX_VALUE / 2u))) // Restrict maximum size to half ULong.MAX_VALUE to avoid overflows
         maxSize = 0u
     }
 
@@ -261,15 +287,16 @@ class GGMLGraphAllocator {
     var tensorAllocators = mutableListOf<GGMLDynTensorAllocator>()
 
     // Buffers
-    var buffers = mutableListOf<Any?>()
+    var buffers = mutableListOf<ByteArray?>()
 
     /**
      * Creates a new graph allocator.
      */
     constructor() {
         // Create a default tensor allocator
-        tensorAllocators.add(GGMLDynTensorAllocator())
-        buffers.add(null)
+        val defaultBufferSize = 1024 * 1024
+        buffers.add(ByteArray(defaultBufferSize))
+        tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
 
     /**
@@ -310,6 +337,9 @@ class GGMLGraphAllocator {
             }
         }
 
+        val calculatedMaxSize = getBufferSize(0)
+        ensureBufferCapacity(0, calculatedMaxSize)
+
         return true
     }
 
@@ -324,18 +354,12 @@ class GGMLGraphAllocator {
         val size = calculateTensorSize(tensor)
 
         // Allocate memory from the tensor allocator
-        @Suppress("unused") val offset = tensorAllocators[bufferId].allocate(size, tensor)
+        val offset = tensorAllocators[bufferId].allocate(size, tensor)
 
-        // Allocate memory for the tensor based on its type
-        when (tensor.type) {
-            GGMLType.F32 -> tensor.data = FloatArray(size.toInt()) { 0.0f }
-            GGMLType.F16 -> tensor.data = ShortArray(size.toInt()) { 0 }
-            GGMLType.I8 -> tensor.data = ByteArray(size.toInt()) { 0 }
-            GGMLType.I16 -> tensor.data = ShortArray(size.toInt()) { 0 }
-            GGMLType.I32 -> tensor.data = IntArray(size.toInt()) { 0 }
-            GGMLType.I64 -> tensor.data = LongArray(size.toInt()) { 0L }
-            else -> tensor.data = ByteArray(size.toInt()) { 0 } // Default for quantized types
-        }
+        // Set buffer information on the tensor
+        tensor.bufferId = bufferId
+        tensor.dataOffset = offset
+        // tensor.data remains null, actual data access will be through the buffer
     }
 
     /**

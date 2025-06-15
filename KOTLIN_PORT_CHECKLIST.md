@@ -30,7 +30,17 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Implement context structure (GGMLContext class)
   - [x] Implement computation graph structure (GGMLCGraph class)
   - [x] Implement basic memory allocation structures (GGMLTensorAllocator, GGMLGraphAllocator)
-  - [x] Complete memory allocation implementation with actual functionality
+  - [~] Complete memory allocation implementation with actual functionality
+    - [x] Refactored GGMLGraphAllocator to use a primary ByteArray buffer.
+    - [x] GGMLTensor now stores bufferId and dataOffset, with GGMLGraphAllocator setting these.
+    - [x] reserveGraph now sizes the primary ByteArray appropriately and informs the dynamic allocator.
+    - [x] Implement efficient tensor data access methods/views into the backing ByteArray(s).
+      - [x] Added `nb` (strides) to `GGMLTensor` and populated it in new tensor creation functions.
+      - [x] Implemented `get/set` accessors on `GGMLTensor` for F32, I32, I16 using `ByteArray` helpers and stride information.
+      - [x] Refactored F32 compute operations in `GGMLComputeOps.kt` to use the new data accessors.
+      - [ ] Implement F16 typed accessors and update relevant compute operations.
+      - [ ] Further optimize data access if performance bottlenecks are identified (e.g., exploring direct memory access if feasible).
+    - [ ] Implement inplace tensor allocation and memory reuse logic in GGMLGraphAllocator.
 
 - [x] Implement Basic Tensor Operations
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
