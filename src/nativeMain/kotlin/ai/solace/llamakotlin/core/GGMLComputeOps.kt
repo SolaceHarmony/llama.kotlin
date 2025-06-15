@@ -1,6 +1,9 @@
 package ai.solace.llamakotlin.core
 
 import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
+import kotlin.math.abs
+import kotlin.math.round
+import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
 /**
  * Kotlin Native port of GGML tensor computation operations.
@@ -227,9 +230,49 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
             }
             result.data = resultDataArray
         }
+        GGMLType.Q8_0 -> {
+            val numElements = tensorF32.numElements().toInt()
+            require(numElements % QK8_0 == 0) { "For Q8_0 quantization, total elements ($numElements) must be divisible by QK8_0 ($QK8_0)" }
+            val numBlocks = numElements / QK8_0
+            val q8BlockByteSize = targetType.byteSize.toInt() // Should be 34
+            val q8DataArray = ByteArray(numBlocks * q8BlockByteSize)
+
+            val f32BlockValues = FloatArray(QK8_0)
+            var currentF32ElementIndex = 0
+            var q8ByteArrayWriteOffset = 0
+
+            // This assumes applyNDIter gives elements in a flat, C-contiguous order
+            applyNDIter(tensorF32, numElements) { _, indices ->
+                val itemInBlock = currentF32ElementIndex % QK8_0
+                f32BlockValues[itemInBlock] = tensorF32.getFloat(graphAllocator, *indices)
+
+                if (itemInBlock == QK8_0 - 1) { // Block is full, process it
+                    var amax = 0.0f
+                    for (v in f32BlockValues) { amax = maxOf(amax, abs(v)) }
+
+                    val scaleF32 = if (amax == 0.0f) 1.0f else amax / 127.0f // Max Q8 value is 127 for positive range
+                    val scaleF16Short = floatToHalf(scaleF32)
+
+                    q8DataArray.setShortLe(q8ByteArrayWriteOffset, scaleF16Short)
+                    val qsDataWriteOffset = q8ByteArrayWriteOffset + SHORT_SIZE_BYTES
+
+                    for (k in 0 until QK8_0) {
+                        val fVal = f32BlockValues[k]
+                        val scaledVal = if (scaleF32 == 0.0f) 0.0f else fVal / scaleF32
+                        var iVal = round(scaledVal).toInt()
+                        iVal = iVal.coerceIn(-128, 127) // ggml q8 is typically -128 to 127
+                        q8DataArray[qsDataWriteOffset + k] = iVal.toByte()
+                    }
+                    q8ByteArrayWriteOffset += q8BlockByteSize
+                }
+                currentF32ElementIndex++
+            }
+            result.data = q8DataArray
+        }
+        GGMLType.Q8_1 -> { result.data = ByteArray(totalSize); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
         GGMLType.Q4_0, GGMLType.Q4_1 -> { result.data = ByteArray((totalSize + 1) / 2); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
         GGMLType.Q5_0, GGMLType.Q5_1 -> { result.data = ByteArray((totalSize * 5 + 7) / 8); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
-        GGMLType.Q8_0, GGMLType.Q8_1 -> { result.data = ByteArray(totalSize); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
+        // Add other Q types here if needed
         else -> {
             println("Error: Unsupported target quantization type $targetType in quantizeTensor")
             result.data = null
