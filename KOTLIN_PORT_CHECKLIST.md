@@ -72,7 +72,12 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [ ] Implement 1.5-bit integer quantization
   - [ ] Implement 2-bit integer quantization
   - [ ] Implement 3-bit integer quantization
-  - [ ] Implement 4-bit integer quantization
+  - [~] Implement 4-bit integer quantization (Q4_0 focused)
+    - [x] Defined Q4_0 block structure (F16 scale + 32x4-bit packed weights, type.byteSize = 18).
+    - [x] Implemented data accessors for Q4_0 blocks (`getQ4_0BlockScale`, `getQ4_0NibbleWeight`).
+    - [x] Implemented Q4_0 to F32 dequantization in `dequantizeTensor`.
+    - [ ] Implement Q4_0 quantization (F32 to Q4_0) in `quantizeTensor`.
+    - [ ] Implement optimized Q4_0 dot product routines (e.g., for MatMul with F32).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
   - [~] Implement 8-bit integer quantization (Q8_0 focused)

@@ -67,6 +67,7 @@ const val GGML_MAX_OP_PARAMS = 32
 const val GGML_MAX_NAME = 64
 const val GGML_TENSOR_FLAG_OUTPUT = 1 shl 0
 internal const val QK8_0: Int = 32 // Block size for Q8_0 blocks
+internal const val QK4_0: Int = 32 // Block size for Q4_0 blocks
 
 /**
  * Tensor data types
@@ -80,7 +81,8 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     // Using 0uL as a placeholder signifies that direct byteSize-based stride calculation isn't straightforward.
     // The ggml library itself has type_size and block_size fields and functions like ggml_type_size() / ggml_blck_size().
     // For now, these are placeholders. The stride logic will primarily rely on non-zero byteSize for unquantized types.
-    Q4_0("q4_0", 0uL),   // 4-bit quantized
+    // Q4_0 byteSize is per block: sizeof(F16 scale) + (QK4_0/2) * sizeof(I8 weights_packed)
+    Q4_0("q4_0", 2uL + (QK4_0 / 2).toULong()),   // 4-bit quantized, 18 bytes per block (2 + 32/2*1)
     Q4_1("q4_1", 0uL),   // 4-bit quantized with different scaling
     Q5_0("q5_0", 0uL),   // 5-bit quantized
     Q5_1("q5_1", 0uL),   // 5-bit quantized with different scaling
@@ -358,20 +360,19 @@ class GGMLTensor(
      * Assumes ne holds the number of fundamental elements (e.g., individual weights).
      */
     fun getNumBlocks(): Long {
-        if (type != GGMLType.Q8_0) { // Add other block types here in future
-            // Or throw IllegalArgumentException("getNumBlocks is only for block-quantized types")
-            return 0L
-        }
         val totalElements = numElements()
         if (totalElements == 0L) return 0L
 
         val elementsPerBlock = when (type) {
-            GGMLType.Q8_0 -> QK8_0
-            // Future block types:
-            // GGMLType.Q4_0 -> QK4_0 (assuming similar const)
-            else -> return 0L // Should not happen if type check above is exhaustive
+            GGMLType.Q8_0 -> QK8_0.toLong()
+            GGMLType.Q4_0 -> QK4_0.toLong()
+            // Future block types can be added here
+            else -> {
+                // Or throw IllegalArgumentException("getNumBlocks is only for block-quantized types")
+                return 0L
+            }
         }
-        if (elementsPerBlock == 0) return 0L // Avoid division by zero
+        if (elementsPerBlock == 0L) return 0L // Avoid division by zero
 
         // Ensure that total elements are a multiple of block size, as per ggml constraints.
         // If not, it indicates an issue with tensor setup or understanding of its true dimensions.
@@ -435,6 +436,71 @@ class GGMLTensor(
              throw IndexOutOfBoundsException("Attempt to read Q8_0 weight at offset ${finalWeightByteOffset.toInt()} for block $blockIndex, item $itemIndexInBlock in tensor '$name' is out of buffer bounds (0-${buffer.size - Byte.SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset, ItemOffset: $qsArrayBaseOffsetInBlock + $itemIndexInBlock.")
         }
         return buffer[finalWeightByteOffset.toInt()]
+    }
+
+    // --- Q4_0 Accessors ---
+
+    /**
+     * Retrieves the F16 scale for a specific block in a Q4_0 quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @return The scale value as a Float.
+     */
+    fun getQ4_0BlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q4_0) { "Tensor type must be Q4_0 to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        // type.byteSize for Q4_0 is the size of one block (e.g., 18 bytes)
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalScaleByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        // The scale is the first F16 (2 bytes) in the block
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + SHORT_SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Q4_0 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - SHORT_SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset.")
+        }
+
+        val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
+        return halfToFloat(scaleBits)
+    }
+
+    /**
+     * Retrieves a single 4-bit quantized weight (nibble) from a specific block in a Q4_0 tensor.
+     * The returned Byte contains the raw 4-bit value (0-15).
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK4_0 - 1).
+     * @return The quantized 4-bit weight as a Byte (value 0-15).
+     */
+    fun getQ4_0NibbleWeight(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == GGMLType.Q4_0) { "Tensor type must be Q4_0 to get nibble weight." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK4_0) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${QK4_0 -1}) for Q4_0 block in tensor '$name'."}
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val qsArrayBaseOffsetInBlock = 2uL // The F16 scale takes the first 2 bytes
+        val byteContainingNibbleIndex = itemIndexInBlock / 2 // Each byte stores two 4-bit nibbles
+
+        val finalByteToReadOffset = dataOffset + blockByteOffset + qsArrayBaseOffsetInBlock + byteContainingNibbleIndex.toULong()
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalByteToReadOffset.toInt() < 0 || finalByteToReadOffset.toInt() + Byte.SIZE_BYTES > buffer.size) {
+             throw IndexOutOfBoundsException("Attempt to read Q4_0 nibble weight byte at offset ${finalByteToReadOffset.toInt()} for block $blockIndex, item $itemIndexInBlock in tensor '$name' is out of buffer bounds (0-${buffer.size - Byte.SIZE_BYTES}).")
+        }
+        val packedByte = buffer[finalByteToReadOffset.toInt()]
+
+        val nibble = if (itemIndexInBlock % 2 == 0) {
+            packedByte.toInt() and 0x0F // First item in the byte (lower 4 bits)
+        } else {
+            (packedByte.toInt() ushr 4) and 0x0F // Second item in the byte (upper 4 bits)
+        }
+        return nibble.toByte()
     }
 }
 
