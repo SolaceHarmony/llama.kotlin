@@ -1,6 +1,10 @@
 package ai.solace.llamakotlin.core
 
 import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
+import kotlin.math.abs
+import kotlin.math.round
+import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
+
 
 /**
  * Kotlin Native port of GGML tensor computation operations.
@@ -119,7 +123,9 @@ internal fun applyNDIter(tensor: GGMLTensor, totalSize: Int, actionPerElement: (
     } else if (n0 > 0 || totalSize == 1) {
         for (i0 in 0 until (if (n0 == 0 && totalSize == 1) 1 else n0) ) {
             if (currentFlatIdx < totalSize) actionPerElement(currentFlatIdx++, intArrayOf(i0)); else return
+
         }
+        else -> throw NotImplementedError("computeAdd not implemented for type ${a.type}")
     }
 
     if (totalSize == 1 && currentFlatIdx == 0 && tensor.ne.all { it == 1L || (it == 0L && tensor.rank() == 0) }) {
@@ -168,9 +174,11 @@ fun computeAdd(
             val resultF32 = computeAdd(graphAllocator, context, aF32, bF32)
             val quantizedResult = quantizeTensor(graphAllocator, resultF32, a.type)
             result.data = quantizedResult.data
+
         }
         else -> throw NotImplementedError("computeAdd not implemented for type ${a.type}")
     }
+
     return result
 }
 
@@ -252,11 +260,40 @@ private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTen
                 println("Warning: Dequantization of Q4_0 tensor ${tensor.name} resulted in $f32DataIndex dequantized elements, but tensor.numElements() is $numElements.")
             }
         }
+        GGMLType.Q4_0 -> {
+            val numBlocks = tensor.getNumBlocks().toInt()
+            var f32DataIndex = 0
+            for (blockIdx in 0 until numBlocks) {
+                val scale = tensor.getQ4_0BlockScale(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK4_0) { // QK4_0 is accessible from GGMLTypes.kt
+                    if (f32DataIndex < numElements) {
+                        val qNibble = tensor.getQ4_0NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock)
+                        // Q4_0 dequantization: scale * (nibble_value - 8.0f)
+                        val dequantizedValue = scale * (qNibble.toFloat() - 8.0f)
+                        resultDataArray[f32DataIndex++] = dequantizedValue
+                    } else {
+                        if(f32DataIndex > 0)
+                           println("Warning: Dequantizing Q4_0 tensor ${tensor.name}, f32DataIndex $f32DataIndex exceeded numElements $numElements at block $blockIdx, item $itemIdxInBlock.")
+                        break
+                    }
+                }
+                if (f32DataIndex >= numElements && blockIdx < numBlocks - 1) {
+                     println("Warning: Filled f32DataArray for Q4_0 tensor ${tensor.name} before processing all blocks. Processed $f32DataIndex elements out of $numElements expected.")
+                    break
+                }
+            }
+            if (f32DataIndex != numElements && numElements > 0) {
+                 println("Warning: Dequantization of Q4_0 tensor ${tensor.name} resulted in $f32DataIndex dequantized elements, but tensor.numElements() is $numElements.")
+            }
+        }
         else -> {
             println("Warning: dequantizeTensor from ${tensor.type} to F32 not fully implemented. Result is zeroed.")
+
         }
+        else -> throw NotImplementedError("computeMul not implemented for type ${a.type}")
     }
     result.data = resultDataArray
+
     return result
 }
 
@@ -279,7 +316,12 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
              println("Warning: Stride calculation for target type ${targetType.name} in quantizeTensor might be incomplete.")
         }
         for(d in 0 until GGML_MAX_DIMS) result.nb[d] = 0uL
+
     }
+    if (resultTensor.type.byteSize > 0uL) {
+        resultTensor.nb[0] = resultTensor.type.byteSize
+        for (d in 1 until GGML_MAX_DIMS) { resultTensor.nb[d] = resultTensor.ne[d-1].toULong() * resultTensor.nb[d-1] }
+    } else { for(d in 0 until GGML_MAX_DIMS) resultTensor.nb[d] = 0uL }
 
     val numElements = tensorF32.numElements().toInt()
 
@@ -342,13 +384,60 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
             }
             result.data = q8DataArray
         }
+        GGMLType.Q4_0 -> {
+            require(numElements % QK4_0 == 0) { "For Q4_0 quantization, total elements ($numElements) must be divisible by QK4_0 ($QK4_0)" }
+            val numBlocks = numElements / QK4_0
+            val q4BlockByteSize = targetType.byteSize.toInt()
+            require(q4BlockByteSize == SHORT_SIZE_BYTES + QK4_0 / 2) {
+                "Q4_0 block byte size mismatch. Expected ${SHORT_SIZE_BYTES + QK4_0 / 2}, got $q4BlockByteSize"
+            }
+            val q4DataArray = ByteArray(numBlocks * q4BlockByteSize)
+
+            val f32BlockValues = FloatArray(QK4_0)
+            var currentF32ElementIndex = 0
+            var q4ByteArrayWriteOffset = 0
+
+            applyNDIter(tensorF32, numElements) { _, indices ->
+                val itemInBlock = currentF32ElementIndex % QK4_0
+                f32BlockValues[itemInBlock] = tensorF32.getFloat(graphAllocator, *indices)
+
+                if (itemInBlock == QK4_0 - 1) { // Block is full
+                    var amax = 0.0f
+                    for (v_idx in 0 until QK4_0) { amax = maxOf(amax, abs(f32BlockValues[v_idx])) }
+
+                    val scaleF32 = if (amax == 0.0f) 1.0f else amax / 8.0f // Q4_0 range is -8 to 7
+                    val invScaleF32 = if (scaleF32 == 0.0f) 0.0f else 1.0f / scaleF32 // Should be 1.0f if amax = 0
+                    val scaleF16Short = floatToHalf(scaleF32)
+
+                    q4DataArray.setShortLe(q4ByteArrayWriteOffset, scaleF16Short)
+                    val qsDataWriteStartOffset = q4ByteArrayWriteOffset + SHORT_SIZE_BYTES
+
+                    for (j in 0 until QK4_0 / 2) {
+                        val f32Val1 = f32BlockValues[j * 2]
+                        val f32Val2 = f32BlockValues[j * 2 + 1]
+
+                        val quantVal1 = round(f32Val1 * invScaleF32 + 8.0f).toInt().coerceIn(0, 15)
+                        val quantVal2 = round(f32Val2 * invScaleF32 + 8.0f).toInt().coerceIn(0, 15)
+
+                        val packedByte = (quantVal1 and 0x0F) or ((quantVal2 and 0x0F) shl 4)
+                        q4DataArray[qsDataWriteStartOffset + j] = packedByte.toByte()
+                    }
+                    q4ByteArrayWriteOffset += q4BlockByteSize
+
+                }
+                currentF32ElementIndex++
+            }
+            result.data = q4DataArray
+        }
         GGMLType.Q8_1 -> { result.data = ByteArray(numElements); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
-        GGMLType.Q4_0, GGMLType.Q4_1 -> { result.data = ByteArray((numElements + 1) / 2); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
+        GGMLType.Q4_1 -> { result.data = ByteArray((numElements + 1) / 2); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
         GGMLType.Q5_0, GGMLType.Q5_1 -> { result.data = ByteArray((numElements * 5 + 7) / 8); println("Warning: Quantization F32 to ${targetType.name} not fully implemented.") }
         else -> {
             println("Error: Unsupported target quantization type $targetType in quantizeTensor")
             result.data = null
+
         }
+        else -> throw NotImplementedError("computeMatMul not implemented for input type ${a.type} or this combination")
     }
     return result
 }
@@ -358,12 +447,14 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
  */
 fun computeMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     for (i in 0 until GGML_MAX_DIMS) { if (a.ne[i] != b.ne[i]) throw IllegalArgumentException("Incompatible dimensions for multiplication") }
+
     val result = GGMLTensor(type = a.type); result.ne = a.ne.copyOf(); result.nb = a.nb.copyOf()
     val totalSize = result.numElements().toInt()
     when (a.type) {
         GGMLType.F32 -> {
             applyNDIter(result, totalSize) { _, indices ->
                 result.setFloat(graphAllocator, a.getFloat(graphAllocator, *indices) * b.getFloat(graphAllocator, *indices), *indices)
+
             }
         }
         GGMLType.F16 -> {
@@ -377,6 +468,7 @@ fun computeMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
             val quantizedResult = quantizeTensor(graphAllocator, resultF32, a.type); result.data = quantizedResult.data
         }
         else -> throw NotImplementedError("computeMul not implemented for type ${a.type}")
+
     }
     return result
 }
@@ -523,6 +615,7 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
  * Applies the ReLU activation function to a tensor.
  */
 fun computeRelu(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+
     val result = GGMLTensor(type = a.type); result.ne = a.ne.copyOf(); result.nb = a.nb.copyOf()
     val totalSize = result.numElements().toInt()
     when (a.type) {
@@ -530,6 +623,7 @@ fun computeRelu(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context:
             applyNDIter(result, totalSize) { _, indices ->
                 val v = a.getFloat(graphAllocator, *indices)
                 result.setFloat(graphAllocator, if (v > 0.0f) v else 0.0f, *indices)
+
             }
         }
         GGMLType.F16 -> {
@@ -583,6 +677,7 @@ fun computeSub(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
             applyNDIter(result, totalSize) { _, indices ->
                 result.setHalf(graphAllocator, a.getHalf(graphAllocator, *indices) - b.getHalf(graphAllocator, *indices), *indices)
             }
+
         }
         GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
             val aF32 = dequantizeTensor(graphAllocator, a); val bF32 = dequantizeTensor(graphAllocator, b)

@@ -78,7 +78,7 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [x] Defined Q4_0 block structure (F16 scale + 32x4-bit packed weights, type.byteSize = 18).
     - [x] Implemented data accessors for Q4_0 blocks (`getQ4_0BlockScale`, `getQ4_0NibbleWeight`).
     - [x] Implemented Q4_0 to F32 dequantization in `dequantizeTensor`.
-    - [ ] Implement Q4_0 quantization (F32 to Q4_0) in `quantizeTensor`.
+    - [x] Implement Q4_0 quantization (F32 to Q4_0) in `quantizeTensor`.
     - [ ] Implement optimized Q4_0 dot product routines (e.g., for MatMul with F32).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
@@ -171,7 +171,13 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 ## Phase 8: Testing and Validation
 
 - [~] Implement Unit Tests
-  - [ ] Test core tensor operations (computation logic in GGMLComputeOps)
+  - [~] Test core tensor operations (computation logic in GGMLComputeOps) # Marked as in-progress
+    - [x] Test element-wise ADD for F32 (1D, 2D) and F16 (1D).
+    - [x] Test element-wise MUL for F32 (1D) and F16 (1D).
+    - [x] Test `computeMatMul` for F32 x F32 operations.
+    - [x] Test `computeMatMul` for Q8_0 x F32 operations (optimized path, comparing against F32 reference).
+    - [ ] Test other core operations (e.g., activations like RELU, GELU; norms like RMS_NORM).
+    - [ ] Test operations with other data type combinations as they become supported (e.g., I32, other quantized types).
   - [ ] Test model inference
   - [ ] Test quantization accuracy
   - [x] Test `GGMLDynTensorAllocator` (dynamic memory allocation within a buffer).
