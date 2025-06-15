@@ -25,19 +25,20 @@ fun createTensor(context: GGMLContext, type: GGMLType): GGMLTensor {
     }
 
     // Set default strides based on the data type
-    val typeSize = when (type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    tensor.nb[0] = typeSize.toULong()
-    for (i in 1 until GGML_MAX_DIMS) {
-        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+    if (tensor.type.byteSize > 0uL) {
+        tensor.nb[0] = tensor.type.byteSize
+        for (i in 1 until GGML_MAX_DIMS) {
+            tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+        }
+    } else {
+        // For types with byteSize = 0 (e.g., quantized or COUNT), nb elements remain 0 by default.
+        // This is acceptable as long as accessor methods are not yet used with these types directly
+        // or specialized stride/size logic for them is implemented elsewhere.
+        if (tensor.type != GGMLType.COUNT && !tensor.type.description.startsWith("q")) {
+             // This is a simple check, ideally replace with a more robust way to identify types
+             // that genuinely shouldn't have a zero byteSize for fundamental stride calculation.
+            println("Warning: GGMLType ${tensor.type.name} has byteSize 0. Strides will be all zeros.")
+        }
     }
 
     // Allocate memory for the tensor if context is provided
@@ -75,19 +76,16 @@ fun createTensor1D(context: GGMLContext, type: GGMLType, ne0: Int): GGMLTensor {
     }
 
     // Set strides based on the data type
-    val typeSize = when (type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    tensor.nb[0] = typeSize.toULong()
-    for (i in 1 until GGML_MAX_DIMS) {
-        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+    if (tensor.type.byteSize > 0uL) {
+        tensor.nb[0] = tensor.type.byteSize
+        for (i in 1 until GGML_MAX_DIMS) {
+            tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+        }
+    } else {
+        // For types with byteSize = 0 (e.g., quantized or COUNT), nb elements remain 0 by default.
+        if (tensor.type != GGMLType.COUNT && !tensor.type.description.startsWith("q")) {
+            println("Warning: GGMLType ${tensor.type.name} has byteSize 0. Strides will be all zeros.")
+        }
     }
 
     // Allocate memory for the tensor if context is provided
@@ -131,20 +129,17 @@ fun createTensor2D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int): GG
     }
 
     // Set strides based on the data type
-    val typeSize = when (type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    tensor.nb[0] = typeSize.toULong()
-    tensor.nb[1] = tensor.nb[0] * tensor.ne[0].toULong()
-    for (i in 2 until GGML_MAX_DIMS) {
-        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+    if (tensor.type.byteSize > 0uL) {
+        tensor.nb[0] = tensor.type.byteSize
+        // For 2D and higher, the general loop will correctly calculate subsequent strides
+        for (i in 1 until GGML_MAX_DIMS) {
+            tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
+        }
+    } else {
+        // For types with byteSize = 0 (e.g., quantized or COUNT), nb elements remain 0 by default.
+        if (tensor.type != GGMLType.COUNT && !tensor.type.description.startsWith("q")) {
+            println("Warning: GGMLType ${tensor.type.name} has byteSize 0. Strides will be all zeros.")
+        }
     }
 
     // Allocate memory for the tensor if context is provided
