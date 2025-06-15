@@ -1,5 +1,6 @@
 package ai.solace.llamakotlin.core
 
+import kotlin.native.concurrent.SharedImmutable
 import kotlin.Short.Companion.SIZE_BYTES
 
 // Numeric conversion functions (assuming they are in the same package or imported)
@@ -38,6 +39,7 @@ internal fun ByteArray.setShortLe(offset: Int, value: Short) {
     this[offset] = (value.toInt() and 0xFF).toByte()
     this[offset + 1] = ((value.toInt() shr 8) and 0xFF).toByte()
 }
+
 
 /**
  * Kotlin Native port of GGML tensor library core data types.
