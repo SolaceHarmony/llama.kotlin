@@ -13,6 +13,8 @@ repositories {
 }
 
 kotlin {
+    jvmToolchain(17) // Configure Java toolchain with JDK 17 at extension scope
+
     jvm()
     linuxX64()
     macosX64()

@@ -1,9 +1,6 @@
 package ai.solace.llamakotlin.core
 
 import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
-import kotlin.math.abs
-import kotlin.math.round
-import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
 /**
  * Kotlin Native port of GGML tensor computation operations.
