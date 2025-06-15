@@ -1,6 +1,11 @@
 package ai.solace.llamakotlin.core
 
 import kotlin.native.concurrent.SharedImmutable
+import kotlin.Short.Companion.SIZE_BYTES
+
+// Numeric conversion functions (assuming they are in the same package or imported)
+// import ai.solace.llamakotlin.core.halfToFloat // Not needed if in same file/package
+// import ai.solace.llamakotlin.core.floatToHalf // Not needed if in same file/package
 
 // Helper functions for Little Endian byte conversions
 internal fun ByteArray.getIntLe(offset: Int): Int {
@@ -281,13 +286,31 @@ class GGMLTensor(
         buffer.setShortLe(finalByteOffset.toInt(), value)
     }
 
-    // Placeholder Accessor methods for F16 (Half Float)
-    fun getHalf(graphAllocator: GGMLGraphAllocator, vararg indices: Int): Nothing {
-        throw NotImplementedError("F16 (Half) get access is not yet implemented.")
+    // Accessor methods for F16 (Half Float)
+    fun getHalf(graphAllocator: GGMLGraphAllocator, vararg indices: Int): Float {
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
+        val elementByteOffset = getElementByteOffset(*indices)
+        val finalByteOffset = dataOffset + elementByteOffset
+        // Check bounds, considering Short.SIZE_BYTES (2 bytes for F16)
+        if (finalByteOffset.toInt() < 0 || finalByteOffset.toInt() + SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Short at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - SIZE_BYTES})")
+        }
+        val shortBits = buffer.getShortLe(finalByteOffset.toInt())
+        return halfToFloat(shortBits) // halfToFloat is in NumericConversions.kt, assumed imported or accessible
     }
 
-    fun setHalf(graphAllocator: GGMLGraphAllocator, value: Any, vararg indices: Int) {
-        throw NotImplementedError("F16 (Half) set access is not yet implemented.")
+    fun setHalf(graphAllocator: GGMLGraphAllocator, value: Float, vararg indices: Int) {
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
+        val elementByteOffset = getElementByteOffset(*indices)
+        val finalByteOffset = dataOffset + elementByteOffset
+        // Check bounds, considering Short.SIZE_BYTES (2 bytes for F16)
+        if (finalByteOffset.toInt() < 0 || finalByteOffset.toInt() + SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to write Short at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - SIZE_BYTES})")
+        }
+        val shortBits = floatToHalf(value) // floatToHalf is in NumericConversions.kt, assumed imported or accessible
+        buffer.setShortLe(finalByteOffset.toInt(), shortBits)
     }
 }
 
