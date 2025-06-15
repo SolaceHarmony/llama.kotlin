@@ -52,9 +52,7 @@ class GGMLTensorAllocator {
 
     private fun ensureBufferCapacity(bufferId: Int, requiredSize: ULong) {
         if (bufferId < 0 || bufferId >= buffers.size || bufferId >= tensorAllocators.size) {
-            // Or throw an IllegalArgumentException, depending on desired error handling
-            println("Error: Invalid bufferId $bufferId")
-            return
+            throw IllegalArgumentException("Error: Invalid bufferId $bufferId. It must be between 0 and ${buffers.size - 1}, and within the range of tensorAllocators.")
         }
 
         val currentBuffer = buffers[bufferId]
