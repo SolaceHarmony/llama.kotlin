@@ -45,6 +45,7 @@ enum class GGMLType {
     Q5_K,   // 5-bit quantized for K-quants
     Q6_K,   // 6-bit quantized for K-quants
     Q8_K,   // 8-bit quantized for K-quants
+    Q1_5_K, // 1.5-bit quantized for K-quants (ternary: -1, 0, 1)
     I8,     // 8-bit integer
     I16,    // 16-bit integer
     I32,    // 32-bit integer
