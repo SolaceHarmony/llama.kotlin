@@ -68,12 +68,7 @@ class GGMLTensorAllocator {
             }
 
             if (newSize <= 0 && requiredSize > 0u) {
-                 println("Warning: requiredSize $requiredSize results in non-positive newSize $newSize. Using a minimal size if possible or erroring.")
-                // This case needs careful handling. Forcing a minimal size might be an option,
-                // or throwing an error if requiredSize was genuinely > 0 but resulted in newSize <= 0.
-                // For now, let's assume this indicates an issue or very small required size.
-                // If requiredSize was 0, ByteArray(0) is valid but perhaps not intended.
-                // If requiredSize was >0 but became 0 after toInt(), it's an overflow that was clamped.
+                throw IllegalArgumentException("Invalid buffer allocation: requiredSize $requiredSize resulted in non-positive newSize $newSize. This may indicate an overflow or logical error.")
             }
 
             buffers[bufferId] = ByteArray(newSize)
