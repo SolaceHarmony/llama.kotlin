@@ -97,6 +97,15 @@ private fun computeBackward(context: GGMLContext, tensor: GGMLTensor, zeroTable:
                 src0.grad = addOrSet(context, src0.grad, tensor.grad!!, zeroTable)
             }
         }
+        GGMLOp.CPY -> {
+            // C = A (tensor = tensor.src[0])
+            // grad_A = grad_C
+            // tensor.src[0].grad += tensor.grad
+            if (src0?.grad != null) {
+                src0.grad = addOrSet(context, src0.grad, tensor.grad!!, zeroTable)
+            }
+            // src1 is not used by CPY, so no gradient for it
+        }
         GGMLOp.ADD -> {
             if (src0?.grad != null) {
                 src0.grad = addOrSet(context, src0.grad, tensor.grad!!, zeroTable)
@@ -1188,6 +1197,336 @@ private fun computeBackward(context: GGMLContext, tensor: GGMLTensor, zeroTable:
                 src0.grad = addOrSet(context, src0.grad, gradDerivative, zeroTable)
             }
         }
+        GGMLOp.SCALE -> {
+            // C = A * scale_factor
+            // grad_A = grad_C * scale_factor
+            // src0 is A
+            // src1 is scale_factor (scalar)
+            // tensor.grad is grad_C
+            if (src0?.grad != null) {
+                src0.grad = addOrSet(
+                    context,
+                    src0.grad,
+                    mul(context, tensor.grad!!, src1!!), // grad_C * scale_factor
+                    zeroTable
+                )
+            }
+            // No gradient for src1 (scale_factor) as it's a constant
+        }
+        GGMLOp.RESHAPE -> {
+            // C = reshape(A, new_shape)
+            // grad_A = reshape(grad_C, shape_of_A)
+            // tensor.src[0] is A
+            // tensor.grad is grad_C
+            val src0 = tensor.src[0]
+            if (src0?.grad != null && tensor.grad != null) {
+                val gradC = tensor.grad!!
+                val shapeOfA = src0.ne // LongArray
+
+                // grad_A = reshape(grad_C, shape_of_A)
+                val gradCReshapedToAShape = reshape(
+                    context,
+                    gradC,
+                    *shapeOfA // Spread operator for LongArray into vararg Long
+                )
+                src0.grad = addOrSet(context, src0.grad, gradCReshapedToAShape, zeroTable)
+            }
+            // src1 is not used by RESHAPE (new shape is usually immediate, not a tensor src)
+        }
+        GGMLOp.VIEW -> {
+            // C = view(A) (tensor is C, tensor.src[0] is A)
+            // As per instructions, grad_A += reshape(grad_C, shape_of_A).
+            // This implies grad_C corresponds to the entirety of A, just potentially in a different layout.
+            // Note: This is a simplification. A true view backward pass might need to write grad_C
+            // into a *view* of grad_A, especially if the view C is only a part of A.
+            // However, following the provided instructions for this subtask.
+            val src0 = tensor.src[0]
+            if (src0?.grad != null && tensor.grad != null) {
+                val gradC = tensor.grad!!
+                val shapeOfA = src0.ne // LongArray
+
+                // grad_A_contribution = reshape(grad_C, shape_of_A)
+                val gradCReshapedToAShape = reshape(
+                    context,
+                    gradC,
+                    *shapeOfA // Spread operator for LongArray into vararg Long
+                )
+                src0.grad = addOrSet(context, src0.grad, gradCReshapedToAShape, zeroTable)
+            }
+            // View parameters (like offset or new shape for view) are typically not differentiable.
+        }
+        GGMLOp.PERMUTE -> {
+            // C = permute(A, ax0, ax1, ax2, ax3)
+            // grad_A = permute(grad_C, inv_ax0, inv_ax1, inv_ax2, inv_ax3)
+            // tensor.src[0] is A
+            // tensor.grad is grad_C
+            // tensor.opParams is assumed to be IntArray([ax0, ax1, ax2, ax3])
+
+            val src0 = tensor.src[0]
+            // Ensure opParams is an IntArray of expected size (4 for axes)
+            if (src0?.grad != null && tensor.grad != null &&
+                tensor.opParams is IntArray && (tensor.opParams as IntArray).size == 4) {
+
+                val gradC = tensor.grad!!
+                val originalAxes = tensor.opParams as IntArray // Cast to IntArray
+
+                // Calculate inverse permutation axes
+                // If P = [ax0, ax1, ax2, ax3], then P_inv is such that P_inv[ax_i] = i.
+                val inverseAxes = IntArray(4)
+                for (i in 0..3) {
+                    // originalAxes[i] gives the new position of original axis i.
+                    // So, inverseAxes[originalAxes[i]] should be i.
+                    inverseAxes[originalAxes[i]] = i
+                }
+
+                val gradCPermutedBack = permute(
+                    context,
+                    gradC,
+                    inverseAxes[0],
+                    inverseAxes[1],
+                    inverseAxes[2],
+                    inverseAxes[3]
+                )
+                src0.grad = addOrSet(context, src0.grad, gradCPermutedBack, zeroTable)
+            }
+            // Parameters for permute (axes) are not differentiable.
+        }
+        GGMLOp.TRANSPOSE -> {
+            // C = transpose(A, ax0, ax1)
+            // grad_A = transpose(grad_C, ax0, ax1) (because transpose(transpose(X)) = X with same axes)
+            // tensor.src[0] is A
+            // tensor.grad is grad_C
+            // tensor.opParams is assumed to be IntArray([ax0, ax1])
+
+            val src0 = tensor.src[0]
+            // Ensure opParams is an IntArray of expected size (2 for axes)
+            if (src0?.grad != null && tensor.grad != null &&
+                tensor.opParams is IntArray && (tensor.opParams as IntArray).size == 2) {
+
+                val gradC = tensor.grad!!
+                val axes = tensor.opParams as IntArray // Cast to IntArray
+
+                // Transpose grad_C back using the same axes
+                val gradCTransposedBack = transpose(
+                    context,
+                    gradC,
+                    axes[0], // ax0
+                    axes[1]  // ax1
+                )
+                src0.grad = addOrSet(context, src0.grad, gradCTransposedBack, zeroTable)
+            }
+            // Parameters for transpose (axes) are not differentiable.
+        }
+        GGMLOp.GET_ROWS -> {
+            // C = get_rows(A, B) -> tensor = get_rows(src0, src1)
+            // grad_A[B[i]] += grad_C[i] (row-wise)
+            val src0 = tensor.src[0] // A: source tensor
+            val src1 = tensor.src[1] // B: indices tensor
+
+            // Check if src0 needs gradient and other inputs are valid
+            if (src0 != null && src0.grad != null && // src0.grad being non-null implies it's a parameter and grad accumulation is expected
+                tensor.grad != null && src1 != null && src1.type == GGMLType.I32) {
+
+                // Create a temporary tensor for the gradient contribution to src0, initialized to zeros.
+                // This tensor will have the same shape and type as src0.
+                val gradAContribution = GGMLTensor(type = src0.type)
+                gradAContribution.ne = src0.ne.copyOf()
+                gradAContribution.nb = src0.nb.copyOf()
+                val totalElementsSrc0 = calculateTotalSize(gradAContribution.ne)
+                gradAContribution.data = when (src0.type) {
+                    GGMLType.F32 -> FloatArray(totalElementsSrc0) { 0.0f }
+                    GGMLType.F16 -> ShortArray(totalElementsSrc0) { 0 } // Represents 0.0f for F16
+                    GGMLType.I8  -> ByteArray(totalElementsSrc0) { 0 }
+                    GGMLType.I16 -> ShortArray(totalElementsSrc0) { 0 }
+                    GGMLType.I32 -> IntArray(totalElementsSrc0) { 0 }
+                    GGMLType.I64 -> LongArray(totalElementsSrc0) { 0L }
+                    else -> throw NotImplementedError("GET_ROWS backward: unhandled type for grad init ${src0.type}")
+                }
+
+                val gradC = tensor.grad!!             // Gradient of the output tensor C
+                val indicesB = src1.data as IntArray  // Indices from tensor B
+
+                // Calculate number of elements per row/slice in src0 (A)
+                // This assumes ne[0] is the dimension being indexed.
+                val elementsPerRowInt = if (src0.ne[0] != 0L) (totalElementsSrc0 / src0.ne[0]).toInt() else 0
+
+                // If elementsPerRowInt is 0 but totalElementsSrc0 is not, it implies an issue or 1D src0.
+                // For a 1D src0 (e.g. shape [N]), ne[0]=N, elementsPerRowInt should be 1.
+                // (totalElementsSrc0 / src0.ne[0]) = (N / N) = 1. This holds.
+
+                val numRowsC = tensor.ne[0].toInt() // Number of rows in C, also number of indices in B
+
+                // Accumulate gradients from gradC into gradAContribution based on indicesB
+                when (gradAContribution.type) {
+                    GGMLType.F32 -> {
+                        val gradAData = gradAContribution.data as FloatArray
+                        val gradCData = gradC.data as FloatArray
+                        for (i in 0 until numRowsC) { // For each row/index
+                            val rowIndexInA = indicesB[i]
+                            if (rowIndexInA < 0 || rowIndexInA >= src0.ne[0]) continue // Bounds check for safety
+                            for (j in 0 until elementsPerRowInt) { // For each element in the row
+                                gradAData[rowIndexInA * elementsPerRowInt + j] += gradCData[i * elementsPerRowInt + j]
+                            }
+                        }
+                    }
+                    GGMLType.F16 -> {
+                        val gradAData = gradAContribution.data as ShortArray
+                        val gradCData = gradC.data as ShortArray
+                        for (i in 0 until numRowsC) {
+                            val rowIndexInA = indicesB[i]
+                            if (rowIndexInA < 0 || rowIndexInA >= src0.ne[0]) continue
+                            for (j in 0 until elementsPerRowInt) {
+                                val currentAValFloat = (gradAData[rowIndexInA * elementsPerRowInt + j].toFloat() / 32768.0f)
+                                val valCFloat = (gradCData[i * elementsPerRowInt + j].toFloat() / 32768.0f)
+                                val sumFloat = currentAValFloat + valCFloat
+                                gradAData[rowIndexInA * elementsPerRowInt + j] = (sumFloat * 32768.0f).toInt().toShort()
+                            }
+                        }
+                    }
+                    GGMLType.I8 -> {
+                        val gradAData = gradAContribution.data as ByteArray
+                        val gradCData = gradC.data as ByteArray
+                        for (i in 0 until numRowsC) {
+                            val rowIndexInA = indicesB[i]
+                            if (rowIndexInA < 0 || rowIndexInA >= src0.ne[0]) continue
+                            for (j in 0 until elementsPerRowInt) {
+                                gradAData[rowIndexInA * elementsPerRowInt + j] =
+                                    (gradAData[rowIndexInA * elementsPerRowInt + j] + gradCData[i * elementsPerRowInt + j]).toByte()
+                            }
+                        }
+                    }
+                    GGMLType.I16 -> {
+                        val gradAData = gradAContribution.data as ShortArray
+                        val gradCData = gradC.data as ShortArray
+                        for (i in 0 until numRowsC) {
+                            val rowIndexInA = indicesB[i]
+                            if (rowIndexInA < 0 || rowIndexInA >= src0.ne[0]) continue
+                            for (j in 0 until elementsPerRowInt) {
+                                gradAData[rowIndexInA * elementsPerRowInt + j] =
+                                    (gradAData[rowIndexInA * elementsPerRowInt + j] + gradCData[i * elementsPerRowInt + j]).toShort()
+                            }
+                        }
+                    }
+                    GGMLType.I32 -> {
+                        val gradAData = gradAContribution.data as IntArray
+                        val gradCData = gradC.data as IntArray
+                        for (i in 0 until numRowsC) {
+                            val rowIndexInA = indicesB[i]
+                            if (rowIndexInA < 0 || rowIndexInA >= src0.ne[0]) continue
+                            for (j in 0 until elementsPerRowInt) {
+                                gradAData[rowIndexInA * elementsPerRowInt + j] += gradCData[i * elementsPerRowInt + j]
+                            }
+                        }
+                    }
+                    GGMLType.I64 -> {
+                        val gradAData = gradAContribution.data as LongArray
+                        val gradCData = gradC.data as LongArray
+                        for (i in 0 until numRowsC) {
+                            val rowIndexInA = indicesB[i]
+                            if (rowIndexInA < 0 || rowIndexInA >= src0.ne[0]) continue
+                            for (j in 0 until elementsPerRowInt) {
+                                gradAData[rowIndexInA * elementsPerRowInt + j] += gradCData[i * elementsPerRowInt + j]
+                            }
+                        }
+                    }
+                    else -> throw NotImplementedError("GET_ROWS backward: unhandled type for data accumulation ${gradAContribution.type}")
+                }
+
+                // Add the accumulated contributions from gradAContribution to src0.grad
+                // src0.grad is assumed to be non-null here due to the initial check.
+                src0.grad = addOrSet(context, src0.grad!!, gradAContribution, zeroTable)
+            }
+        }
+    GGMLOp.DIAG_MASK_INF -> {
+        // C = diag_mask_inf(A, n_past)
+        // grad_A = grad_C * unmasked_mask, where unmasked_mask is 1 if A[i]==C[i], 0 otherwise.
+        // tensor is C, src0 is A.
+        // tensor.grad is grad_C.
+        // It's assumed that src0.type == tensor.type == tensor.grad.type.
+        val src0 = tensor.src[0]
+
+        if (src0 != null && src0.grad != null && tensor.grad != null) {
+            val type = src0.type // Assuming this type is consistent for A, C, and grad_C
+            val gradC = tensor.grad!!
+
+            // Create unmasked_mask tensor of the same type and shape as src0
+            val unmaskedMask = GGMLTensor(type = type)
+            unmaskedMask.ne = src0.ne.copyOf()
+            unmaskedMask.nb = src0.nb.copyOf()
+            val totalElements = calculateTotalSize(unmaskedMask.ne)
+
+            val s0Data = src0.data
+            val cData = tensor.data // Data of the output tensor C
+
+            // Allocate and populate unmaskedMask.data
+            // Mask value is 1 if src0.data[i] == tensor.data[i], else 0
+            when (type) {
+                GGMLType.F32 -> {
+                    val maskData = FloatArray(totalElements)
+                    val s0Array = s0Data as FloatArray
+                    val cArray = cData as FloatArray
+                    for (i in 0 until totalElements) {
+                        maskData[i] = if (s0Array[i] == cArray[i]) 1.0f else 0.0f
+                    }
+                    unmaskedMask.data = maskData
+                }
+                GGMLType.F16 -> {
+                    val maskData = ShortArray(totalElements)
+                    val s0Array = s0Data as ShortArray
+                    val cArray = cData as ShortArray
+                    val oneF16 = (1.0f * 32768.0f).toInt().toShort()
+                    val zeroF16 = 0.toShort()
+                    for (i in 0 until totalElements) {
+                        maskData[i] = if (s0Array[i] == cArray[i]) oneF16 else zeroF16
+                    }
+                    unmaskedMask.data = maskData
+                }
+                GGMLType.I8 -> {
+                    val maskData = ByteArray(totalElements)
+                    val s0Array = s0Data as ByteArray
+                    val cArray = cData as ByteArray
+                    for (i in 0 until totalElements) {
+                        maskData[i] = if (s0Array[i] == cArray[i]) 1.toByte() else 0.toByte()
+                    }
+                    unmaskedMask.data = maskData
+                }
+                GGMLType.I16 -> {
+                    val maskData = ShortArray(totalElements)
+                    val s0Array = s0Data as ShortArray
+                    val cArray = cData as ShortArray
+                    for (i in 0 until totalElements) {
+                        maskData[i] = if (s0Array[i] == cArray[i]) 1.toShort() else 0.toShort()
+                    }
+                    unmaskedMask.data = maskData
+                }
+                GGMLType.I32 -> {
+                    val maskData = IntArray(totalElements)
+                    val s0Array = s0Data as IntArray
+                    val cArray = cData as IntArray
+                    for (i in 0 until totalElements) {
+                        maskData[i] = if (s0Array[i] == cArray[i]) 1 else 0
+                    }
+                    unmaskedMask.data = maskData
+                }
+                GGMLType.I64 -> {
+                    val maskData = LongArray(totalElements)
+                    val s0Array = s0Data as LongArray
+                    val cArray = cData as LongArray
+                    for (i in 0 until totalElements) {
+                        maskData[i] = if (s0Array[i] == cArray[i]) 1L else 0L
+                    }
+                    unmaskedMask.data = maskData
+                }
+                else -> throw NotImplementedError("DIAG_MASK_INF backward: Unhandled type ${type} for mask creation.")
+            }
+
+            // Calculate contribution: grad_C * unmasked_mask
+            val contribution = mul(context, gradC, unmaskedMask)
+
+            // Add contribution to src0's gradient
+            src0.grad = addOrSet(context, src0.grad!!, contribution, zeroTable)
+        }
+    }
         GGMLOp.MUL_MAT -> {
             // For matrix multiplication C = A @ B:
             // grad_A = grad_C @ B^T
