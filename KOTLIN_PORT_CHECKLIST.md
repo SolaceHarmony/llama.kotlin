@@ -40,7 +40,11 @@ This checklist is based on the current state of the Kotlin Native port of llama.
       - [x] Refactored F32 compute operations in `GGMLComputeOps.kt` to use the new data accessors.
       - [x] Implement F16 typed accessors and update relevant compute operations.
       - [ ] Further optimize data access if performance bottlenecks are identified (e.g., exploring direct memory access if feasible).
-    - [ ] Implement inplace tensor allocation and memory reuse logic in GGMLGraphAllocator.
+    - [x] Implement inplace tensor allocation and memory reuse logic in GGMLGraphAllocator.
+      - [x] Implemented tensor usage tracking (children, views, output status, memory ownership) via `TensorUsageInfo` and `tensorUsageMap`.
+      - [x] Added `canBeInplace` property to `GGMLOp` to identify suitable operations.
+      - [x] `GGMLGraphAllocator.allocateTensor` now attempts inplace allocation by reusing eligible parent tensor memory.
+      - [x] Implemented memory freeing logic within `GGMLGraphAllocator.allocateGraph` to deallocate memory of tensors (and view sources) once they are no longer referenced.
 
 - [x] Implement Basic Tensor Operations
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
@@ -151,10 +155,13 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Phase 8: Testing and Validation
 
-- [ ] Implement Unit Tests
-  - [ ] Test core tensor operations
+- [~] Implement Unit Tests
+  - [ ] Test core tensor operations (computation logic in GGMLComputeOps)
   - [ ] Test model inference
   - [ ] Test quantization accuracy
+  - [x] Test `GGMLDynTensorAllocator` (dynamic memory allocation within a buffer).
+  - [x] Test `GGMLGraphAllocator` (graph-level memory planning: reserve, inplace allocation, freeing).
+  - [x] Test `GGMLTensor` data accessors (low-level read/write for F32, I32, I16, F16).
 
 - [ ] Implement Integration Tests
   - [ ] Test end-to-end model loading and inference

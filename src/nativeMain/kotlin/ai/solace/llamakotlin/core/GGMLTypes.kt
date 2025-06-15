@@ -65,6 +65,7 @@ const val GGML_MAX_OP_PARAMS = 32
  * Maximum name length for a tensor
  */
 const val GGML_MAX_NAME = 64
+const val GGML_TENSOR_FLAG_OUTPUT = 1 shl 0
 
 /**
  * Tensor data types
@@ -101,44 +102,44 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
 /**
  * Tensor operations
  */
-enum class GGMLOp {
+enum class GGMLOp(val canBeInplace: Boolean = false) {
     NONE,
     DUP,
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    SQR,
-    SQRT,
-    SUM,
-    MEAN,
+    ADD(true),
+    SUB(true),
+    MUL(true), // Element-wise multiplication
+    DIV(true),
+    SQR(true),
+    SQRT(true),
+    SUM, // Typically not inplace (reduces dimensions)
+    MEAN, // Typically not inplace
     REPEAT,
-    ABS,
-    SGN,
-    NEG,
-    STEP,
-    RELU,
-    GELU,
-    SILU,
-    NORM,
-    RMS_NORM,
-    MUL_MAT,
-    SCALE,
-    CPY,
-    RESHAPE,
-    VIEW,
+    ABS(true),
+    SGN(true),
+    NEG(true),
+    STEP(true),
+    RELU(true),
+    GELU(true),
+    SILU(true),
+    NORM(true), // LayerNorm, can be inplace if shapes match and specific handling
+    RMS_NORM(true),
+    MUL_MAT, // Matrix multiplication, typically not inplace
+    SCALE(true),
+    CPY, // Copy, not inplace by definition of creating a new tensor with copied data
+    RESHAPE, // Reshape is a view, metadata change, not inplace on data buffer in the same way
+    VIEW,    // View is a metadata change
     PERMUTE,
     TRANSPOSE,
     GET_ROWS,
-    DIAG_MASK_INF,
-    SOFT_MAX,
-    ROPE,
+    DIAG_MASK_INF(true),
+    SOFT_MAX(true), // Can be made inplace
+    ROPE(true),
     CONV_1D_1S,
     CONV_1D_2S,
     FLASH_ATTN,
     FLASH_FF,
-    MAP_UNARY,
-    MAP_BINARY,
+    MAP_UNARY, // Depends on the specific unary op mapped
+    MAP_BINARY, // Depends on the specific binary op mapped
     COUNT
 }
 
@@ -185,6 +186,8 @@ class GGMLTensor(
     var bufferId: Int = -1,
     var dataOffset: ULong = 0u
 ) {
+    fun isOutput(): Boolean = (this.flags and GGML_TENSOR_FLAG_OUTPUT) != 0
+
     // Helper to calculate byte offset of an element given its indices
     private fun getElementByteOffset(vararg indices: Int): ULong {
         // The nb array in ggml stores the strides directly:
