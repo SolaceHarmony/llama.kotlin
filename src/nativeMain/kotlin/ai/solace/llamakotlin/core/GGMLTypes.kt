@@ -1,6 +1,7 @@
 package ai.solace.llamakotlin.core
 
 import kotlin.native.concurrent.SharedImmutable
+
 import kotlin.Short.Companion.SIZE_BYTES
 
 // Numeric conversion functions (assuming they are in the same package or imported)
