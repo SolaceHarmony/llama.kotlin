@@ -158,7 +158,7 @@ private fun computeBackward(context: GGMLContext, tensor: GGMLTensor, zeroTable:
                 // Compute grad_B = -grad_C * A / (B * B)
 
                 // First compute B * B
-                val bSquared = mul(context, src1!!, src1)
+                val bSquared = mul(context, src1, src1)
 
                 // Then compute A / (B * B)
                 val aDivBSquared = div(context, src0!!, bSquared)
@@ -2381,6 +2381,135 @@ private fun computeBackward(context: GGMLContext, tensor: GGMLTensor, zeroTable:
                     else -> {
                         // For other types, we'll implement later
                         throw NotImplementedError("RMS_NORM backward pass not implemented for type ${src0.type}")
+                    }
+                }
+
+                // Add to source gradient
+                src0.grad = addOrSet(context, src0.grad, derivative, zeroTable)
+            }
+        }
+        GGMLOp.SCALE -> {
+            // For SCALE operation C = A * scale:
+            // grad_A = grad_C * scale
+
+            if (src0?.grad != null) {
+                // Get the scale factor from the operation parameters
+                val scale = Float.fromBits(tensor.opParams[0])
+
+                // Create a tensor for the derivative
+                val derivative = GGMLTensor(type = src0.type)
+                for (i in 0 until GGML_MAX_DIMS) {
+                    derivative.ne[i] = src0.ne[i]
+                    derivative.nb[i] = src0.nb[i]
+                }
+
+                // Calculate total size
+                val totalSize = calculateTotalSize(src0.ne)
+
+                // Compute the derivative based on the tensor type
+                when (src0.type) {
+                    GGMLType.F32 -> {
+                        val gradData = tensor.grad!!.data as FloatArray
+                        val derivativeData = FloatArray(totalSize)
+
+                        // Compute the derivative for each element
+                        for (i in 0 until totalSize) {
+                            // Derivative: grad_C * scale
+                            derivativeData[i] = gradData[i] * scale
+                        }
+
+                        derivative.data = derivativeData
+                    }
+                    GGMLType.F16 -> {
+                        val gradData = tensor.grad!!.data as ShortArray
+                        val derivativeData = ShortArray(totalSize)
+
+                        // Compute the derivative for each element
+                        for (i in 0 until totalSize) {
+                            // Convert short to float, apply scale, convert back to short
+                            val gradFloat = gradData[i].toFloat() / 32768.0f
+                            val derivValue = gradFloat * scale
+                            derivativeData[i] = (derivValue * 32768.0f).toInt().toShort()
+                        }
+
+                        derivative.data = derivativeData
+                    }
+                    GGMLType.I8, GGMLType.I16, GGMLType.I32, GGMLType.I64 -> {
+                        // For integer types, convert to float, compute derivative, then convert back
+                        val gradFloatData = FloatArray(totalSize)
+                        val derivativeFloatData = FloatArray(totalSize)
+
+                        // Convert gradient data to float
+                        when (src0.type) {
+                            GGMLType.I8 -> {
+                                val gradData = tensor.grad!!.data as ByteArray
+                                for (i in 0 until totalSize) {
+                                    gradFloatData[i] = gradData[i].toFloat()
+                                }
+                            }
+                            GGMLType.I16 -> {
+                                val gradData = tensor.grad!!.data as ShortArray
+                                for (i in 0 until totalSize) {
+                                    gradFloatData[i] = gradData[i].toFloat()
+                                }
+                            }
+                            GGMLType.I32 -> {
+                                val gradData = tensor.grad!!.data as IntArray
+                                for (i in 0 until totalSize) {
+                                    gradFloatData[i] = gradData[i].toFloat()
+                                }
+                            }
+                            GGMLType.I64 -> {
+                                val gradData = tensor.grad!!.data as LongArray
+                                for (i in 0 until totalSize) {
+                                    gradFloatData[i] = gradData[i].toFloat()
+                                }
+                            }
+                            else -> {} // Should not happen due to the when condition
+                        }
+
+                        // Compute the derivative for each element
+                        for (i in 0 until totalSize) {
+                            // Derivative: grad_C * scale
+                            derivativeFloatData[i] = gradFloatData[i] * scale
+                        }
+
+                        // Convert back to the original type
+                        when (src0.type) {
+                            GGMLType.I8 -> {
+                                val derivativeData = ByteArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = derivativeFloatData[i].toInt().toByte()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            GGMLType.I16 -> {
+                                val derivativeData = ShortArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = derivativeFloatData[i].toInt().toShort()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            GGMLType.I32 -> {
+                                val derivativeData = IntArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = derivativeFloatData[i].toInt()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            GGMLType.I64 -> {
+                                val derivativeData = LongArray(totalSize)
+                                for (i in 0 until totalSize) {
+                                    derivativeData[i] = derivativeFloatData[i].toLong()
+                                }
+                                derivative.data = derivativeData
+                            }
+                            else -> {} // Should not happen due to the when condition
+                        }
+                    }
+                    else -> {
+                        // For other types, we'll implement later
+                        throw NotImplementedError("SCALE backward pass not implemented for type ${src0.type}")
                     }
                 }
 

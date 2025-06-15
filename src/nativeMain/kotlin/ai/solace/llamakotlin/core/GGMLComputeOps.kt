@@ -1,9 +1,6 @@
 package ai.solace.llamakotlin.core
 
 import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
-import kotlin.math.abs
-import kotlin.math.round
-import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
 /**
  * Kotlin Native port of GGML tensor computation operations.
@@ -227,6 +224,32 @@ private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTen
             }
             if (f32DataIndex != numElements && numElements > 0) {
                  println("Warning: Dequantization of Q8_0 tensor ${tensor.name} resulted in $f32DataIndex dequantized elements, but tensor.numElements() is $numElements.")
+            }
+        }
+        GGMLType.Q4_0 -> {
+            val numBlocks = tensor.getNumBlocks().toInt()
+            var f32DataIndex = 0
+            for (blockIdx in 0 until numBlocks) {
+                val scale = tensor.getQ4_0BlockScale(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK4_0) {
+                    if (f32DataIndex < numElements) {
+                        val qNibble = tensor.getQ4_0NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock)
+                        // Q4_0 dequantization: scale * (nibble_value - 8.0f)
+                        val dequantizedValue = scale * (qNibble.toFloat() - 8.0f)
+                        resultDataArray[f32DataIndex++] = dequantizedValue
+                    } else {
+                        if (f32DataIndex > 0)
+                            println("Warning: Dequantizing Q4_0 tensor ${tensor.name}, f32DataIndex $f32DataIndex exceeded numElements $numElements at block $blockIdx, item $itemIdxInBlock.")
+                        break
+                    }
+                }
+                if (f32DataIndex >= numElements && blockIdx < numBlocks - 1) {
+                    println("Warning: Filled f32DataArray for Q4_0 tensor ${tensor.name} before processing all blocks. Processed $f32DataIndex elements out of $numElements expected.")
+                    break
+                }
+            }
+            if (f32DataIndex != numElements && numElements > 0) {
+                println("Warning: Dequantization of Q4_0 tensor ${tensor.name} resulted in $f32DataIndex dequantized elements, but tensor.numElements() is $numElements.")
             }
         }
         else -> {
