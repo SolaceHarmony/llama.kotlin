@@ -38,7 +38,7 @@ This checklist is based on the current state of the Kotlin Native port of llama.
       - [x] Added `nb` (strides) to `GGMLTensor` and populated it in new tensor creation functions.
       - [x] Implemented `get/set` accessors on `GGMLTensor` for F32, I32, I16 using `ByteArray` helpers and stride information.
       - [x] Refactored F32 compute operations in `GGMLComputeOps.kt` to use the new data accessors.
-      - [ ] Implement F16 typed accessors and update relevant compute operations.
+      - [x] Implement F16 typed accessors and update relevant compute operations.
       - [ ] Further optimize data access if performance bottlenecks are identified (e.g., exploring direct memory access if feasible).
     - [ ] Implement inplace tensor allocation and memory reuse logic in GGMLGraphAllocator.
 
