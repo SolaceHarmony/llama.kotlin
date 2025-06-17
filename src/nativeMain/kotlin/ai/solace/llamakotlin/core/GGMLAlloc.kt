@@ -317,6 +317,44 @@ class GGMLGraphAllocator {
         tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
 
+
+    /**
+     * Analyzes the computation graph to understand tensor usage patterns.
+     * This information can be used for memory optimization strategies like
+     * inplace operations and memory reuse.
+     */
+    private fun analyzeTensorUsage(graph: GGMLCGraph) {
+        tensorUsageMap.clear()
+
+        // Initialize map for all unique tensors in the graph (leafs and nodes)
+        // and mark output tensors.
+        val allTensors = (graph.leafs.filterNotNull() + graph.nodes.filterNotNull()).distinct()
+        for (tensor in allTensors) {
+            // isOutput() method was added to GGMLTensor in GGMLTypes.kt
+            tensorUsageMap.getOrPut(tensor) { TensorUsageInfo() }.isOutputTensor = tensor.isOutput()
+        }
+
+        // Populate numChildren and numViews
+        for (node in graph.nodes) {
+            if (node == null) continue
+
+            // Increment numViews for the source of a view tensor
+            // ggml_is_view() is defined at the end of this file.
+            if (ggml_is_view(node) && node.viewSrc != null) {
+                tensorUsageMap[node.viewSrc!!]?.let { it.numViews++ }
+            }
+
+            // Increment numChildren for each source tensor
+            for (j in 0 until GGML_MAX_SRC) {
+                val srcTensor = node.src[j]
+                if (srcTensor != null) {
+                    tensorUsageMap[srcTensor]?.let { it.numChildren++ }
+                }
+            }
+        }
+        // ownsMemory will be determined during allocation/memory planning phase
+    }
+
     private fun ensureBufferCapacity(bufferId: Int, requiredSize: ULong) {
         if (bufferId < 0 || bufferId >= buffers.size || bufferId >= tensorAllocators.size) {
             // Or throw an IllegalArgumentException, depending on desired error handling
@@ -336,18 +374,19 @@ class GGMLGraphAllocator {
                 requiredSize.toInt()
             }
 
-            if (newSize <= 0 && requiredSize > 0u) {
-                throw IllegalArgumentException("Invalid buffer size: requiredSize $requiredSize resulted in non-positive newSize $newSize. This may indicate an overflow or invalid input.")
-                 println("Warning: requiredSize $requiredSize results in non-positive newSize $newSize. Using a minimal size if possible or erroring.")
-                // This case needs careful handling. Forcing a minimal size might be an option,
-                // or throwing an error if requiredSize was genuinely > 0 but resulted in newSize <= 0.
-                // For now, let's assume this indicates an issue or very small required size.
-                // If requiredSize was 0, ByteArray(0) is valid but perhaps not intended.
-                // If requiredSize was >0 but became 0 after toInt(), it's an overflow that was clamped.
-
+            // Add the new check:
+            if (newSize <= 0 && requiredSize > 0uL) {
+                throw IllegalArgumentException(
+                    "Invalid buffer size for buffer $bufferId: " +
+                    "original requiredSize $requiredSize (ULong) resulted in " +
+                    "non-positive effective size $newSize (Int) for ByteArray construction. " +
+                    "This may indicate an overflow from ULong to Int or an invalid input."
+                )
             }
+            // If requiredSize is 0uL, newSize will be 0. ByteArray(0) is valid.
+            // The condition above ensures that if requiredSize was > 0, newSize must also be > 0.
 
-            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer
+            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer. If newSize is 0, this is ByteArray(0).
             tensorAllocators[bufferId].reset(newSize.toULong()) // Reset the allocator with the new size
         }
     }

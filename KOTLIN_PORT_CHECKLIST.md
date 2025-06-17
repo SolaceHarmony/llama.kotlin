@@ -9,10 +9,10 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Configure build system (Gradle with Kotlin DSL)
   - [x] Setup project structure following Kotlin conventions
 
-- [ ] Analyze C/C++ Codebase
-  - [ ] Create a detailed map of all C/C++ files and their dependencies
-  - [ ] Identify platform-specific code (Metal, AVX, etc.)
-  - [ ] Document all external dependencies
+- [~] Analyze C/C++ Codebase
+  - [~] Create a detailed map of all C/C++ files and their dependencies (key core, CPU, Metal components and their roles mapped in CPP_CORE_ANALYSIS.md)
+  - [~] Identify platform-specific code (Metal, AVX, etc.) (Metal backend structure analyzed; CPU SIMD usage in ggml.c noted in CPP_CORE_ANALYSIS.md)
+  - [x] Document all external dependencies (core ggml, CPU, and Metal paths found to be largely self-contained, as noted in CPP_CORE_ANALYSIS.md)
   - [x] Separate code related to supported backends (CPU, Metal) from unsupported backends (GPU backends moved to archive)
 
 - [x] Design Kotlin Native Architecture
