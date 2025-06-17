@@ -610,6 +610,7 @@ fun computeNeg(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
         GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,-a.getHalf(graphAllocator,*ind),*ind)}
         GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val rf=computeNeg(graphAllocator,context,af); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
         else->throw NotImplementedError("computeNeg NI for ${a.type}")
+
     }
     return res
 }
