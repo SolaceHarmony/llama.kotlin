@@ -1,5 +1,10 @@
 package ai.solace.llamakotlin.core
 
+import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
+import kotlin.math.abs
+import kotlin.math.round
+import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
+
 /**
  * Kotlin Native port of GGML tensor computation operations.
  * This file contains the implementation of actual computation functionality for tensor operations.
@@ -21,16 +26,13 @@ fun calculateTotalSize(ne: LongArray): Int {
 
 /**
  * Allocates memory for a tensor based on its type and size.
- *
- * @param type The tensor data type
- * @param size The number of elements to allocate
- * @return The allocated memory as an appropriate array type
+ * (Note: This function is less relevant now that compute ops use graphAllocator for results)
  */
 @Suppress("unused")
 fun allocateMemory(type: GGMLType, size: Int): Any {
     return when (type) {
         GGMLType.F32 -> FloatArray(size) { 0.0f }
-        GGMLType.F16 -> ShortArray(size) { 0 }
+        GGMLType.F16 -> ShortArray(size) { 0 } // Still used by quantizeTensor for F16 intermediate
         GGMLType.I8 -> ByteArray(size) { 0 }
         GGMLType.I16 -> ShortArray(size) { 0 }
         GGMLType.I32 -> IntArray(size) { 0 }
@@ -40,1473 +42,475 @@ fun allocateMemory(type: GGMLType, size: Int): Any {
 }
 
 /**
+ * Computes the dot product of a row from a Q8_0 tensor and a column from an F32 tensor.
+ * Used as a core part of Q8_0 x F32 matrix multiplication.
+ * Assumes tensorQ80 (src0) is M x K (ne = [K, M])
+ * Assumes tensorF32 (src1) is K x N (ne = [N, K])
+ */
+internal fun computeDotProductQ80F32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ80: GGMLTensor,    // M x K (ne[0]=K items per row, ne[1]=M rows)
+    tensorF32: GGMLTensor,    // K x N (ne[0]=N items per row, ne[1]=K rows)
+    rowIndexInQ80: Int,     // Row index 'i' for tensorQ80 (0 to M-1)
+    colIndexInF32: Int,     // Column index 'j' for tensorF32 (0 to N-1)
+    commonDimK: Int         // The shared dimension K (should be tensorQ80.ne[0] and tensorF32.ne[1])
+): Float {
+    require(tensorQ80.type == GGMLType.Q8_0) { "tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorF32.type == GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ80.ne[0].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val flatIndexInQ80 = rowIndexInQ80 * commonDimK + k
+        val blockIndexQ80 = flatIndexInQ80 / QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % QK8_0
+        val scale = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
+        val qWeight = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
+        val dequantizedQ80Value = scale * qWeight.toFloat()
+        val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+        sumF32 += dequantizedQ80Value * f32Value
+    }
+    return sumF32
+}
+
+/**
+ * Computes the dot product of a row from a Q4_0 tensor and a column from an F32 tensor.
+ */
+internal fun computeDotProductQ40F32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ40: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorF32: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ40: Int,
+    colIndexInF32: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ40.type == GGMLType.Q4_0) { "computeDotProductQ40F32: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductQ40F32: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ40.ne[0].toInt() == commonDimK) { "tensorQ40 K dim (${tensorQ40.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val flatIndexInQ40 = rowIndexInQ40 * commonDimK + k
+        val blockIndexQ40 = flatIndexInQ40 / QK4_0
+        val itemInBlockQ40 = flatIndexInQ40 % QK4_0
+        val scale = tensorQ40.getQ4_0BlockScale(graphAllocator, blockIndexQ40)
+        val qNibble = tensorQ40.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40, itemInBlockQ40)
+        val dequantizedQ40Value = scale * (qNibble.toFloat() - 8.0f)
+        val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+        sumF32 += dequantizedQ40Value * f32Value
+    }
+    return sumF32
+}
+
+// Helper to iterate N-dimensionally
+internal fun applyNDIter(tensor: GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
+    val n0 = tensor.ne[0].toInt(); val n1 = tensor.ne[1].toInt()
+    val n2 = tensor.ne[2].toInt(); val n3 = tensor.ne[3].toInt()
+    var currentFlatIdx = 0
+    if (totalSize == 0) return
+
+    val r = tensor.rank()
+    if (r == 0 && totalSize == 1) {
+        actionPerElement(currentFlatIdx++, intArrayOf()); return
+    }
+
+    for (i3 in 0 until (if (r >= 4) n3 else 1)) {
+        for (i2 in 0 until (if (r >= 3) n2 else 1)) {
+            for (i1 in 0 until (if (r >= 2) n1 else 1)) {
+                for (i0 in 0 until (if (r >= 1) n0 else 1)) {
+                    if (currentFlatIdx < totalSize) {
+                        val indices = when (r) {
+                            0 -> intArrayOf()
+                            1 -> intArrayOf(i0)
+                            2 -> intArrayOf(i0, i1)
+                            3 -> intArrayOf(i0, i1, i2)
+                            else -> intArrayOf(i0, i1, i2, i3)
+                        }
+                        actionPerElement(currentFlatIdx++, indices)
+                    } else return
+                }
+            }
+        }
+    }
+}
+
+/**
  * Adds two tensors element-wise.
- *
- * @param context The GGML context
- * @param a The first tensor
- * @param b The second tensor
- * @return The result tensor
  */
-fun computeAdd(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions
+fun computeAdd(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
     for (i in 0 until GGML_MAX_DIMS) {
-        if (a.ne[i] != b.ne[i]) {
-            throw IllegalArgumentException("Incompatible dimensions for addition")
-        }
+        if (a.ne[i] != b.ne[i]) throw IllegalArgumentException("Incompatible dimensions for addition")
     }
+    val result = GGMLTensor(type = a.type); result.ne = a.ne.copyOf(); result.nb = a.nb.copyOf()
+    val totalSize = result.numElements().toInt()
 
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Perform the addition based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] + bData[j]
-                }
-                i = end
+            applyNDIter(result, totalSize) { _, indices ->
+                val v0 = a.getFloat(graphAllocator, *indices)
+                val v1 = b.getFloat(graphAllocator, *indices)
+                result.setFloat(graphAllocator, v0 + v1, *indices)
             }
-
-            result.data = resultData
         }
         GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    // Convert shorts to floats, add, then convert back to short
-                    val aFloat = aData[j].toFloat() / 32768.0f
-                    val bFloat = bData[j].toFloat() / 32768.0f
-                    val sum = aFloat + bFloat
-                    resultData[j] = (sum * 32768.0f).toInt().toShort()
-                }
-                i = end
+            applyNDIter(result, totalSize) { _, indices ->
+                val v0 = a.getHalf(graphAllocator, *indices)
+                val v1 = b.getHalf(graphAllocator, *indices)
+                result.setHalf(graphAllocator, v0 + v1, *indices)
             }
-
-            result.data = resultData
-        }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val bData = b.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (aData[j] + bData[j]).toByte()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (aData[j] + bData[j]).toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] + bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val bData = b.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] + bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
         }
         GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // Basic implementation for quantized types - dequantize, add, then requantize
-            // This is a placeholder and should be optimized in the future
-
-            // For now, we'll convert to F32, perform the operation, and convert back
-            // In a real implementation, we would have specialized code for each quantized type
-
-            // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
-
-            // Perform addition in F32
-            val resultF32 = computeAdd(context, aF32, bF32)
-
-            // Requantize to the original type
-            result.data = quantizeTensor(resultF32, a.type).data
+            val aF32 = dequantizeTensor(graphAllocator, a)
+            val bF32 = dequantizeTensor(graphAllocator, b)
+            val resultF32 = computeAdd(graphAllocator, context, aF32, bF32)
+            val quantizedResult = quantizeTensor(graphAllocator, resultF32, a.type)
+            result.data = quantizedResult.data
         }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
+        else -> throw NotImplementedError("computeAdd not implemented for type ${a.type}")
     }
-
     return result
 }
 
-/**
- * Dequantizes a tensor to F32 format.
- * This is a placeholder implementation that should be replaced with actual dequantization code.
- *
- * @param tensor The tensor to dequantize
- * @return A new tensor in F32 format
- */
-private fun dequantizeTensor(tensor: GGMLTensor): GGMLTensor {
-    // Create a new F32 tensor with the same dimensions
+private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor): GGMLTensor {
     val result = GGMLTensor(type = GGMLType.F32)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = tensor.ne[i]
+    result.ne = tensor.ne.copyOf()
+    if (result.type.byteSize > 0uL) {
+        result.nb[0] = result.type.byteSize
+        for (d in 1 until GGML_MAX_DIMS) { result.nb[d] = result.ne[d-1].toULong() * result.nb[d-1] }
+    } else {
+        for(d in 0 until GGML_MAX_DIMS) result.nb[d] = 0uL
     }
+    val numElements = tensor.numElements().toInt()
+    val resultDataArray = FloatArray(numElements)
+    when (tensor.type) {
+        GGMLType.F16 -> applyNDIter(tensor, numElements) { flatIdx, indices -> if (flatIdx < numElements) resultDataArray[flatIdx] = tensor.getHalf(graphAllocator, *indices) }
+        GGMLType.F32 -> applyNDIter(tensor, numElements) { flatIdx, indices -> if (flatIdx < numElements) resultDataArray[flatIdx] = tensor.getFloat(graphAllocator, *indices) }
+        GGMLType.Q8_0 -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                val scale = tensor.getQ8_0BlockScale(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK8_0) { if (fidx < numElements) resultDataArray[fidx++] = scale * tensor.getQ8_0Weight(graphAllocator, blockIdx, itemIdxInBlock).toFloat() else break }
+                if (fidx >= numElements && blockIdx < numBlocks -1) { println("Warn: Q8_0 dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q8_0 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q4_0 -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                val scale = tensor.getQ4_0BlockScale(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK4_0) { if (fidx < numElements) resultDataArray[fidx++] = scale * (tensor.getQ4_0NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock).toFloat() - 8.0f) else break }
+                if (fidx >= numElements && blockIdx < numBlocks -1) { println("Warn: Q4_0 dequant filled array early for ${tensor.name}"); break }
+            }
+             if (fidx != numElements && numElements > 0) println("Warn: Q4_0 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q4_1 -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                val dScale = tensor.getQ4_1BlockScale(graphAllocator, blockIdx)
+                val mMin = tensor.getQ4_1BlockMin(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK4_1) {
+                    if (fidx < numElements) {
+                        val qNibble = tensor.getQ4_1NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock)
+                        resultDataArray[fidx++] = dScale * qNibble.toFloat() + mMin
+                    } else { if(fidx > 0) println("Warn: Q4_1 dequant read past numElements for ${tensor.name}"); break }
+                }
+                if (fidx >= numElements && blockIdx < numBlocks -1) { println("Warn: Q4_1 dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q4_1 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        else -> println("Warning: dequantizeTensor from ${tensor.type} to F32 not fully implemented. Result is zeroed for ${tensor.name}.")
+    }
+    result.data = resultDataArray; return result
+}
 
-    // Calculate total size
-    val totalSize = calculateTotalSize(tensor.ne)
+private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTensor, targetType: GGMLType): GGMLTensor {
+    if (tensorF32.type != GGMLType.F32) throw IllegalArgumentException("quantizeTensor expects F32 input, got ${tensorF32.type}")
+    val result = GGMLTensor(type = targetType); result.ne = tensorF32.ne.copyOf()
+    if (targetType.byteSize > 0uL) {
+        result.nb[0] = targetType.byteSize
+        for (d in 1 until GGML_MAX_DIMS) { result.nb[d] = result.ne[d-1].toULong() * result.nb[d-1] }
+    } else {
+        if (targetType != GGMLType.COUNT && !targetType.description.startsWith("Q", ignoreCase = true)) println("Warn: Stride calc for ${targetType.name} in quantizeTensor may be incomplete.")
+        for(d in 0 until GGML_MAX_DIMS) result.nb[d] = 0uL
+    }
+    val numElements = tensorF32.numElements().toInt()
+    when (targetType) {
+        GGMLType.F16 -> {
+            val resArr = ShortArray(numElements); applyNDIter(tensorF32, numElements) { fid, ind -> if (fid < numElements) resArr[fid] = floatToHalf(tensorF32.getFloat(graphAllocator, *ind)) }; result.data = resArr
+        }
+        GGMLType.F32 -> {
+            val resArr = FloatArray(numElements); applyNDIter(tensorF32, numElements) { fid, ind -> if (fid < numElements) resArr[fid] = tensorF32.getFloat(graphAllocator, *ind) }; result.data = resArr
+        }
+        GGMLType.Q8_0 -> {
+            require(numElements % QK8_0 == 0) { "Q8_0 numElements $numElements not div by $QK8_0" }
+            val nBlk = numElements / QK8_0; val blkSize = targetType.byteSize.toInt(); require(blkSize == SHORT_SIZE_BYTES + QK8_0) { "Q8_0 block size mismatch" }
+            val resArr = ByteArray(nBlk * blkSize); val f32Blk = FloatArray(QK8_0); var curIdx = 0; var boff = 0
+            applyNDIter(tensorF32, numElements) { _, ind ->
+                val itemInBlk = curIdx % QK8_0; f32Blk[itemInBlk] = tensorF32.getFloat(graphAllocator, *ind)
+                if (itemInBlk == QK8_0 - 1) {
+                    var amax = 0.0f; for (v in f32Blk) amax = maxOf(amax, abs(v)); val scale = if (amax == 0.0f) 1.0f else amax / 127.0f; val invS = 1.0f / scale
+                    resArr.setShortLe(boff, floatToHalf(scale)); val qOff = boff + SHORT_SIZE_BYTES
+                    for (k in 0 until QK8_0) resArr[qOff + k] = round(f32Blk[k] * invS).toInt().coerceIn(-128, 127).toByte()
+                    boff += blkSize
+                }; curIdx++
+            }; result.data = resArr
+        }
+        GGMLType.Q4_0 -> {
+            require(numElements % QK4_0 == 0) { "Q4_0 numElements $numElements not div by $QK4_0" }
+            val nBlk = numElements / QK4_0; val blkSize = targetType.byteSize.toInt(); require(blkSize == SHORT_SIZE_BYTES + QK4_0 / 2) { "Q4_0 block size mismatch" }
+            val resArr = ByteArray(nBlk * blkSize); val f32Blk = FloatArray(QK4_0); var curIdx = 0; var boff = 0
+            applyNDIter(tensorF32, numElements) { _, ind ->
+                val itemInBlk = curIdx % QK4_0; f32Blk[itemInBlk] = tensorF32.getFloat(graphAllocator, *ind)
+                if (itemInBlk == QK4_0 - 1) {
+                    var amax = 0.0f; for (v in f32Blk) amax = maxOf(amax, abs(v)); val scale = if (amax == 0.0f) 1.0f else amax / 8.0f; val invS = if (scale == 0.0f) 0.0f else 1.0f / scale
+                    resArr.setShortLe(boff, floatToHalf(scale)); val qOff = boff + SHORT_SIZE_BYTES
+                    for (j in 0 until QK4_0 / 2) {
+                        val q1 = round(f32Blk[j*2] * invS + 8.0f).toInt().coerceIn(0,15); val q2 = round(f32Blk[j*2+1] * invS + 8.0f).toInt().coerceIn(0,15)
+                        resArr[qOff + j] = ((q1 and 0x0F) or ((q2 and 0x0F) shl 4)).toByte()
+                    }; boff += blkSize
+                }; curIdx++
+            }; result.data = resArr
+        }
+        GGMLType.Q8_1 -> { result.data = ByteArray(numElements); println("Warn: Quant F32 to ${targetType.name} NI") }
+        GGMLType.Q4_1 -> {
+            require(tensorF32.type == GGMLType.F32) { "Input tensor for Q4_1 quantization must be F32. Got ${tensorF32.type}" } // Already checked at function start, but good for clarity
+            require(numElements % QK4_1 == 0) { "For Q4_1 quantization, total elements ($numElements) must be divisible by QK4_1 ($QK4_1)" }
 
-    // Allocate memory for the result
-    result.data = FloatArray(totalSize)
+            val numBlocks = numElements / QK4_1
+            val q4_1BlockByteSize = targetType.byteSize.toInt()
+            val expectedBlockSize = (2 * SHORT_SIZE_BYTES) + (QK4_1 / 2)
+            require(q4_1BlockByteSize == expectedBlockSize) { "Q4_1 block byte size mismatch. Expected $expectedBlockSize, got $q4_1BlockByteSize. Type says: ${targetType.byteSize}" }
 
-    // For now, just return a zero-filled tensor
-    // In a real implementation, we would dequantize based on the tensor type
+            val q4_1DataArray = ByteArray(numBlocks * q4_1BlockByteSize)
+            result.data = q4_1DataArray // Assign the data array to the result tensor prepared at the start of the function
 
+            val f32BlockValues = FloatArray(QK4_1)
+            var currentF32ElementIndex = 0
+            var q4_1ByteArrayWriteOffset = 0
+
+            // Iterate through blocks by sequentially filling f32BlockValues
+            for (blockNum in 0 until numBlocks) {
+                // Populate f32BlockValues for the current block
+                // This assumes tensorF32.data is a FloatArray and elements are contiguous.
+                // A more robust way would use tensorF32.getFloat(graphAllocator, indices) via applyNDIter,
+                // but that might be slower if direct array access is safe and possible.
+                // For now, let's use a simplified sequential access matching applyNDIter's typical order.
+                // This part needs careful review if tensorF32 data isn't flat or directly accessible.
+                // The applyNDIter in other quantization paths fetches element by element.
+
+                // Simplified block population:
+                var f32BlockReadCount = 0
+                applyNDIter(tensorF32, numElements) { flatIdx, indices ->
+                    if (flatIdx >= blockNum * QK4_1 && flatIdx < (blockNum + 1) * QK4_1) {
+                        if (f32BlockReadCount < QK4_1) { // Ensure we don't write out of bounds
+                           f32BlockValues[f32BlockReadCount++] = tensorF32.getFloat(graphAllocator, *indices)
+                        }
+                    }
+                }
+                // Ensure the block was fully read if applyNDIter was used in this fashion
+                // This simplified block population is complex. A direct iteration is better.
+                // Let's refine the block population strategy.
+
+                // Refined block population:
+                // We need to ensure that we are picking elements from tensorF32 in their logical order.
+                // applyNDIter provides flatIdx and multi-dim indices. We can use flatIdx.
+                // The outer loop is `for (blockNum in 0 until numBlocks)`.
+                // The `currentF32ElementIndex` will track our position in the flat F32 data.
+                // This will be simpler than trying to make applyNDIter fill just one block at a time.
+
+                for (i in 0 until QK4_1) {
+                    // This assumes getFloat can handle a flat index or we convert blockNum*QK4_1 + i to ND-indices.
+                    // Given applyNDIter exists, it's better to use it once over all elements
+                    // and then process them in blocks, as done for Q8_0 and Q4_0.
+                    // The current structure with applyNDIter outside the block loop is for those.
+                    // Replicating that for Q4_1:
+                    // We need to collect QK4_1 elements per block.
+                    // The existing Q8_0/Q4_0 loops use applyNDIter ONCE and process blocks inside its lambda.
+                    // Let's adapt that pattern.
+                    // This means the 'result.data = q4_1DataArray' should be inside this when case.
+                    // And the loop structure will be similar to Q8_0/Q4_0.
+                    // The 'result' tensor is already set up with type and ne. Strides also.
+                    // So, the previous structure of Q8_0/Q4_0 is:
+                    // val resArr = ByteArray(nBlk * blkSize)
+                    // val f32Blk = FloatArray(QK_K)
+                    // var curIdx = 0 (overall element index)
+                    // var boff = 0 (byte offset in resArr)
+                    // applyNDIter(tensorF32, numElements) { _, ind ->
+                    //    val itemInBlk = curIdx % QK_K; f32Blk[itemInBlk] = tensorF32.getFloat(graphAllocator, *ind)
+                    //    if (itemInBlk == QK_K - 1) { process block }
+                    //    curIdx++
+                    // }
+                    // result.data = resArr
+                    // This is the pattern to follow.
+                }
+            }
+            // --- Re-writing the loop structure based on Q8_0/Q4_0 pattern ---
+            val f32BlockBuffer = FloatArray(QK4_1) // Temporary buffer for one block of F32 values
+            var currentElementInF32 = 0
+            var byteArrayWriteOffset = 0
+
+            applyNDIter(tensorF32, numElements) { _, indices ->
+                val itemInBlockIndex = currentElementInF32 % QK4_1
+                f32BlockBuffer[itemInBlockIndex] = tensorF32.getFloat(graphAllocator, *indices)
+
+                if (itemInBlockIndex == QK4_1 - 1) { // Block is full, process it
+                    val f_min = f32BlockBuffer.minOrNull() ?: 0.0f
+                    val f_max = f32BlockBuffer.maxOrNull() ?: 0.0f
+
+                    var d_scaleF32 = (f_max - f_min) / 15.0f
+                    if (d_scaleF32 == 0.0f) { // Handles case where f_max == f_min
+                        d_scaleF32 = 1.0f
+                    }
+                    val m_minF32 = f_min
+                    // invDScaleF32 is guaranteed to be valid as d_scaleF32 is non-zero.
+                    val invDScaleF32 = 1.0f / d_scaleF32
+
+                    val d_scaleF16Short = floatToHalf(d_scaleF32)
+                    val m_minF16Short = floatToHalf(m_minF32)
+
+                    q4_1DataArray.setShortLe(byteArrayWriteOffset, d_scaleF16Short)
+                    q4_1DataArray.setShortLe(byteArrayWriteOffset + SHORT_SIZE_BYTES, m_minF16Short)
+
+                    val qsDataWriteStartOffsetInBlock = byteArrayWriteOffset + (2 * SHORT_SIZE_BYTES)
+                    for (j in 0 until QK4_1 / 2) {
+                        val f32Val1 = f32BlockBuffer[j * 2]
+                        val f32Val2 = f32BlockBuffer[j * 2 + 1]
+
+                        val quantVal1 = round((f32Val1 - m_minF32) * invDScaleF32).toInt().coerceIn(0, 15)
+                        val quantVal2 = round((f32Val2 - m_minF32) * invDScaleF32).toInt().coerceIn(0, 15)
+
+                        val packedByte = (quantVal1 and 0x0F) or ((quantVal2 and 0x0F) shl 4)
+                        q4_1DataArray[qsDataWriteStartOffsetInBlock + j] = packedByte.toByte()
+                    }
+                    byteArrayWriteOffset += q4_1BlockByteSize
+                }
+                currentElementInF32++
+            }
+            result.data = q4_1DataArray
+        }
+        GGMLType.Q5_0, GGMLType.Q5_1 -> { result.data = ByteArray((numElements * 5 + 7) / 8); println("Warn: Quant F32 to ${targetType.name} NI") }
+        else -> { println("Error: Unsupp target quant type $targetType"); result.data = null }
+    }
     return result
 }
 
-/**
- * Quantizes a F32 tensor to the specified type.
- * This is a placeholder implementation that should be replaced with actual quantization code.
- *
- * @param tensor The F32 tensor to quantize
- * @param type The target quantization type
- * @return A new tensor in the specified quantized format
- */
-private fun quantizeTensor(tensor: GGMLTensor, type: GGMLType): GGMLTensor {
-    // Create a new tensor with the specified type and same dimensions
-    val result = GGMLTensor(type = type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = tensor.ne[i]
+fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    val M = a.ne[1].toInt()
+    val K_a = a.ne[0].toInt()
+    val N = b.ne[0].toInt()
+    val K_b = b.ne[1].toInt()
+    if (K_a != K_b) throw IllegalArgumentException("Dim mismatch K: a.ne[0]($K_a) != b.ne[1]($K_b)")
+    val K = K_a
+
+    if (a.type == GGMLType.Q4_0 && b.type == GGMLType.F32) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ40F32(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+    if (a.type == GGMLType.Q8_0 && b.type == GGMLType.F32) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ80F32(graphAllocator,a,b,i,j,K) } }
+        return result
     }
 
-    // Calculate total size
-    val totalSize = calculateTotalSize(tensor.ne)
+    val resultTensor=GGMLTensor(type=a.type); resultTensor.ne=longArrayOf(N.toLong(),M.toLong(),1,1)
+    for(i_dim in 2 until GGML_MAX_DIMS){ val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; resultTensor.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+    if(resultTensor.type.byteSize>0uL){ resultTensor.nb[0]=resultTensor.type.byteSize; for(d in 1 until GGML_MAX_DIMS){resultTensor.nb[d]=resultTensor.ne[d-1].toULong()*resultTensor.nb[d-1]} } else {for(d in 0 until GGML_MAX_DIMS)resultTensor.nb[d]=0uL}
 
-    // Allocate memory for the result based on the type
-    when (type) {
-        GGMLType.Q4_0, GGMLType.Q4_1 -> {
-            // 4-bit quantization - each byte stores 2 values
-            result.data = ByteArray((totalSize + 1) / 2)
-        }
-        GGMLType.Q5_0, GGMLType.Q5_1 -> {
-            // 5-bit quantization - more complex packing
-            result.data = ByteArray((totalSize * 5 + 7) / 8)
-        }
-        GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // 8-bit quantization - one byte per value
-            result.data = ByteArray(totalSize)
-        }
-        else -> {
-            // Should not happen
-            result.data = null
-        }
-    }
-
-    // For now, just return a zero-filled tensor
-    // In a real implementation, we would quantize based on the tensor type
-
-    return result
-}
-
-/**
- * Multiplies two tensors element-wise.
- *
- * @param context The GGML context
- * @param a The first tensor
- * @param b The second tensor
- * @return The result tensor
- */
-fun computeMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions
-    for (i in 0 until GGML_MAX_DIMS) {
-        if (a.ne[i] != b.ne[i]) {
-            throw IllegalArgumentException("Incompatible dimensions for multiplication")
-        }
-    }
-
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Perform the multiplication based on the tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] * bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
+            val effA=a; val effB=if(b.type==GGMLType.F32)b else dequantizeTensor(graphAllocator,b)
+            val resArr = FloatArray(M*N); resultTensor.data=resArr; resultTensor.type = GGMLType.F32; var flatIdx=0
+            for(i in 0 until M){for(j in 0 until N){var sum=0.0f; for(l in 0 until K){sum+=effA.getFloat(graphAllocator,l,i)*effB.getFloat(graphAllocator,j,l)}; resArr[flatIdx++]=sum}}
         }
         GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    // Convert shorts to floats, multiply, then convert back to short
-                    val aFloat = aData[j].toFloat() / 32768.0f
-                    val bFloat = bData[j].toFloat() / 32768.0f
-                    val product = aFloat * bFloat
-                    resultData[j] = (product * 32768.0f).toInt().toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
+            val effA=a; val effB=if(b.type==GGMLType.F16)b else dequantizeTensor(graphAllocator,b)
+            if(effB.type!=GGMLType.F16) throw NotImplementedError("F16xnon-F16 matmul to F16 NI")
+            val resArr = ShortArray(M*N); resultTensor.data=resArr; var flatIdx=0
+            for(i in 0 until M){for(j in 0 until N){var sum=0.0f; for(l in 0 until K){sum+=effA.getHalf(graphAllocator,l,i)*effB.getHalf(graphAllocator,j,l)}; resArr[flatIdx++]=floatToHalf(sum)}}
         }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val bData = b.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (aData[j] * bData[j]).toByte()
-                }
-                i = end
-            }
-
-            result.data = resultData
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1 -> {
+            val aF32=dequantizeTensor(graphAllocator,a); val bF32=dequantizeTensor(graphAllocator,b)
+            val resF32=computeMatMul(graphAllocator,context,aF32,bF32)
+            val qRes=quantizeTensor(graphAllocator,resF32,resultTensor.type); resultTensor.data=qRes.data
         }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (aData[j] * bData[j]).toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] * bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val bData = b.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] * bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // Basic implementation for quantized types - dequantize, multiply, then requantize
-            // This is a placeholder and should be optimized in the future
-
-            // For now, we'll convert to F32, perform the operation, and convert back
-            // In a real implementation, we would have specialized code for each quantized type
-
-            // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
-
-            // Perform multiplication in F32
-            val resultF32 = computeMul(context, aF32, bF32)
-
-            // Requantize to the original type
-            result.data = quantizeTensor(resultF32, a.type).data
-        }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
+        else -> throw NotImplementedError("computeMatMul NI for input type ${a.type}")
     }
-
-    return result
+    return resultTensor
 }
 
-/**
- * Performs matrix multiplication of two tensors.
- *
- * @param context The GGML context
- * @param a The first tensor (m x n)
- * @param b The second tensor (n x p)
- * @return The result tensor (m x p)
- */
-fun computeMatMul(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions for matrix multiplication
-    // a: m x n, b: n x p, result: m x p
-    val m = a.ne[0]
-    val n = a.ne[1]
-    val p = b.ne[1]
-
-    if (b.ne[0] != n) {
-        throw IllegalArgumentException("Incompatible dimensions for matrix multiplication")
-    }
-
-    // Create a new tensor for the result
-    val result = GGMLTensor(type = a.type)
-    result.ne[0] = m
-    result.ne[1] = p
-    for (i in 2 until GGML_MAX_DIMS) {
-        result.ne[i] = 1
-    }
-
-    // Set strides based on the data type
-    val typeSize = when (a.type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    result.nb[0] = typeSize.toULong()
-    result.nb[1] = result.nb[0] * result.ne[0].toULong()
-    for (i in 2 until GGML_MAX_DIMS) {
-        result.nb[i] = result.nb[i-1] * result.ne[i-1].toULong()
-    }
-
-    // Calculate total size
-    val totalSize = (m * p).toInt()
-
-    // Perform the matrix multiplication based on the tensor type
+fun computeRelu(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type); result.ne = a.ne.copyOf(); result.nb = a.nb.copyOf()
+    val totalSize = result.numElements().toInt()
     when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
-
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0.0f
-            }
-
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                val aVal = aData[i * n.toInt() + k]
-
-                                for (j in jj until jEnd) {
-                                    resultData[i * p.toInt() + j] += aVal * bData[k * p.toInt() + j]
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.data = resultData
-        }
-        GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
-
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0
-            }
-
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                // Convert short to float
-                                val aFloat = aData[i * n.toInt() + k].toFloat() / 32768.0f
-
-                                for (j in jj until jEnd) {
-                                    // Convert short to float, multiply, accumulate
-                                    val bFloat = bData[k * p.toInt() + j].toFloat() / 32768.0f
-                                    val currentVal = resultData[i * p.toInt() + j].toFloat() / 32768.0f
-                                    val newVal = currentVal + aFloat * bFloat
-
-                                    // Convert back to short
-                                    resultData[i * p.toInt() + j] = (newVal * 32768.0f).toInt().toShort()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
-
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0
-            }
-
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                val aVal = aData[i * n.toInt() + k]
-
-                                for (j in jj until jEnd) {
-                                    // Need to be careful with overflow
-                                    val product = aVal * bData[k * p.toInt() + j]
-                                    val sum = resultData[i * p.toInt() + j] + product
-                                    resultData[i * p.toInt() + j] = sum.toShort()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
-
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0
-            }
-
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                val aVal = aData[i * n.toInt() + k]
-
-                                for (j in jj until jEnd) {
-                                    resultData[i * p.toInt() + j] += aVal * bData[k * p.toInt() + j]
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val bData = b.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
-
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0
-            }
-
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                val aVal = aData[i * n.toInt() + k]
-
-                                for (j in jj until jEnd) {
-                                    // Need to be careful with overflow
-                                    val product = aVal * bData[k * p.toInt() + j]
-                                    val sum = resultData[i * p.toInt() + j] + product
-                                    resultData[i * p.toInt() + j] = sum.toByte()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val bData = b.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            // Use block-based matrix multiplication for better cache utilization
-            val blockSize = 32 // Adjust based on cache size
-
-            // Initialize result to zeros
-            for (i in 0 until totalSize) {
-                resultData[i] = 0L
-            }
-
-            // Block-based matrix multiplication
-            for (ii in 0 until m.toInt() step blockSize) {
-                val iEnd = minOf(ii + blockSize, m.toInt())
-
-                for (kk in 0 until n.toInt() step blockSize) {
-                    val kEnd = minOf(kk + blockSize, n.toInt())
-
-                    for (jj in 0 until p.toInt() step blockSize) {
-                        val jEnd = minOf(jj + blockSize, p.toInt())
-
-                        // Process the current block
-                        for (i in ii until iEnd) {
-                            for (k in kk until kEnd) {
-                                val aVal = aData[i * n.toInt() + k]
-
-                                for (j in jj until jEnd) {
-                                    resultData[i * p.toInt() + j] += aVal * bData[k * p.toInt() + j]
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.data = resultData
-        }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // Basic implementation for quantized types - dequantize, perform matrix multiplication, then requantize
-            // This is a placeholder and should be optimized in the future
-
-            // For now, we'll convert to F32, perform the operation, and convert back
-            // In a real implementation, we would have specialized code for each quantized type
-
-            // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
-
-            // Perform matrix multiplication in F32
-            val resultF32 = computeMatMul(context, aF32, bF32)
-
-            // Requantize to the original type
-            result.data = quantizeTensor(resultF32, a.type).data
-        }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
+        GGMLType.F32 -> applyNDIter(result, totalSize) { _, ind -> result.setFloat(graphAllocator, if(a.getFloat(graphAllocator, *ind)>0.0f)a.getFloat(graphAllocator,*ind)else 0.0f, *ind) }
+        GGMLType.F16 -> applyNDIter(result, totalSize) { _, ind -> result.setHalf(graphAllocator, if(a.getHalf(graphAllocator, *ind)>0.0f)a.getHalf(graphAllocator,*ind)else 0.0f, *ind) }
+        else -> throw NotImplementedError("computeRelu NI for type ${a.type}")
     }
-
     return result
 }
 
-/**
- * Applies the ReLU activation function to a tensor.
- *
- * @param context The GGML context
- * @param a The input tensor
- * @return The result tensor
- */
-fun computeRelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Apply the ReLU function based on the tensor type
+fun computeGelu(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val result = GGMLTensor(type = a.type); result.ne = a.ne.copyOf(); result.nb = a.nb.copyOf()
+    val totalSize = result.numElements().toInt()
+    val gelu = {x:Float -> x*0.5f*(1.0f+kotlin.math.tanh(0.797885f*(x+0.044715f*x*x*x)))}
     when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = if (aData[i] > 0.0f) aData[i] else 0.0f
-            }
-
-            result.data = resultData
-        }
-        GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                // Convert short to float, apply ReLU, convert back to short
-                val aFloat = aData[i].toFloat() / 32768.0f
-                val reluResult = if (aFloat > 0.0f) aFloat else 0.0f
-                resultData[i] = (reluResult * 32768.0f).toInt().toShort()
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = if (aData[i] > 0) aData[i] else 0
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = if (aData[i] > 0) aData[i] else 0
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = if (aData[i] > 0) aData[i] else 0
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = if (aData[i] > 0) aData[i] else 0
-            }
-
-            result.data = resultData
-        }
-        else -> {
-            // For other types (quantized types), we'll implement later
-            result.data = null
-        }
+        GGMLType.F32 -> applyNDIter(result, totalSize) { _, ind -> result.setFloat(graphAllocator, gelu(a.getFloat(graphAllocator, *ind)), *ind) }
+        GGMLType.F16 -> applyNDIter(result, totalSize) { _, ind -> result.setHalf(graphAllocator, gelu(a.getHalf(graphAllocator, *ind)), *ind) }
+        else -> throw NotImplementedError("computeGelu NI for type ${a.type}")
     }
-
     return result
 }
 
-/**
- * Applies the GELU activation function to a tensor.
- *
- * @param context The GGML context
- * @param a The input tensor
- * @return The result tensor
- */
-fun computeGelu(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
+fun computeSub(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    for(i in 0 until GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
+    val res=GGMLTensor(a.type); res.ne=a.ne.copyOf(); res.nb=a.nb.copyOf(); val ts=res.numElements().toInt()
+    when(a.type){
+        GGMLType.F32->applyNDIter(res,ts){_,ind->res.setFloat(graphAllocator,a.getFloat(graphAllocator,*ind)-b.getFloat(graphAllocator,*ind),*ind)}
+        GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,a.getHalf(graphAllocator,*ind)-b.getHalf(graphAllocator,*ind),*ind)}
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val bf=dequantizeTensor(graphAllocator,b); val rf=computeSub(graphAllocator,context,af,bf); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
+        else->throw NotImplementedError("computeSub NI for ${a.type}")
     }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Apply the GELU function based on the tensor type
-    when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                // GELU approximation: x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
-                val x = aData[i]
-                resultData[i] = x * 0.5f * (1.0f + kotlin.math.tanh(0.797885f * (x + 0.044715f * x * x * x)))
-            }
-
-            result.data = resultData
-        }
-        GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                // Convert short to float, apply GELU, convert back to short
-                val x = aData[i].toFloat() / 32768.0f
-                val geluResult = x * 0.5f * (1.0f + kotlin.math.tanh(0.797885f * (x + 0.044715f * x * x * x)))
-                resultData[i] = (geluResult * 32768.0f).toInt().toShort()
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I8, GGMLType.I16, GGMLType.I32, GGMLType.I64 -> {
-            // For integer types, convert to float, apply GELU, then convert back
-            // This is a simplified implementation that treats all integer types similarly
-
-            // Create a float array for intermediate calculations
-            val floatData = FloatArray(totalSize)
-
-            // Convert input data to float
-            when (a.type) {
-                GGMLType.I8 -> {
-                    val aData = a.data as ByteArray
-                    for (i in 0 until totalSize) {
-                        floatData[i] = aData[i].toFloat()
-                    }
-                }
-                GGMLType.I16 -> {
-                    val aData = a.data as ShortArray
-                    for (i in 0 until totalSize) {
-                        floatData[i] = aData[i].toFloat()
-                    }
-                }
-                GGMLType.I32 -> {
-                    val aData = a.data as IntArray
-                    for (i in 0 until totalSize) {
-                        floatData[i] = aData[i].toFloat()
-                    }
-                }
-                GGMLType.I64 -> {
-                    val aData = a.data as LongArray
-                    for (i in 0 until totalSize) {
-                        floatData[i] = aData[i].toFloat()
-                    }
-                }
-                else -> {} // Should not happen due to the when condition
-            }
-
-            // Apply GELU to float data
-            for (i in 0 until totalSize) {
-                val x = floatData[i]
-                floatData[i] = x * 0.5f * (1.0f + kotlin.math.tanh(0.797885f * (x + 0.044715f * x * x * x)))
-            }
-
-            // Convert back to the original type
-            when (a.type) {
-                GGMLType.I8 -> {
-                    val resultData = ByteArray(totalSize)
-                    for (i in 0 until totalSize) {
-                        resultData[i] = floatData[i].toInt().toByte()
-                    }
-                    result.data = resultData
-                }
-                GGMLType.I16 -> {
-                    val resultData = ShortArray(totalSize)
-                    for (i in 0 until totalSize) {
-                        resultData[i] = floatData[i].toInt().toShort()
-                    }
-                    result.data = resultData
-                }
-                GGMLType.I32 -> {
-                    val resultData = IntArray(totalSize)
-                    for (i in 0 until totalSize) {
-                        resultData[i] = floatData[i].toInt()
-                    }
-                    result.data = resultData
-                }
-                GGMLType.I64 -> {
-                    val resultData = LongArray(totalSize)
-                    for (i in 0 until totalSize) {
-                        resultData[i] = floatData[i].toLong()
-                    }
-                    result.data = resultData
-                }
-                else -> {} // Should not happen due to the when condition
-            }
-        }
-        else -> {
-            // For other types (quantized types), we'll implement later
-            result.data = null
-        }
-    }
-
-    return result
+    return res
 }
 
-/**
- * Subtracts one tensor from another element-wise.
- *
- * @param context The GGML context
- * @param a The first tensor
- * @param b The second tensor
- * @return The result tensor (a - b)
- */
-fun computeSub(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions
-    for (i in 0 until GGML_MAX_DIMS) {
-        if (a.ne[i] != b.ne[i]) {
-            throw IllegalArgumentException("Incompatible dimensions for subtraction")
-        }
+fun computeNeg(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val res=GGMLTensor(a.type); res.ne=a.ne.copyOf(); res.nb=a.nb.copyOf(); val ts=res.numElements().toInt()
+    when(a.type){
+        GGMLType.F32->applyNDIter(res,ts){_,ind->res.setFloat(graphAllocator,-a.getFloat(graphAllocator,*ind),*ind)}
+        GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,-a.getHalf(graphAllocator,*ind),*ind)}
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val rf=computeNeg(graphAllocator,context,af); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
+        else->throw NotImplementedError("computeNeg NI for ${a.type}")
     }
-
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Perform the subtraction based on the tensor type
-    when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] - bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    // Convert shorts to floats, subtract, then convert back to short
-                    val aFloat = aData[j].toFloat() / 32768.0f
-                    val bFloat = bData[j].toFloat() / 32768.0f
-                    val diff = aFloat - bFloat
-                    resultData[j] = (diff * 32768.0f).toInt().toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val bData = b.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (aData[j] - bData[j]).toByte()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (aData[j] - bData[j]).toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] - bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val bData = b.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = aData[j] - bData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // Basic implementation for quantized types - dequantize, subtract, then requantize
-            // This is a placeholder and should be optimized in the future
-
-            // For now, we'll convert to F32, perform the operation, and convert back
-            // In a real implementation, we would have specialized code for each quantized type
-
-            // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
-
-            // Perform subtraction in F32
-            val resultF32 = computeSub(context, aF32, bF32)
-
-            // Requantize to the original type
-            result.data = quantizeTensor(resultF32, a.type).data
-        }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
-    }
-
-    return result
+    return res
 }
 
-/**
- * Negates a tensor element-wise.
- *
- * @param context The GGML context
- * @param a The input tensor
- * @return The result tensor (-a)
- */
-fun computeNeg(@Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
+fun computeDiv(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    for(i in 0 until GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
+    val res=GGMLTensor(a.type);res.ne=a.ne.copyOf();res.nb=a.nb.copyOf();val ts=res.numElements().toInt()
+    val div={vA:Float,vB:Float->if(vB==0.0f){if(vA==0.0f)Float.NaN else if(vA>0.0f)Float.POSITIVE_INFINITY else Float.NEGATIVE_INFINITY}else{vA/vB}}
+    when(a.type){
+        GGMLType.F32->applyNDIter(res,ts){_,ind->res.setFloat(graphAllocator,div(a.getFloat(graphAllocator,*ind),b.getFloat(graphAllocator,*ind)),*ind)}
+        GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,div(a.getHalf(graphAllocator,*ind),b.getHalf(graphAllocator,*ind)),*ind)}
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a);val bf=dequantizeTensor(graphAllocator,b);val rf=computeDiv(graphAllocator,context,af,bf);val qr=quantizeTensor(graphAllocator,rf,a.type);res.data=qr.data}
+        else->throw NotImplementedError("computeDiv NI for ${a.type}")
     }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Perform the negation based on the tensor type
-    when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = -aData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    // Convert short to float, negate, then convert back to short
-                    val aFloat = aData[j].toFloat() / 32768.0f
-                    val negated = -aFloat
-                    resultData[j] = (negated * 32768.0f).toInt().toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (-aData[j]).toByte()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = (-aData[j]).toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = -aData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    resultData[j] = -aData[j]
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // Basic implementation for quantized types - dequantize, negate, then requantize
-            // This is a placeholder and should be optimized in the future
-
-            // For now, we'll convert to F32, perform the operation, and convert back
-            // In a real implementation, we would have specialized code for each quantized type
-
-            // Create temporary F32 tensor
-            val aF32 = dequantizeTensor(a)
-
-            // Perform negation in F32
-            val resultF32 = computeNeg(context, aF32)
-
-            // Requantize to the original type
-            result.data = quantizeTensor(resultF32, a.type).data
-        }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
-    }
-
-    return result
+    return res
 }
 
-/**
- * Divides one tensor by another element-wise.
- *
- * @param context The GGML context
- * @param a The numerator tensor
- * @param b The denominator tensor
- * @return The result tensor (a / b)
- */
-fun computeDiv(@Suppress("unused") context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions
-    for (i in 0 until GGML_MAX_DIMS) {
-        if (a.ne[i] != b.ne[i]) {
-            throw IllegalArgumentException("Incompatible dimensions for division")
-        }
-    }
+[end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
 
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Perform division based on the tensor type
-    when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    if (bData[j] == 0.0f) {
-                        // Handle division by zero
-                        resultData[j] = if (aData[j] == 0.0f) {
-                            Float.NaN // 0/0 = NaN
-                        } else if (aData[j] > 0.0f) {
-                            Float.POSITIVE_INFINITY // positive/0 = +Infinity
-                        } else {
-                            Float.NEGATIVE_INFINITY // negative/0 = -Infinity
-                        }
-                    } else {
-                        resultData[j] = aData[j] / bData[j]
-                    }
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.F16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    // Convert shorts to floats
-                    val aFloat = aData[j].toFloat() / 32768.0f
-                    val bFloat = bData[j].toFloat() / 32768.0f
-
-                    // Perform division
-                    val resultFloat = if (bFloat == 0.0f) {
-                        if (aFloat == 0.0f) {
-                            Float.NaN // 0/0 = NaN
-                        } else if (aFloat > 0.0f) {
-                            Float.POSITIVE_INFINITY // positive/0 = +Infinity
-                        } else {
-                            Float.NEGATIVE_INFINITY // negative/0 = -Infinity
-                        }
-                    } else {
-                        aFloat / bFloat
-                    }
-
-                    // Convert back to short
-                    resultData[j] = (resultFloat * 32768.0f).toInt().toShort()
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I8 -> {
-            val aData = a.data as ByteArray
-            val bData = b.data as ByteArray
-            val resultData = ByteArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    if (bData[j] == 0.toByte()) {
-                        // Handle division by zero - for integer types, we'll use 0 as a default
-                        resultData[j] = 0
-                    } else {
-                        resultData[j] = (aData[j] / bData[j]).toByte()
-                    }
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I16 -> {
-            val aData = a.data as ShortArray
-            val bData = b.data as ShortArray
-            val resultData = ShortArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    if (bData[j] == 0.toShort()) {
-                        // Handle division by zero - for integer types, we'll use 0 as a default
-                        resultData[j] = 0
-                    } else {
-                        resultData[j] = (aData[j] / bData[j]).toShort()
-                    }
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    if (bData[j] == 0) {
-                        // Handle division by zero - for integer types, we'll use 0 as a default
-                        resultData[j] = 0
-                    } else {
-                        resultData[j] = aData[j] / bData[j]
-                    }
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I64 -> {
-            val aData = a.data as LongArray
-            val bData = b.data as LongArray
-            val resultData = LongArray(totalSize)
-
-            // Process in chunks for better cache utilization
-            val chunkSize = 128
-            var i = 0
-            while (i < totalSize) {
-                val end = minOf(i + chunkSize, totalSize)
-                for (j in i until end) {
-                    if (bData[j] == 0L) {
-                        // Handle division by zero - for integer types, we'll use 0 as a default
-                        resultData[j] = 0L
-                    } else {
-                        resultData[j] = aData[j] / bData[j]
-                    }
-                }
-                i = end
-            }
-
-            result.data = resultData
-        }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
-            // Basic implementation for quantized types - dequantize, divide, then requantize
-            // This is a placeholder and should be optimized in the future
-
-            // For now, we'll convert to F32, perform the operation, and convert back
-            // In a real implementation, we would have specialized code for each quantized type
-
-            // Create temporary F32 tensors
-            val aF32 = dequantizeTensor(a)
-            val bF32 = dequantizeTensor(b)
-
-            // Perform division in F32
-            val resultF32 = computeDiv(context, aF32, bF32)
-
-            // Requantize to the original type
-            result.data = quantizeTensor(resultF32, a.type).data
-        }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
-    }
-
-    return result
-}
+[end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
