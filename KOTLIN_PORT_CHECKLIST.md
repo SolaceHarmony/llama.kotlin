@@ -59,18 +59,16 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Implement forward pass computation
   - [x] Implement automatic differentiation (partial implementation)
     - [x] Implement backward pass for ADD, SUB, MUL, NEG operations
-    - [x] Implement backward pass for RELU, GELU, SILU activation functions
+    - [x] Implement backward pass for RELU, GELU activation functions
     - [x] Implement backward pass for MUL_MAT (matrix multiplication)
     - [x] Implement backward pass for DIV, SQR, SQRT operations
     - [x] Implement backward pass for SUM, MEAN operations
     - [x] Implement backward pass for REPEAT operation
     - [x] Implement backward pass for ABS, SGN, STEP operations
-    - [x] Implement backward pass for NORM, RMS_NORM operations
-    - [x] Implement backward pass for SCALE operation
-    - [ ] Implement backward pass for remaining operations (CPY, RESHAPE, VIEW, PERMUTE, TRANSPOSE, GET_ROWS, DIAG_MASK_INF, SOFT_MAX, ROPE, CONV_1D_1S, CONV_1D_2S, FLASH_ATTN, FLASH_FF, MAP_UNARY, MAP_BINARY)
+    - [ ] Implement backward pass for remaining operations
   - [ ] Implement graph optimization
 
-- [ ] Implement Quantization Support
+- [~] Implement Quantization Support
   - [ ] Implement 1.5-bit integer quantization
   - [ ] Implement 2-bit integer quantization
   - [ ] Implement 3-bit integer quantization
@@ -83,7 +81,12 @@ This checklist is based on the current state of the Kotlin Native port of llama.
       - [x] Implemented `computeDotProductQ40F32` for efficient Q4_0 x F32 operations.
       - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_0 x F32 -> F32) cases.
       - [ ] Consider optimized dot product for the symmetric F32 x Q4_0 case (currently uses dequantization).
-
+  - [~] Implement 4-bit integer quantization (Q4_1 focused)
+    - [x] Defined Q4_1 block structure (2x F16 scale/min + 32x4-bit packed weights, type.byteSize = 20).
+    - [x] Implemented data accessors for Q4_1 blocks (`getQ4_1BlockScale`, `getQ4_1BlockMin`, `getQ4_1NibbleWeight`).
+    - [x] Implemented Q4_1 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implemented F32 to Q4_1 quantization in `quantizeTensor`.
+    - [ ] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
   - [~] Implement 8-bit integer quantization (Q8_0 focused)
