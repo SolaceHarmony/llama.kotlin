@@ -97,12 +97,39 @@ class GGMLTensorAllocator {
      * @param tensor The tensor to calculate the size for
      * @return The size of the tensor in elements
      */
-    private fun calculateTensorSize(tensor: GGMLTensor): ULong {
-        var size = 1UL
-        for (i in 0 until GGML_MAX_DIMS) {
-            size *= tensor.ne[i].toULong()
+    private fun calculateTensorByteSize(tensor: GGMLTensor): ULong { // Renamed for clarity and correctness
+        val numElements = tensor.numElements().toULong()
+        if (numElements == 0uL && !tensor.isValidZeroSizedTensor()) {
+            // If numElements is 0 but it's not a valid zero-sized tensor (e.g. type COUNT or ne[i]=0),
+            // it might be an uninitialized tensor or an issue.
+            // However, isValidZeroSizedTensor also checks for ne[i]=0 which leads to numElements=0.
+            // The primary check for numElements == 0uL at the start is good.
         }
-        return size
+        if (numElements == 0uL) return 0uL
+
+
+        return when (tensor.type) {
+            GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0 -> { // Add other block types here if they have elementsPerBlock
+                val elementsPerBlock = when(tensor.type) {
+                    GGMLType.Q4_0 -> QK4_0.toULong()
+                    GGMLType.Q4_1 -> QK4_1.toULong()
+                    GGMLType.Q8_0 -> QK8_0.toULong()
+                    else -> 1uL // Should not happen due to outer when
+                }
+                if (elementsPerBlock == 0uL) return 0uL // Avoid division by zero
+
+                // GGML typically expects numElements to be a multiple of elementsPerBlock for quantized types.
+                // If not, it's often an error or requires padding logic not yet implemented.
+                if (numElements % elementsPerBlock != 0uL) {
+                     println("Warning: Tensor ${tensor.name} of type ${tensor.type} has $numElements elements, not perfectly divisible by block size $elementsPerBlock. Byte size calculation might be incorrect if padding is expected.")
+                }
+                // Calculate size based on full blocks needed for the given number of elements.
+                (numElements / elementsPerBlock) * tensor.type.byteSize
+            }
+            // For non-block types, type.byteSize is the size of one element.
+            // For GGMLType.COUNT, byteSize is 0, so this correctly results in 0.
+            else -> numElements * tensor.type.byteSize
+        }
     }
 
     /**
@@ -290,6 +317,42 @@ class GGMLGraphAllocator {
         tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
 
+    private fun ensureBufferCapacity(bufferId: Int, requiredSize: ULong) {
+        if (bufferId < 0 || bufferId >= buffers.size || bufferId >= tensorAllocators.size) {
+            // Or throw an IllegalArgumentException, depending on desired error handling
+            println("Error: Invalid bufferId $bufferId")
+            return
+        }
+
+        val currentBuffer = buffers[bufferId]
+        if (currentBuffer == null || currentBuffer.size < requiredSize.toInt()) {
+            // Ensure requiredSize is not zero if creating a new buffer,
+            // though ULong to Int conversion might cap it.
+            // Consider a minimum practical size or error if requiredSize is too large for Int.
+            val newSize = if (requiredSize > Int.MAX_VALUE.toULong()) {
+                println("Warning: requiredSize $requiredSize exceeds Int.MAX_VALUE. Clamping to Int.MAX_VALUE.")
+                Int.MAX_VALUE
+            } else {
+                requiredSize.toInt()
+            }
+
+            if (newSize <= 0 && requiredSize > 0u) {
+                throw IllegalArgumentException("Invalid buffer size: requiredSize $requiredSize resulted in non-positive newSize $newSize. This may indicate an overflow or invalid input.")
+                 println("Warning: requiredSize $requiredSize results in non-positive newSize $newSize. Using a minimal size if possible or erroring.")
+                // This case needs careful handling. Forcing a minimal size might be an option,
+                // or throwing an error if requiredSize was genuinely > 0 but resulted in newSize <= 0.
+                // For now, let's assume this indicates an issue or very small required size.
+                // If requiredSize was 0, ByteArray(0) is valid but perhaps not intended.
+                // If requiredSize was >0 but became 0 after toInt(), it's an overflow that was clamped.
+
+            }
+
+            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer
+            tensorAllocators[bufferId].reset(newSize.toULong()) // Reset the allocator with the new size
+        }
+    }
+
+
     /**
      * Analyzes the computation graph to understand tensor usage patterns.
      * This information can be used for memory optimization strategies like
@@ -346,18 +409,19 @@ class GGMLGraphAllocator {
                 requiredSize.toInt()
             }
 
-            if (newSize <= 0 && requiredSize > 0u) {
-                throw IllegalArgumentException("Invalid buffer size: requiredSize $requiredSize resulted in non-positive newSize $newSize. This may indicate an overflow or invalid input.")
-                 println("Warning: requiredSize $requiredSize results in non-positive newSize $newSize. Using a minimal size if possible or erroring.")
-                // This case needs careful handling. Forcing a minimal size might be an option,
-                // or throwing an error if requiredSize was genuinely > 0 but resulted in newSize <= 0.
-                // For now, let's assume this indicates an issue or very small required size.
-                // If requiredSize was 0, ByteArray(0) is valid but perhaps not intended.
-                // If requiredSize was >0 but became 0 after toInt(), it's an overflow that was clamped.
-
+            // Add the new check:
+            if (newSize <= 0 && requiredSize > 0uL) {
+                throw IllegalArgumentException(
+                    "Invalid buffer size for buffer $bufferId: " +
+                    "original requiredSize $requiredSize (ULong) resulted in " +
+                    "non-positive effective size $newSize (Int) for ByteArray construction. " +
+                    "This may indicate an overflow from ULong to Int or an invalid input."
+                )
             }
+            // If requiredSize is 0uL, newSize will be 0. ByteArray(0) is valid.
+            // The condition above ensures that if requiredSize was > 0, newSize must also be > 0.
 
-            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer
+            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer. If newSize is 0, this is ByteArray(0).
             tensorAllocators[bufferId].reset(newSize.toULong()) // Reset the allocator with the new size
         }
     }
@@ -466,23 +530,65 @@ class GGMLGraphAllocator {
             if (ggml_is_view(tensor) && tensor.viewSrc != null) {
                 tensorUsageMap[tensor.viewSrc!!]?.let { srcUsage ->
                     tensor.bufferId = srcUsage.bufferId
-                    tensor.dataOffset = tensor.viewOffs // viewOffs is relative to src tensor's data start
-                    // It should be: tensor.dataOffset = srcUsage.dataOffset + tensor.viewOffs
-                    // However, viewOffs in ggml.c is usually the absolute offset in the context,
-                    // or relative to the start of the *source tensor's data*.
-                    // For now, let's assume viewOffs is relative to the parent's dataOffset.
+                    // tensor.viewOffs is the byte offset from the start of viewSrc's data region (which begins at srcUsage.dataOffset).
+                    // Thus, the absolute offset of the view tensor's data is srcUsage.dataOffset + tensor.viewOffs.
                     tensor.dataOffset = srcUsage.dataOffset + tensor.viewOffs
 
                     tensorUsage.bufferId = srcUsage.bufferId
                     tensorUsage.dataOffset = tensor.dataOffset
-                    tensorUsage.calculatedSize = calculateTensorSize(tensor) // View can have different size than source
+                    // Ensure calculatedSize for the view tensor reflects its own dimensions and type, using byte size.
+                    tensorUsage.calculatedSize = calculateTensorByteSize(tensor)
+
                 }
             }
             return // No new allocation needed
         }
 
+        // tensorUsage is already fetched.
+        // val tensorUsage = tensorUsageMap[tensor]!! // This is already done at the start of the function.
+
+        val tensorCalculatedByteSize = calculateTensorByteSize(tensor) // Use the corrected byte size calculation
+
+        // New handling for zero-sized tensors, placed before inplace allocation logic
+        if (tensorCalculatedByteSize == 0uL) {
+            if (tensor.isValidZeroSizedTensor()) {
+                // Ensure this isn't a view that has already been "allocated" by its source.
+                // The initial check `if (tensor.data != null || ggml_is_view(tensor))` handles this.
+                // However, if it's a view of a zero-sized tensor, its viewSrc might be what needs allocation.
+                // The current logic for views seems to copy bufferId/dataOffset from srcUsage.
+                // If viewSrc itself is zero-sized and gets processed here, this is fine.
+                // A view of a non-zero tensor that results in a zero-sized view (e.g. ne=[0,...]) is also fine.
+
+                println("Info: Tensor ${tensor.name} type ${tensor.type} (dims: ${tensor.ne.joinToString()}) is validly zero-sized. Allocating 0 bytes.")
+
+                val actualBufferId = bufferId
+                val offset = tensorAllocators[actualBufferId].allocate(0uL, tensor)
+
+                tensor.bufferId = actualBufferId
+                tensor.dataOffset = offset
+
+                tensorUsage.ownsMemory = true
+                tensorUsage.bufferId = actualBufferId
+                tensorUsage.dataOffset = offset
+                tensorUsage.calculatedSize = 0uL // It's a zero-byte allocation
+            } else {
+                // This case implies numElements > 0 but type.byteSize is 0 for a data type,
+                // which should have been warned about during stride calculation or type definition.
+                // Or, numElements became 0 in an unexpected way for a non-COUNT type.
+                println("Warning: Tensor ${tensor.name} type ${tensor.type} (dims: ${tensor.ne.joinToString()}) has an unexpected calculated byte size 0. Skipping allocation.")
+                tensorUsage.ownsMemory = false
+                tensorUsage.calculatedSize = 0uL
+                tensor.bufferId = -1
+                tensor.dataOffset = 0uL
+                tensorUsage.bufferId = -1
+                tensorUsage.dataOffset = 0uL
+            }
+            return // Processed zero-sized tensor, skip further allocation logic
+        }
+
+        // Inplace allocation logic starts here
         var inplaceFound = false
-        val tensorCalculatedSize = calculateTensorSize(tensor)
+        // val tensorCalculatedSize = calculateTensorSize(tensor) // This is now tensorCalculatedByteSize
 
         if (tensor.op.canBeInplace) {
             for (srcIdx in tensor.src.indices) {
@@ -521,30 +627,12 @@ class GGMLGraphAllocator {
 
         if (!inplaceFound) {
             // Standard allocation if no inplace opportunity or tensor is not inplace eligible
-            if (tensorCalculatedSize == 0uL) {
-                if (tensor.type == GGMLType.COUNT || tensor.isValidZeroSizedTensor()) { // Handle valid 0-sized tensors
-                    println("Info: Tensor ${tensor.name} type ${tensor.type} has calculated size 0 but is valid. Proceeding with allocation.")
-                    tensorUsage.ownsMemory = true
-                    tensorUsage.calculatedSize = 0uL
-                    tensor.bufferId = bufferId // Use the passed-in bufferId for now
-                    tensor.dataOffset = tensorAllocators[bufferId].allocate(0uL, tensor)
-                    tensorUsage.bufferId = tensor.bufferId
-                    tensorUsage.dataOffset = tensor.dataOffset
-                } else {
-                    println("Warning: Tensor ${tensor.name} type ${tensor.type} has calculated size 0. Skipping allocation.")
-                    tensorUsage.ownsMemory = false
-                    tensorUsage.calculatedSize = 0uL
-                    // Ensure bufferId and dataOffset are marked as invalid or default if no allocation.
-                    tensor.bufferId = -1
-                    tensor.dataOffset = 0uL
-                    tensorUsage.bufferId = -1
-                    tensorUsage.dataOffset = 0uL
-                    return
-                }
-            }
+            // The zero-size check is now handled above.
+            // This part is only for non-zero sized tensors.
 
             val actualBufferId = bufferId // Use the passed-in bufferId for now
-            val offset = tensorAllocators[actualBufferId].allocate(tensorCalculatedSize, tensor)
+            // Pass tensorCalculatedByteSize to the allocator
+            val offset = tensorAllocators[actualBufferId].allocate(tensorCalculatedByteSize, tensor)
 
             tensor.bufferId = actualBufferId
             tensor.dataOffset = offset
@@ -552,23 +640,12 @@ class GGMLGraphAllocator {
             tensorUsage.ownsMemory = true
             tensorUsage.bufferId = actualBufferId
             tensorUsage.dataOffset = offset
-            tensorUsage.calculatedSize = tensorCalculatedSize
+            tensorUsage.calculatedSize = tensorCalculatedByteSize // Store the byte size
         }
     }
 
-    /**
-     * Calculates the size of a tensor in elements.
-     *
-     * @param tensor The tensor to calculate the size for
-     * @return The size of the tensor in elements
-     */
-    private fun calculateTensorSize(tensor: GGMLTensor): ULong {
-        var size = 1UL
-        for (i in 0 until GGML_MAX_DIMS) {
-            size *= tensor.ne[i].toULong()
-        }
-        return size
-    }
+    // calculateTensorSize was renamed to calculateTensorByteSize and modified.
+    // The old calculateTensorSize (which calculated num elements) is effectively replaced by tensor.numElements()
 
     /**
      * Reserves memory for a computation graph without actually allocating it.
@@ -624,11 +701,11 @@ class GGMLGraphAllocator {
      * @param bufferId The ID of the buffer to reserve from
      */
     private fun reserveTensor(tensor: GGMLTensor, bufferId: Int) {
-        // Calculate the size of the tensor
-        val size = calculateTensorSize(tensor)
+        // Calculate the byte size of the tensor
+        val byteSize = calculateTensorByteSize(tensor)
 
         // Reserve memory from the tensor allocator
-        tensorAllocators[bufferId].allocate(size, tensor)
+        tensorAllocators[bufferId].allocate(byteSize, tensor)
     }
 
     /**

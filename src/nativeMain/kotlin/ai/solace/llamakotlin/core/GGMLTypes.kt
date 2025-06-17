@@ -226,6 +226,30 @@ class GGMLTensor(
         return count
     }
 
+    internal fun isValidZeroSizedTensor(): Boolean {
+        // COUNT type is a valid zero-sized tensor (conceptual, no data).
+        if (this.type == GGMLType.COUNT) {
+            return true
+        }
+        // If any dimension (ne[i]) for the actual rank of the tensor is 0,
+        // then the total number of elements is 0, making it a valid zero-sized tensor.
+        // rank() can be 0 for an uninitialized tensor (ne all 0s or 1s but effectively no elements).
+        // rank() can be 1 for ne=[N,1,1,1]. Loop from 0 until rank().
+        val r = this.rank()
+        if (r == 0 && this.ne.all { it <= 0L }) return true // An uninitialized or ne=[] tensor is zero-sized
+        if (r == 0 && this.ne.any { it > 0L }) return false // A scalar like ne=[1,1,1,1] is not zero-sized
+
+        for (i in 0 until r) { // Iterate up to actual rank
+            if (this.ne[i] == 0L) {
+                return true
+            }
+        }
+        // If type.byteSize is 0 for a non-COUNT type, but numElements > 0,
+        // it's an issue with type definition, not a valid zero-sized data tensor.
+        // That case is handled by warnings elsewhere (e.g. stride calculation).
+        // This function focuses on whether the *data itself* is zero-sized due to dimensions.
+        return false
+    }
 
     // Helper to calculate byte offset of an element given its indices
     private fun getElementByteOffset(vararg indices: Int): ULong {
