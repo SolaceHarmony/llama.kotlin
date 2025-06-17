@@ -30,7 +30,21 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Implement context structure (GGMLContext class)
   - [x] Implement computation graph structure (GGMLCGraph class)
   - [x] Implement basic memory allocation structures (GGMLTensorAllocator, GGMLGraphAllocator)
-  - [x] Complete memory allocation implementation with actual functionality
+  - [~] Complete memory allocation implementation with actual functionality
+    - [x] Refactored GGMLGraphAllocator to use a primary ByteArray buffer.
+    - [x] GGMLTensor now stores bufferId and dataOffset, with GGMLGraphAllocator setting these.
+    - [x] reserveGraph now sizes the primary ByteArray appropriately and informs the dynamic allocator.
+    - [x] Implement efficient tensor data access methods/views into the backing ByteArray(s).
+      - [x] Added `nb` (strides) to `GGMLTensor` and populated it in new tensor creation functions.
+      - [x] Implemented `get/set` accessors on `GGMLTensor` for F32, I32, I16 using `ByteArray` helpers and stride information.
+      - [x] Refactored F32 compute operations in `GGMLComputeOps.kt` to use the new data accessors.
+      - [x] Implement F16 typed accessors and update relevant compute operations.
+      - [ ] Further optimize data access if performance bottlenecks are identified (e.g., exploring direct memory access if feasible).
+    - [x] Implement inplace tensor allocation and memory reuse logic in GGMLGraphAllocator.
+      - [x] Implemented tensor usage tracking (children, views, output status, memory ownership) via `TensorUsageInfo` and `tensorUsageMap`.
+      - [x] Added `canBeInplace` property to `GGMLOp` to identify suitable operations.
+      - [x] `GGMLGraphAllocator.allocateTensor` now attempts inplace allocation by reusing eligible parent tensor memory.
+      - [x] Implemented memory freeing logic within `GGMLGraphAllocator.allocateGraph` to deallocate memory of tensors (and view sources) once they are no longer referenced.
 
 - [x] Implement Basic Tensor Operations
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
@@ -54,14 +68,39 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [ ] Implement backward pass for remaining operations
   - [ ] Implement graph optimization
 
-- [ ] Implement Quantization Support
+- [~] Implement Quantization Support
   - [ ] Implement 1.5-bit integer quantization
   - [ ] Implement 2-bit integer quantization
   - [ ] Implement 3-bit integer quantization
-  - [ ] Implement 4-bit integer quantization
+  - [~] Implement 4-bit integer quantization (Q4_0 focused)
+    - [x] Defined Q4_0 block structure (F16 scale + 32x4-bit packed weights, type.byteSize = 18).
+    - [x] Implemented data accessors for Q4_0 blocks (`getQ4_0BlockScale`, `getQ4_0NibbleWeight`).
+    - [x] Implemented Q4_0 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implement Q4_0 quantization (F32 to Q4_0) in `quantizeTensor`.
+    - [~] Implement optimized Q4_0 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ40F32` for efficient Q4_0 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_0 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q4_0 case (currently uses dequantization).
+  - [~] Implement 4-bit integer quantization (Q4_1 focused)
+    - [x] Defined Q4_1 block structure (2x F16 scale/min + 32x4-bit packed weights, type.byteSize = 20).
+    - [x] Implemented data accessors for Q4_1 blocks (`getQ4_1BlockScale`, `getQ4_1BlockMin`, `getQ4_1NibbleWeight`).
+    - [x] Implemented Q4_1 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implemented F32 to Q4_1 quantization in `quantizeTensor`.
+    - [~] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ41F32` for efficient Q4_1 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_1 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q4_1 case (currently uses dequantization).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
-  - [ ] Implement 8-bit integer quantization
+  - [~] Implement 8-bit integer quantization (Q8_0 focused)
+    - [x] Defined Q8_0 block structure (F16 scale + 32xI8 weights, type.byteSize = 34).
+    - [x] Implemented data accessors for Q8_0 blocks (`getQ8_0BlockScale`, `getQ8_0Weight`).
+    - [x] Implemented Q8_0 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implement Q8_0 quantization (F32 to Q8_0) in `quantizeTensor`.
+    - [~] Implement optimized Q8_0 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ80F32` for efficient Q8_0 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q8_0 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q8_0 case (currently uses dequantization).
   - [ ] Implement quantized operations
 
 ## Phase 3: CPU Backend Implementation
@@ -141,10 +180,23 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Phase 8: Testing and Validation
 
-- [ ] Implement Unit Tests
-  - [ ] Test core tensor operations
+- [~] Implement Unit Tests
+  - [~] Test core tensor operations (computation logic in GGMLComputeOps) # Marked as in-progress
+    - [x] Test element-wise ADD for F32 (1D, 2D) and F16 (1D).
+    - [x] Test element-wise MUL for F32 (1D) and F16 (1D).
+    - [x] Test `computeMatMul` for F32 x F32 operations.
+    - [x] Test `computeMatMul` for Q8_0 x F32 operations (optimized path, comparing against F32 reference).
+    - [ ] Test other core operations (e.g., activations like RELU, GELU; norms like RMS_NORM).
+    - [ ] Test operations with other data type combinations as they become supported (e.g., I32, other quantized types).
   - [ ] Test model inference
-  - [ ] Test quantization accuracy
+  - [~] Test quantization accuracy
+    - [x] Implemented Q8_0 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [x] Implemented Q4_0 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [ ] Test accuracy for other future quantization types as they are implemented (e.g., Q2_K, Q3_K, Q4_1, Q5_K, Q6_K).
+    - [ ] Define and use standardized test datasets and error metric thresholds for comprehensive validation of all supported types.
+  - [x] Test `GGMLDynTensorAllocator` (dynamic memory allocation within a buffer).
+  - [x] Test `GGMLGraphAllocator` (graph-level memory planning: reserve, inplace allocation, freeing).
+  - [x] Test `GGMLTensor` data accessors (low-level read/write for F32, I32, I16, F16).
 
 - [ ] Implement Integration Tests
   - [ ] Test end-to-end model loading and inference
