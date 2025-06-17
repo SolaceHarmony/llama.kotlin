@@ -347,12 +347,14 @@ class GGMLGraphAllocator {
             }
 
             if (newSize <= 0 && requiredSize > 0u) {
+                throw IllegalArgumentException("Invalid buffer size: requiredSize $requiredSize resulted in non-positive newSize $newSize. This may indicate an overflow or invalid input.")
                  println("Warning: requiredSize $requiredSize results in non-positive newSize $newSize. Using a minimal size if possible or erroring.")
                 // This case needs careful handling. Forcing a minimal size might be an option,
                 // or throwing an error if requiredSize was genuinely > 0 but resulted in newSize <= 0.
                 // For now, let's assume this indicates an issue or very small required size.
                 // If requiredSize was 0, ByteArray(0) is valid but perhaps not intended.
                 // If requiredSize was >0 but became 0 after toInt(), it's an overflow that was clamped.
+
             }
 
             buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer
@@ -519,16 +521,26 @@ class GGMLGraphAllocator {
 
         if (!inplaceFound) {
             // Standard allocation if no inplace opportunity or tensor is not inplace eligible
-            if (tensorCalculatedSize == 0uL && tensor.type != GGMLType.COUNT) { // COUNT can be 0 size
-                 println("Warning: Tensor ${tensor.name} type ${tensor.type} has calculated size 0. Skipping allocation.")
-                 tensorUsage.ownsMemory = false
-                 tensorUsage.calculatedSize = 0uL
-                 // Ensure bufferId and dataOffset are marked as invalid or default if no allocation.
-                 tensor.bufferId = -1
-                 tensor.dataOffset = 0uL
-                 tensorUsage.bufferId = -1
-                 tensorUsage.dataOffset = 0uL
-                 return
+            if (tensorCalculatedSize == 0uL) {
+                if (tensor.type == GGMLType.COUNT || tensor.isValidZeroSizedTensor()) { // Handle valid 0-sized tensors
+                    println("Info: Tensor ${tensor.name} type ${tensor.type} has calculated size 0 but is valid. Proceeding with allocation.")
+                    tensorUsage.ownsMemory = true
+                    tensorUsage.calculatedSize = 0uL
+                    tensor.bufferId = bufferId // Use the passed-in bufferId for now
+                    tensor.dataOffset = tensorAllocators[bufferId].allocate(0uL, tensor)
+                    tensorUsage.bufferId = tensor.bufferId
+                    tensorUsage.dataOffset = tensor.dataOffset
+                } else {
+                    println("Warning: Tensor ${tensor.name} type ${tensor.type} has calculated size 0. Skipping allocation.")
+                    tensorUsage.ownsMemory = false
+                    tensorUsage.calculatedSize = 0uL
+                    // Ensure bufferId and dataOffset are marked as invalid or default if no allocation.
+                    tensor.bufferId = -1
+                    tensor.dataOffset = 0uL
+                    tensorUsage.bufferId = -1
+                    tensorUsage.dataOffset = 0uL
+                    return
+                }
             }
 
             val actualBufferId = bufferId // Use the passed-in bufferId for now

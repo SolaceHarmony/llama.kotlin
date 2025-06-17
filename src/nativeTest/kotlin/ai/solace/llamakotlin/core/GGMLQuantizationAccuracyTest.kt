@@ -343,4 +343,76 @@ class GGMLQuantizationAccuracyTest {
 
         // println("Q4_0 Test: MSE = $mse, Mean Absolute Difference = $meanAbsDiff")
     }
+
+    // Helper for Mean Absolute Difference
+    internal fun calculateMeanAbsoluteDifference(original: FloatArray, new: FloatArray): Double {
+        require(original.size == new.size) { "Arrays must have the same size for MAD." }
+        if (original.isEmpty()) return 0.0
+        var sumAbsDiff = 0.0
+        for (i in original.indices) {
+            sumAbsDiff += abs(original[i] - new[i]).toDouble()
+        }
+        return sumAbsDiff / original.size
+    }
+
+    @Test
+    fun testQ4_1Accuracy() {
+        val numElements = QK4_1 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
+        val originalF32Data = FloatArray(numElements) { i ->
+            // Create a diverse range of values for Q4_1 testing
+            // Q4_1 uses d*nibble + m. Nibble is 0-15.
+            // Test data that results in varied min/max per block.
+            val blockNum = i / QK4_1
+            val withinBlockIdx = i % QK4_1
+            when (blockNum) {
+                0 -> (withinBlockIdx.toFloat() / (QK4_1 -1).toFloat()) * 2.0f - 1.0f // Block 0: -1.0 to 1.0
+                1 -> (withinBlockIdx.toFloat() / (QK4_1 -1).toFloat()) * 0.5f + 0.25f // Block 1: 0.25 to 0.75
+                2 -> if (withinBlockIdx % 2 == 0) 5.0f else 4.0f // Block 2: Alternating 5.0, 4.0
+                else -> (withinBlockIdx - QK4_1/2).toFloat() * 0.1f // Block 3: Centered around 0, small range
+            }
+        }
+
+        val dims = longArrayOf(numElements.toLong(), 1L, 1L, 1L)
+        // Ensure f32SrcTensor is placed in the graphAllocator's managed buffer for this test
+        // Adapting to existing createAndPopulateF32Tensor signature
+        val f32SrcTensor = createAndPopulateF32Tensor("f32Src_Q4_1Test", GGMLType.F32, dims, originalF32Data, dataOffset = 0uL)
+
+
+        // 1. Quantize to Q4_1
+        // quantizeTensor returns a new tensor with its own .data ByteArray
+        val q4_1Tensor = quantizeTensor(graphAllocator, f32SrcTensor, GGMLType.Q4_1)
+        assertEquals(GGMLType.Q4_1, q4_1Tensor.type)
+        assertTrue(q4_1Tensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q4_1 quantization")
+        assertNotNull(q4_1Tensor.data, "Q4_1 tensor data should not be null after quantization")
+        assertTrue(q4_1Tensor.data is ByteArray, "Q4_1 tensor data should be ByteArray")
+
+
+        // 2. Dequantize Q4_1 back to F32
+        // dequantizeTensor also returns a new tensor with its own .data FloatArray
+        val f32DequantizedTensor = dequantizeTensor(graphAllocator, q4_1Tensor)
+        assertEquals(GGMLType.F32, f32DequantizedTensor.type)
+        assertTrue(f32DequantizedTensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q4_1 dequantization")
+        assertNotNull(f32DequantizedTensor.data, "F32 dequantized tensor data should not be null")
+        assertTrue(f32DequantizedTensor.data is FloatArray, "Dequantized F32 tensor data should be FloatArray")
+
+        // 3. Extract data for comparison
+        // getTensorDataAsFloatArray can read from f32SrcTensor (in graphAllocator buffer)
+        // and from f32DequantizedTensor (which has its own .data FloatArray)
+        val retrievedOriginalF32Data = getTensorDataAsFloatArray(f32SrcTensor, graphAllocator) // Verifies initial data setup
+        val dequantizedF32Data = getTensorDataAsFloatArray(f32DequantizedTensor, graphAllocator)
+
+        // 4. Perform Accuracy Assertions
+        assertEquals(originalF32Data.size, dequantizedF32Data.size, "Data array sizes should match")
+
+        val mse = calculateMeanSquaredError(retrievedOriginalF32Data, dequantizedF32Data)
+        // Q4_1 error: d/2 where d=(max-min)/15. If range is 2 (-1 to 1), d=2/15=0.133. Max error = 0.066. MSE ~ (0.066)^2 ~ 0.0044
+        val mseThresholdQ4_1 = 0.015 // Start with a threshold slightly higher than Q4_0
+        assertTrue(mse < mseThresholdQ4_1, "Q4_1 MSE $mse too high (threshold $mseThresholdQ4_1)")
+
+        val mad = calculateMeanAbsoluteDifference(retrievedOriginalF32Data, dequantizedF32Data)
+        val madThresholdQ4_1 = 0.1 // Adjusted from prompt's 0.2 as it seemed high vs max error
+        assertTrue(mad < madThresholdQ4_1, "Q4_1 Mean Absolute Difference $mad too high (threshold $madThresholdQ4_1)")
+
+        // println("Q4_1 Test: MSE = $mse, Mean Absolute Difference = $mad") // For debugging/tuning
+    }
 }

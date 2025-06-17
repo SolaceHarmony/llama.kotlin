@@ -25,20 +25,11 @@ fun createTensor(context: GGMLContext, type: GGMLType): GGMLTensor {
     }
 
     // Set default strides based on the data type
-    if (tensor.type.byteSize > 0uL) {
-        tensor.nb[0] = tensor.type.byteSize
-        for (i in 1 until GGML_MAX_DIMS) {
-            tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
-        }
-    } else {
-        // For types with byteSize = 0 (e.g., quantized or COUNT), nb elements remain 0 by default.
-        // This is acceptable as long as accessor methods are not yet used with these types directly
-        // or specialized stride/size logic for them is implemented elsewhere.
-        if (tensor.type != GGMLType.COUNT && !tensor.type.description.startsWith("q")) {
-             // This is a simple check, ideally replace with a more robust way to identify types
-             // that genuinely shouldn't have a zero byteSize for fundamental stride calculation.
-            println("Warning: GGMLType ${tensor.type.name} has byteSize 0. Strides will be all zeros.")
-        }
+    tensor.nb = calculateStrides(tensor.ne, tensor.type.byteSize)
+    if (tensor.nb.all { it == 0uL } && tensor.type != GGMLType.COUNT && !tensor.type.description.startsWith("q")) {
+        // This is a simple check, ideally replace with a more robust way to identify types
+        // that genuinely shouldn't have a zero byteSize for fundamental stride calculation.
+        println("Warning: GGMLType ${tensor.type.name} has byteSize 0. Strides will be all zeros.")
     }
 
     // Allocate memory for the tensor if context is provided
