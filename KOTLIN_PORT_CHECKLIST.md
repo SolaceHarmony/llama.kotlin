@@ -86,7 +86,10 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [x] Implemented data accessors for Q4_1 blocks (`getQ4_1BlockScale`, `getQ4_1BlockMin`, `getQ4_1NibbleWeight`).
     - [x] Implemented Q4_1 to F32 dequantization in `dequantizeTensor`.
     - [x] Implemented F32 to Q4_1 quantization in `quantizeTensor`.
-    - [ ] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
+    - [~] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ41F32` for efficient Q4_1 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_1 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q4_1 case (currently uses dequantization).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
   - [~] Implement 8-bit integer quantization (Q8_0 focused)

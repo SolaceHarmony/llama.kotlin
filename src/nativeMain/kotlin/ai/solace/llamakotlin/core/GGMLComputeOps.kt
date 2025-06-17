@@ -74,6 +74,53 @@ internal fun computeDotProductQ80F32(
     return sumF32
 }
 
+internal fun computeDotProductQ41F32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ41: GGMLTensor,    // Assumed layout M x K (ne[1] = M rows, ne[0] = K elements per row for access)
+    tensorF32: GGMLTensor,    // Assumed layout K x N (ne[1] = K rows, ne[0] = N columns for access)
+    rowIndexInQ41: Int,     // Row index 'i' for tensorQ41 (0 to M-1)
+    colIndexInF32: Int,     // Column index 'j' for tensorF32 (0 to N-1)
+    commonDimK: Int         // The shared dimension K, should match tensorQ41.ne[0] and tensorF32.ne[1]
+): Float {
+    require(tensorQ41.type == GGMLType.Q4_1) { "computeDotProductQ41F32: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductQ41F32: tensorF32 must be F32. Got ${tensorF32.type}" }
+
+    // Validate dimensions for clarity and robustness
+    val M_q41 = tensorQ41.ne[1].toInt()
+    val K_q41 = tensorQ41.ne[0].toInt()
+    val K_f32 = tensorF32.ne[1].toInt()
+    val N_f32 = tensorF32.ne[0].toInt()
+
+    require(K_q41 == commonDimK) { "tensorQ41's fastest dim (ne[0]) $K_q41 must match commonDimK $commonDimK" }
+    require(K_f32 == commonDimK) { "tensorF32's second dim (ne[1]) $K_f32 must match commonDimK $commonDimK for KxN layout" }
+    require(rowIndexInQ41 < M_q41) { "rowIndexInQ41 $rowIndexInQ41 out of bounds for M $M_q41" }
+    require(colIndexInF32 < N_f32) { "colIndexInF32 $colIndexInF32 out of bounds for N $N_f32" }
+
+    var sumF32 = 0.0f
+
+    for (k in 0 until commonDimK) {
+        // Access element tensorQ41[rowIndexInQ41, k]
+        // Calculate flat index for Q4_1 tensor elements.
+        // tensorQ41.ne[0] is K (elements per row).
+        val flatIndexInQ41 = rowIndexInQ41 * K_q41 + k
+        val blockIndexQ41 = flatIndexInQ41 / QK4_1
+        val itemInBlockQ41 = flatIndexInQ41 % QK4_1
+
+        val scaleD = tensorQ41.getQ4_1BlockScale(graphAllocator, blockIndexQ41)
+        val minM = tensorQ41.getQ4_1BlockMin(graphAllocator, blockIndexQ41)
+        val qNibble = tensorQ41.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41, itemInBlockQ41) // Returns raw nibble 0-15
+        val dequantizedQ41Value = scaleD * qNibble.toFloat() + minM // Dequantize Q4_1
+
+        // Access element tensorF32[k, colIndexInF32]
+        // tensorF32 is K rows (ne[1]) x N columns (ne[0]).
+        // GGMLTensor.getFloat expects (idx_dim0 which is column, idx_dim1 which is row, ...)
+        val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+
+        sumF32 += dequantizedQ41Value * f32Value
+    }
+    return sumF32
+}
+
 /**
  * Computes the dot product of a row from a Q4_0 tensor and a column from an F32 tensor.
  */
@@ -417,6 +464,75 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
         for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ40F32(graphAllocator,a,b,i,j,K) } }
         return result
     }
+    if (a.type == GGMLType.Q4_1 && b.type == GGMLType.F32) {
+        // Optimized Q4_1 x F32 path, result is F32
+        // a (src0) is M x K (ne[1]=M rows, ne[0]=K cols for element access)
+        // b (src1) is K x N (ne[1]=K rows, ne[0]=N cols for element access)
+        // Result will be M x N (ne[1]=M rows, ne[0]=N cols)
+
+        // Note: M, K_a, N, K_b, K are already defined at the start of computeMatMul
+        // val M = a.ne[1].toInt() // Already available
+        // val K_a = a.ne[0].toInt() // Already available
+        // val K_b = b.ne[1].toInt() // Already available
+        // val N = b.ne[0].toInt()   // Already available
+        // val K = K_a // Already available and validated K_a == K_b
+
+        // Create result tensor (F32, M rows, N columns)
+        // The ne array for new tensor: [N_cols, M_rows, 1, 1]
+        val resultNe = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        // Handle broadcasting for dimensions 2 and 3 if necessary, like other paths
+        for(i_dim in 2 until GGML_MAX_DIMS) {
+            val neA = a.ne.getOrElse(i_dim){1L}
+            val neB = b.ne.getOrElse(i_dim){1L}
+            resultNe[i_dim] = maxOf(neA, neB)
+            if(!(neA == neB || neA == 1L || neB == 1L)) {
+                throw IllegalArgumentException("Matmul broadcast fail for Q4_1xF32 on dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}")
+            }
+        }
+        val result = GGMLTensor(GGMLType.F32, resultNe)
+
+        // Calculate and set strides for result tensor
+        result.nb[0] = result.type.byteSize
+        for (d in 1 until GGML_MAX_DIMS) {
+            result.nb[d] = result.ne.getOrElse(d-1) { 1L }.toULong() * result.nb[d-1]
+        }
+
+        val resultArray = FloatArray(M * N * resultNe[2].toInt() * resultNe[3].toInt()) // Adjusted for potential broadcasted dims
+        result.data = resultArray
+
+        // TODO: Handle broadcasting for dims 2 and 3 in the loops if resultNe[2] or resultNe[3] > 1.
+        // For now, assuming non-broadcasted higher dims (or handled by dot product if it supports it, which it doesn't directly)
+        // The current Q4_0/Q8_0 paths also don't explicitly show broadcasting in their loops but set up result.ne correctly.
+        // This implies the dot product functions are called for each "slice" or the structure expects M*N iterations flatly.
+        // Let's match the existing Q4_0/Q8_0 structure which assumes M*N iterations for the primary 2D matrix part.
+        // If higher dims were broadcasted, M and N would need to be multiplied by those dimensions for total iterations.
+        // The current structure of M*N iterations for the result array is for a single 2D plane.
+        // If resultNe[2]*resultNe[3] > 1, the flat idx logic needs to be aware or the loops need to be nested.
+        // The existing paths (Q4_0, Q8_0) use a simple M*N loop and flatIdx for resArr.
+        // This suggests that for these specific optimized paths, broadcasting in higher dimensions might not be fully handled
+        // or is implicitly handled by the calling context if these are part of larger ops.
+        // For now, sticking to the M*N loop for the primary matrix plane.
+
+        var idx = 0 // Index for flat resultArray
+        for (i in 0 until M) { // Iterate output rows (M)
+            for (j in 0 until N) { // Iterate output columns (N)
+                // This assumes a, b are effectively 2D for the dot product part.
+                // If a or b have higher dimensions that are not 1, computeDotProductQ41F32 needs to handle it,
+                // or this loop structure needs to be more complex to iterate over those dimensions.
+                // The current dot product functions take simple row/col indices.
+                val dotProduct = computeDotProductQ41F32(
+                    graphAllocator,
+                    a,    // Q4_1 tensor (src0)
+                    b,    // F32 tensor (src1)
+                    i,    // Current row in src0 (0 to M-1)
+                    j,    // Current column in src1 (0 to N-1)
+                    K     // Common dimension
+                )
+                resultArray[idx++] = dotProduct
+            }
+        }
+        return result
+    }
     if (a.type == GGMLType.Q8_0 && b.type == GGMLType.F32) {
         val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
         for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
@@ -494,6 +610,7 @@ fun computeNeg(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
         GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,-a.getHalf(graphAllocator,*ind),*ind)}
         GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val rf=computeNeg(graphAllocator,context,af); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
         else->throw NotImplementedError("computeNeg NI for ${a.type}")
+
     }
     return res
 }
