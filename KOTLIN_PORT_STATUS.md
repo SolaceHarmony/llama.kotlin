@@ -239,13 +239,15 @@ The immediate next steps for the project are:
    - ✓ Implement graph traversal and execution (completed)
    - Implement automatic differentiation
      - ✓ Implement backward pass for ADD, SUB, MUL, NEG operations
-     - ✓ Implement backward pass for RELU, GELU activation functions
+     - ✓ Implement backward pass for RELU, GELU, SILU activation functions
      - ✓ Implement backward pass for MUL_MAT (matrix multiplication)
      - ✓ Implement backward pass for DIV, SQR, SQRT operations
      - ✓ Implement backward pass for SUM, MEAN operations
      - ✓ Implement backward pass for REPEAT operation
      - ✓ Implement backward pass for ABS, SGN, STEP operations
-     - Implement backward pass for remaining operations
+     - ✓ Implement backward pass for NORM, RMS_NORM operations
+     - ✓ Implement backward pass for SCALE operation
+     - Implement backward pass for remaining operations (CPY, RESHAPE, VIEW, PERMUTE, TRANSPOSE, GET_ROWS, DIAG_MASK_INF, SOFT_MAX, ROPE, CONV_1D_1S, CONV_1D_2S, FLASH_ATTN, FLASH_FF, MAP_UNARY, MAP_BINARY)
    - Implement optimization for the computation graph
 
 3. Set up unit tests for the implemented components
