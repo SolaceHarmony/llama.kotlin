@@ -137,6 +137,7 @@ internal fun computeDotProductQ40F32(
     return sumF32
 }
 
+
 // Helper to iterate N-dimensionally and apply action using flat index and multi-indices
 internal fun applyNDIter(tensor: GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
     val n0 = tensor.ne[0].toInt(); val n1 = tensor.ne[1].toInt()
@@ -738,6 +739,7 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
             val resultF32 = computeMatMul(graphAllocator, context, aF32, bF32)
             val quantizedResult = quantizeTensor(graphAllocator, resultF32, resultTensor.type); resultTensor.data = quantizedResult.data
         }
+
         else -> throw NotImplementedError("computeMatMul not implemented for input type ${a.type} or this combination")
     }
     return resultTensor

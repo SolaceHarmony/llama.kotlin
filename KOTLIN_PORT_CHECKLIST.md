@@ -183,7 +183,11 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [ ] Test other core operations (e.g., activations like RELU, GELU; norms like RMS_NORM).
     - [ ] Test operations with other data type combinations as they become supported (e.g., I32, other quantized types).
   - [ ] Test model inference
-  - [ ] Test quantization accuracy
+  - [~] Test quantization accuracy
+    - [x] Implemented Q8_0 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [x] Implemented Q4_0 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [ ] Test accuracy for other future quantization types as they are implemented (e.g., Q2_K, Q3_K, Q4_1, Q5_K, Q6_K).
+    - [ ] Define and use standardized test datasets and error metric thresholds for comprehensive validation of all supported types.
   - [x] Test `GGMLDynTensorAllocator` (dynamic memory allocation within a buffer).
   - [x] Test `GGMLGraphAllocator` (graph-level memory planning: reserve, inplace allocation, freeing).
   - [x] Test `GGMLTensor` data accessors (low-level read/write for F32, I32, I16, F16).
