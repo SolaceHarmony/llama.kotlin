@@ -85,7 +85,7 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     // Q4_0 byteSize is per block: sizeof(F16 scale) + (QK4_0/2) * sizeof(I8 weights_packed)
     Q4_0("q4_0", 2uL + (QK4_0 / 2).toULong()),   // 4-bit quantized, 18 bytes per block (2 + 32/2*1)
     // Q4_1 byteSize is per block: 2 * sizeof(F16 scale/min) + (QK4_1/2) * sizeof(I8 weights_packed)
-    Q4_1("q4_1", (2uL * SIZE_BYTES.toULong()) + (QK4_1 / 2).toULong()),   // 4-bit quantized with different scaling, 20 bytes per block (2*2 + 32/2*1)
+    Q4_1("q4_1", (2uL * SIZE_BYTES.toULong()) + (QK4_1 / 2).toULong()),   // 4-bit quantized: 2*F16 (scale d, min m) + QK4_1/2 bytes for packed weights = 4 + 16 = 20 bytes per block
     Q5_0("q5_0", 0uL),   // 5-bit quantized
     Q5_1("q5_1", 0uL),   // 5-bit quantized with different scaling
     // Q8_0 byteSize is per block: sizeof(Float16 for scale) + QK8_0 * sizeof(Int8 for weights)
