@@ -519,16 +519,26 @@ class GGMLGraphAllocator {
 
         if (!inplaceFound) {
             // Standard allocation if no inplace opportunity or tensor is not inplace eligible
-            if (tensorCalculatedSize == 0uL && tensor.type != GGMLType.COUNT) { // COUNT can be 0 size
-                 println("Warning: Tensor ${tensor.name} type ${tensor.type} has calculated size 0. Skipping allocation.")
-                 tensorUsage.ownsMemory = false
-                 tensorUsage.calculatedSize = 0uL
-                 // Ensure bufferId and dataOffset are marked as invalid or default if no allocation.
-                 tensor.bufferId = -1
-                 tensor.dataOffset = 0uL
-                 tensorUsage.bufferId = -1
-                 tensorUsage.dataOffset = 0uL
-                 return
+            if (tensorCalculatedSize == 0uL) {
+                if (tensor.type == GGMLType.COUNT || tensor.isValidZeroSizedTensor()) { // Handle valid 0-sized tensors
+                    println("Info: Tensor ${tensor.name} type ${tensor.type} has calculated size 0 but is valid. Proceeding with allocation.")
+                    tensorUsage.ownsMemory = true
+                    tensorUsage.calculatedSize = 0uL
+                    tensor.bufferId = bufferId // Use the passed-in bufferId for now
+                    tensor.dataOffset = tensorAllocators[bufferId].allocate(0uL, tensor)
+                    tensorUsage.bufferId = tensor.bufferId
+                    tensorUsage.dataOffset = tensor.dataOffset
+                } else {
+                    println("Warning: Tensor ${tensor.name} type ${tensor.type} has calculated size 0. Skipping allocation.")
+                    tensorUsage.ownsMemory = false
+                    tensorUsage.calculatedSize = 0uL
+                    // Ensure bufferId and dataOffset are marked as invalid or default if no allocation.
+                    tensor.bufferId = -1
+                    tensor.dataOffset = 0uL
+                    tensorUsage.bufferId = -1
+                    tensorUsage.dataOffset = 0uL
+                    return
+                }
             }
 
             val actualBufferId = bufferId // Use the passed-in bufferId for now
