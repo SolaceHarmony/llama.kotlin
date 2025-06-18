@@ -1,5 +1,32 @@
 package ai.solace.llamakotlin.core
 
+internal fun calculateContiguousStrides(ne: LongArray, type: GGMLType, rank: Int): ULongArray {
+    val nb = ULongArray(GGML_MAX_DIMS) { 0uL } // GGML_MAX_DIMS should be accessible
+
+    if (type.byteSize == 0uL) {
+        // Existing warning logic (adapted from previous subtask reports for quantizeTensor)
+        if (type != GGMLType.COUNT && !type.name.startsWith("Q", ignoreCase = true) && !type.name.startsWith("q", ignoreCase = true) ) {
+            println("Warning: GGMLType ${type.name} has byteSize 0. Strides will be all zeros.")
+        }
+        return nb // Return zeroed strides
+    }
+
+    nb[0] = type.byteSize
+    if (GGML_MAX_DIMS > 1) {
+        for (d in 1 until GGML_MAX_DIMS) {
+            // ne is 0-indexed for dimensions. ne[0] is size of dim 0, ne[1] of dim 1, etc.
+            // nb[d] is stride for dimension d.
+            // nb[1] (stride for dim 1) = ne[0] * nb[0] (size of dim 0 * element size)
+            // nb[d] = ne[d-1] * nb[d-1]
+            // Use ne.getOrElse to handle cases where rank is less than d.
+            // If rank < d, effectively ne[d-1] is 1 for stride calculation purposes beyond actual rank.
+            val dimSize = ne.getOrElse(d - 1) { 1L }
+            nb[d] = nb[d - 1] * (if (dimSize > 0L) dimSize.toULong() else 1uL) // Ensure positive dimSize for multiplication
+        }
+    }
+    return nb
+}
+
 /**
  * Kotlin Native port of GGML tensor operations.
  * This file contains the implementation of basic tensor operations.
@@ -25,20 +52,7 @@ fun createTensor(context: GGMLContext, type: GGMLType): GGMLTensor {
     }
 
     // Set default strides based on the data type
-    val typeSize = when (type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    tensor.nb[0] = typeSize.toULong()
-    for (i in 1 until GGML_MAX_DIMS) {
-        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
-    }
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
 
     // Allocate memory for the tensor if context is provided
     if (context.memBuffer != null && !context.noAlloc) {
@@ -75,20 +89,7 @@ fun createTensor1D(context: GGMLContext, type: GGMLType, ne0: Int): GGMLTensor {
     }
 
     // Set strides based on the data type
-    val typeSize = when (type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    tensor.nb[0] = typeSize.toULong()
-    for (i in 1 until GGML_MAX_DIMS) {
-        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
-    }
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
 
     // Allocate memory for the tensor if context is provided
     if (context.memBuffer != null && !context.noAlloc) {
@@ -131,21 +132,7 @@ fun createTensor2D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int): GG
     }
 
     // Set strides based on the data type
-    val typeSize = when (type) {
-        GGMLType.F32 -> 4u
-        GGMLType.F16 -> 2u
-        GGMLType.I8, GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> 1u
-        GGMLType.I16 -> 2u
-        GGMLType.I32 -> 4u
-        GGMLType.I64 -> 8u
-        else -> 1u // Default for quantized types
-    }
-
-    tensor.nb[0] = typeSize.toULong()
-    tensor.nb[1] = tensor.nb[0] * tensor.ne[0].toULong()
-    for (i in 2 until GGML_MAX_DIMS) {
-        tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong()
-    }
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
 
     // Allocate memory for the tensor if context is provided
     if (context.memBuffer != null && !context.noAlloc) {

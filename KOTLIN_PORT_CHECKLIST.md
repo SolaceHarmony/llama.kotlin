@@ -9,10 +9,10 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Configure build system (Gradle with Kotlin DSL)
   - [x] Setup project structure following Kotlin conventions
 
-- [ ] Analyze C/C++ Codebase
-  - [ ] Create a detailed map of all C/C++ files and their dependencies
-  - [ ] Identify platform-specific code (Metal, AVX, etc.)
-  - [ ] Document all external dependencies
+- [~] Analyze C/C++ Codebase
+  - [~] Create a detailed map of all C/C++ files and their dependencies (key core, CPU, Metal components and their roles mapped in CPP_CORE_ANALYSIS.md)
+  - [~] Identify platform-specific code (Metal, AVX, etc.) (Metal backend structure analyzed; CPU SIMD usage in ggml.c noted in CPP_CORE_ANALYSIS.md)
+  - [x] Document all external dependencies (core ggml, CPU, and Metal paths found to be largely self-contained, as noted in CPP_CORE_ANALYSIS.md)
   - [x] Separate code related to supported backends (CPU, Metal) from unsupported backends (GPU backends moved to archive)
 
 - [x] Design Kotlin Native Architecture
@@ -23,25 +23,39 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Phase 2: Core Library Translation (ggml) (In Progress)
 
-- [ ] Translate ggml Core Data Structures
+- [~] Translate ggml Core Data Structures
   - [x] Define tensor data types (GGMLType enum)
   - [x] Define tensor operations (GGMLOp enum)
   - [x] Implement tensor structure (GGMLTensor class)
   - [x] Implement context structure (GGMLContext class)
   - [x] Implement computation graph structure (GGMLCGraph class)
   - [x] Implement basic memory allocation structures (GGMLTensorAllocator, GGMLGraphAllocator)
-  - [x] Complete memory allocation implementation with actual functionality
+  - [~] Complete memory allocation implementation with actual functionality
+    - [x] Refactored GGMLGraphAllocator to use a primary ByteArray buffer.
+    - [x] GGMLTensor now stores bufferId and dataOffset, with GGMLGraphAllocator setting these.
+    - [x] reserveGraph now sizes the primary ByteArray appropriately and informs the dynamic allocator.
+    - [x] Implement efficient tensor data access methods/views into the backing ByteArray(s).
+      - [x] Added `nb` (strides) to `GGMLTensor` and populated it in new tensor creation functions.
+      - [x] Implemented `get/set` accessors on `GGMLTensor` for F32, I32, I16 using `ByteArray` helpers and stride information.
+      - [x] Refactored F32 compute operations in `GGMLComputeOps.kt` to use the new data accessors.
+      - [x] Implement F16 typed accessors and update relevant compute operations.
+      - [ ] Further optimize data access if performance bottlenecks are identified (e.g., exploring direct memory access if feasible).
+    - [x] Implement inplace tensor allocation and memory reuse logic in GGMLGraphAllocator.
+      - [x] Implemented tensor usage tracking (children, views, output status, memory ownership) via `TensorUsageInfo` and `tensorUsageMap`.
+      - [x] Added `canBeInplace` property to `GGMLOp` to identify suitable operations.
+      - [x] `GGMLGraphAllocator.allocateTensor` now attempts inplace allocation by reusing eligible parent tensor memory.
+      - [x] Implemented memory freeing logic within `GGMLGraphAllocator.allocateGraph` to deallocate memory of tensors (and view sources) once they are no longer referenced.
 
-- [x] Implement Basic Tensor Operations
+- [~] Implement Basic Tensor Operations
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
   - [x] Define element-wise operations interfaces (add, mul)
   - [x] Define matrix multiplication interface (matMul)
-  - [x] Implement actual computation for tensor operations (computeAdd, computeMul, computeMatMul) and integrate with high-level ops
-  - [x] Implement activation functions (computeRelu, computeGelu)
-  - [x] Implement support for all tensor data types (F32, F16, I8, I16, I32, I64)
-  - [x] Implement optimized versions of tensor operations
+  - [~] Implement actual computation for tensor operations (computeAdd, computeMul, computeMatMul) and integrate with high-level ops (F32/F16/some Q_x_F32 MatMul done; other types/ops pending full coverage)
+  - [~] Implement activation functions (computeRelu, computeGelu) (Initial F32/F16 ops exist, testing pending)
+  - [~] Implement support for all tensor data types (F32, F16, I8, I16, I32, I64) in compute ops (F32/F16 good, I-types often via array access)
+  - [~] Implement optimized versions of tensor operations (specific dot products for Q_types done; general optimization pending)
 
-- [ ] Implement Computation Graph
+- [~] Implement Computation Graph
   - [x] Implement forward pass computation
   - [x] Implement automatic differentiation (partial implementation)
     - [x] Implement backward pass for ADD, SUB, MUL, NEG operations
@@ -54,14 +68,39 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [ ] Implement backward pass for remaining operations
   - [ ] Implement graph optimization
 
-- [ ] Implement Quantization Support
+- [~] Implement Quantization Support
   - [ ] Implement 1.5-bit integer quantization
   - [ ] Implement 2-bit integer quantization
   - [ ] Implement 3-bit integer quantization
-  - [ ] Implement 4-bit integer quantization
+  - [~] Implement 4-bit integer quantization (Q4_0 focused)
+    - [x] Defined Q4_0 block structure (F16 scale + 32x4-bit packed weights, type.byteSize = 18).
+    - [x] Implemented data accessors for Q4_0 blocks (`getQ4_0BlockScale`, `getQ4_0NibbleWeight`).
+    - [x] Implemented Q4_0 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implement Q4_0 quantization (F32 to Q4_0) in `quantizeTensor`.
+    - [~] Implement optimized Q4_0 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ40F32` for efficient Q4_0 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_0 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q4_0 case (currently uses dequantization).
+  - [~] Implement 4-bit integer quantization (Q4_1 focused)
+    - [x] Defined Q4_1 block structure (2x F16 scale/min + 32x4-bit packed weights, type.byteSize = 20).
+    - [x] Implemented data accessors for Q4_1 blocks (`getQ4_1BlockScale`, `getQ4_1BlockMin`, `getQ4_1NibbleWeight`).
+    - [x] Implemented Q4_1 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implemented F32 to Q4_1 quantization in `quantizeTensor`.
+    - [~] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ41F32` for efficient Q4_1 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_1 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q4_1 case (currently uses dequantization).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
-  - [ ] Implement 8-bit integer quantization
+  - [~] Implement 8-bit integer quantization (Q8_0 focused)
+    - [x] Defined Q8_0 block structure (F16 scale + 32xI8 weights, type.byteSize = 34).
+    - [x] Implemented data accessors for Q8_0 blocks (`getQ8_0BlockScale`, `getQ8_0Weight`).
+    - [x] Implemented Q8_0 to F32 dequantization in `dequantizeTensor`.
+    - [x] Implement Q8_0 quantization (F32 to Q8_0) in `quantizeTensor`.
+    - [~] Implement optimized Q8_0 dot product routines (e.g., for MatMul with F32).
+      - [x] Implemented `computeDotProductQ80F32` for efficient Q8_0 x F32 operations.
+      - [x] Refactored `computeMatMul` to use the optimized dot product for (Q8_0 x F32 -> F32) cases.
+      - [ ] Consider optimized dot product for the symmetric F32 x Q8_0 case (currently uses dequantization).
   - [ ] Implement quantized operations
 
 ## Phase 3: CPU Backend Implementation
@@ -141,10 +180,24 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Phase 8: Testing and Validation
 
-- [ ] Implement Unit Tests
-  - [ ] Test core tensor operations
+- [~] Implement Unit Tests
+  - [~] Test core tensor operations (computation logic in GGMLComputeOps) # Marked as in-progress
+    - [x] Test element-wise ADD for F32 (1D, 2D) and F16 (1D).
+    - [x] Test element-wise MUL for F32 (1D) and F16 (1D).
+    - [x] Test `computeMatMul` for F32 x F32 operations.
+    - [x] Test `computeMatMul` for Q8_0 x F32 operations (optimized path, comparing against F32 reference).
+    - [ ] Test other core operations (e.g., activations like RELU, GELU; norms like RMS_NORM).
+    - [ ] Test operations with other data type combinations as they become supported (e.g., I32, other quantized types).
   - [ ] Test model inference
-  - [ ] Test quantization accuracy
+  - [~] Test quantization accuracy
+    - [x] Implemented Q8_0 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [x] Implemented Q4_0 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [x] Implemented Q4_1 quantize-dequantize accuracy test (verifying with MSE and MAD).
+    - [ ] Test accuracy for other future quantization types as they are implemented (e.g., Q2_K, Q3_K, Q5_K, Q6_K).
+    - [ ] Define and use standardized test datasets and error metric thresholds for comprehensive validation of all supported types.
+  - [x] Test `GGMLDynTensorAllocator` (dynamic memory allocation within a buffer).
+  - [x] Test `GGMLGraphAllocator` (graph-level memory planning: reserve, inplace allocation, freeing).
+  - [x] Test `GGMLTensor` data accessors (low-level read/write for F32, I32, I16, F16).
 
 - [ ] Implement Integration Tests
   - [ ] Test end-to-end model loading and inference
@@ -158,7 +211,7 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Phase 9: Documentation and Distribution
 
-- [ ] Create Documentation
+- [~] Create Documentation
   - [x] Create design documents for tensor operations (TENSOR_OPERATIONS_DESIGN.md)
   - [x] Create design documents for compute operations (GGML_COMPUTE_OPS_DESIGN.md)
   - [x] Document current status (KOTLIN_PORT_STATUS.md)
@@ -195,27 +248,28 @@ This checklist is based on the current state of the Kotlin Native port of llama.
 
 ## Next Steps
 
-Based on the current state of the project, the immediate next steps should be:
+With foundational memory management, data access, and initial quantization types (Q8_0, Q4_0, Q4_1) in place, the immediate priorities are:
 
-1. Complete the implementation of tensor operations
-   - Implement support for all tensor data types
-   - Optimize tensor operations for performance
-   - Implement the computation graph execution
+1.  **Advance Quantization Support:**
+    *   Implement a K-Quant type (e.g., Q4_K or Q2_K), including its structure, accessors, quant/dequant routines.
+    *   Implement optimized dot product routines for symmetric cases (e.g., F32 x Q_type for Q8_0, Q4_0, Q4_1) and for new K-Quant types.
+    *   Test quantization accuracy for all newly supported types (e.g., Q4_1 accuracy test is pending).
 
-2. Implement the CPU backend
-   - Implement basic CPU tensor operations
-   - Optimize for different CPU architectures
-   - Implement multi-threading support
+2.  **Strengthen Core Operations and Testing:**
+    *   Implement and write unit tests for remaining core tensor operations in `GGMLComputeOps.kt` (e.g., common activation functions like SILU; normalization layers like RMSNorm) for F32/F16 types. (Note: GELU/RELU tests were planned next).
+    *   Ensure all basic compute operations have proper handling or clear strategies for all fundamental (non-quantized) data types (I8, I32, I64).
+    *   Begin work on "Implement graph optimization" from Phase 2.
 
-3. Set up unit tests for the implemented components
-   - Create unit tests for tensor operations
-   - Create unit tests for memory allocation
-   - Create integration tests for the computation graph
+3.  **Initiate CPU Backend Development (Phase 3):**
+    *   Formalize the CPU backend structure.
+    *   Start integrating current `GGMLComputeOps.kt` logic into this backend.
+    *   Investigate and implement initial multi-threading for graph computation on CPU.
 
-4. Begin implementing the Metal backend for Apple Silicon
-   - Implement Metal shader code
-   - Implement Metal backend for tensor operations
-   - Optimize for Apple Silicon
+4.  **Begin Foundational GGUF Support (Phase 6):**
+    *   Start implementing GGUF file parsing (reading headers, tensor info, quantization types). This is crucial for loading models.
+
+5.  **(Stretch Goal / Parallel) Initial Metal Backend Exploration (Phase 4):**
+    *   Begin basic Metal context setup and experiment with compiling/running a simple Metal compute shader for a single ggml operation.
 
 ## Build Environment
 
