@@ -186,8 +186,10 @@ This checklist is based on the current state of the Kotlin Native port of llama.
     - [x] Test element-wise MUL for F32 (1D) and F16 (1D).
     - [x] Test `computeMatMul` for F32 x F32 operations.
     - [x] Test `computeMatMul` for Q8_0 x F32 operations (optimized path, comparing against F32 reference).
-    - [ ] Test other core operations (e.g., activations like RELU, GELU; norms like RMS_NORM).
+    - [x] Test activation functions (RELU, GELU, SILU) for F32 and F16 types.
+    - [x] Test RMSNorm function for F32 and F16 types.
     - [ ] Test operations with other data type combinations as they become supported (e.g., I32, other quantized types).
+    - [ ] Test other specific core operations not yet covered.
   - [ ] Test model inference
   - [~] Test quantization accuracy
     - [x] Implemented Q8_0 quantize-dequantize accuracy test (verifying with MSE and MAD).

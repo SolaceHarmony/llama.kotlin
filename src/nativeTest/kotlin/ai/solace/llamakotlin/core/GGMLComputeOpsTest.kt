@@ -1,7 +1,6 @@
 package ai.solace.llamakotlin.core
 
-import kotlin.math.abs // For potential use in future tests, not directly in this setup
-import kotlin.math.round // For potential use in future tests
+import kotlin.math.* // Import all math functions
 import kotlin.test.*
 import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
@@ -430,6 +429,271 @@ class GGMLComputeOpsTest {
                 assertEquals(expectedData[r][c], resultTensor.getFloat(graphAllocator, c, r), delta,
                              "Q8_0xSF32 MatMul mismatch at result ($c, $r)")
             }
+        }
+    }
+
+    // Helper to extract data from a tensor as a FloatArray
+    // Adapted from GGMLQuantizationAccuracyTest.kt
+    // Assumes result tensors from compute ops might have their .data field populated directly
+    // or fall back to graphAllocator if .data is null.
+    internal fun getTensorDataAsFloatArray(tensor: GGMLTensor, graphAllocator: GGMLGraphAllocator): FloatArray {
+        val numElements = tensor.numElements().toInt()
+        if (numElements == 0) return floatArrayOf()
+
+        // Case 1: Tensor has its own FloatArray in .data (typical for results of dequantizeTensor or some compute ops)
+        if (tensor.data is FloatArray) {
+            val fa = tensor.data as FloatArray
+            // Ensure the self-contained array matches expected elements; could be an error if not.
+            if (fa.size == numElements) return fa.copyOf()
+            // Fallthrough if sizes don't match, which might indicate an issue or that .data is not the source of truth.
+        }
+
+        // Case 2: Tensor has its own ShortArray in .data (typical for F16 results)
+        if (tensor.type == GGMLType.F16 && tensor.data is ShortArray) {
+            val sa = tensor.data as ShortArray
+            if (sa.size == numElements) {
+                return FloatArray(numElements) { i -> halfToFloat(sa[i]) }
+            }
+        }
+
+        // Case 3: Tensor data is in the graphAllocator's buffer (typical for source tensors or if compute ops write to graphAllocator)
+        // This part relies on tensor.bufferId and tensor.dataOffset being correctly set.
+        if (tensor.bufferId != -1) {
+            val floatArray = FloatArray(numElements)
+            var idx = 0
+            // Using applyNDIter from GGMLQuantizationAccuracyTest as a model
+            // Need to ensure a similar helper or direct iteration logic is here.
+            // For simplicity, assuming a flat 1D iteration for now if applyNDIter is not in this file.
+            // The existing applyNDIter in this file might need adjustment or direct use.
+            // The createAndInitTensor sets up ne for up to GGML_MAX_DIMS.
+            applyNDIter(tensor.ne, tensor.rank(), numElements) { _, indices ->
+                if (idx < numElements) {
+                    floatArray[idx++] = when (tensor.type) {
+                        GGMLType.F32 -> tensor.getFloat(graphAllocator, *indices)
+                        GGML_TYPE_F16 -> tensor.getHalf(graphAllocator, *indices)
+                        // Add other type direct conversions if getTensorDataAsFloatArray needs to support them
+                        else -> throw IllegalArgumentException("getTensorDataAsFloatArray: Unsupported tensor type ${tensor.type} for direct float extraction from graph allocator without dequantization.")
+                    }
+                }
+            }
+            return floatArray
+        }
+
+        throw IllegalStateException("Tensor ${tensor.name} has no accessible data (neither self-contained .data nor valid bufferId/dataOffset for graphAllocator).")
+    }
+
+
+    // Helper: GELU approximation using tanh, matches ggml.c's gelu_f32
+    private fun geluApproximation(x: Float): Float {
+        return 0.5f * x * (1.0f + tanh(sqrt(2.0f / PI.toFloat()) * (x + 0.044715f * x * x * x)))
+    }
+
+    // Helper: Sigmoid
+    private fun sigmoid(x: Float): Float {
+        return 1.0f / (1.0f + exp(-x))
+    }
+
+    // Helper: SiLU (Swish) = x * sigmoid(x)
+    private fun silu(x: Float): Float {
+        return x * sigmoid(x)
+    }
+
+    // Helper function to manually calculate RMS Norm for verification
+    private fun manualRMSNorm(input: FloatArray, eps: Float): FloatArray {
+        if (input.isEmpty()) return floatArrayOf()
+
+        var sumSq = 0.0
+        for (x_i_double in input.map { it.toDouble() }) { // Use Double for intermediate sum to maintain precision
+            sumSq += x_i_double * x_i_double
+        }
+        val meanSq = sumSq / input.size
+        val rms = sqrt(meanSq + eps.toDouble()).toFloat() // Calculate rms in double, then cast back to float
+
+        if (rms == 0.0f || rms.isNaN()) { // Handle cases where rms is zero or NaN (e.g. all zeros input with zero eps)
+             return FloatArray(input.size) { 0.0f }
+        }
+
+        val output = FloatArray(input.size)
+        for (i in input.indices) {
+            output[i] = input[i] / rms
+        }
+        return output
+    }
+
+    // --- RELU Tests ---
+    @Test
+    fun testComputeReluF32() {
+        val srcNe = longArrayOf(5)
+        val srcData = floatArrayOf(-2f, -0.5f, 0f, 0.5f, 2f)
+        // Using createAndInitTensor and then populating for consistency
+        val srcTensor = createAndInitTensor("relu_f32_src", GGMLType.F32, srcNe, dataOffset = 0uL)
+        for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
+
+
+        val resultTensor = computeRelu(graphAllocator, srcTensor)
+
+        assertEquals(GGMLType.F32, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for RELU F32")
+
+        val expectedData = floatArrayOf(0f, 0f, 0f, 0.5f, 2f)
+        val resultData = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+        assertContentEquals(expectedData, resultData, "RELU F32 output mismatch")
+    }
+
+    @Test
+    fun testComputeReluF16() {
+        val srcNe = longArrayOf(5)
+        val srcDataF32 = floatArrayOf(-2f, -0.5f, 0f, 0.5f, 2f)
+        val srcTensor = createAndInitTensor("relu_f16_src", GGMLType.F16, srcNe, dataOffset = 0uL)
+        for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
+
+        val resultTensor = computeRelu(graphAllocator, srcTensor)
+
+        assertEquals(GGMLType.F16, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for RELU F16")
+
+        val expectedDataF32 = floatArrayOf(0f, 0f, 0f, 0.5f, 2f)
+        val resultDataF16AsF32 = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        for(i in expectedDataF32.indices) {
+            assertEquals(halfToFloat(floatToHalf(expectedDataF32[i])), resultDataF16AsF32[i], 0.001f, "RELU F16 output mismatch at index $i")
+        }
+    }
+
+    // --- GELU Tests ---
+    @Test
+    fun testComputeGeluF32() {
+        val srcNe = longArrayOf(5)
+        val srcData = floatArrayOf(-3f, -1f, 0f, 1f, 3f)
+        val srcTensor = createAndInitTensor("gelu_f32_src", GGMLType.F32, srcNe, dataOffset = 0uL)
+        for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
+
+        val resultTensor = computeGelu(graphAllocator, srcTensor)
+
+        assertEquals(GGMLType.F32, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for GELU F32")
+
+        val expectedData = srcData.map { geluApproximation(it) }.toFloatArray()
+        val resultData = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        for(i in expectedData.indices) {
+            assertEquals(expectedData[i], resultData[i], 0.001f, "GELU F32 output mismatch at index $i")
+        }
+    }
+
+    @Test
+    fun testComputeGeluF16() {
+        val srcNe = longArrayOf(5)
+        val srcDataF32 = floatArrayOf(-3f, -1f, 0f, 1f, 3f)
+        val srcTensor = createAndInitTensor("gelu_f16_src", GGMLType.F16, srcNe, dataOffset = 0uL)
+        for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
+
+        val resultTensor = computeGelu(graphAllocator, srcTensor)
+
+        assertEquals(GGMLType.F16, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for GELU F16")
+
+        val expectedDataF32 = srcDataF32.map { geluApproximation(it) }.toFloatArray()
+        val resultDataF16AsF32 = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        for(i in expectedDataF32.indices) {
+            assertEquals(halfToFloat(floatToHalf(expectedDataF32[i])), resultDataF16AsF32[i], 0.01f,
+                         "GELU F16 output mismatch at index $i. Expected F32: ${expectedDataF32[i]}, Got F16asF32: ${resultDataF16AsF32[i]}")
+        }
+    }
+
+    // --- SILU Tests ---
+    @Test
+    fun testComputeSiluF32() {
+        val srcNe = longArrayOf(5)
+        val srcData = floatArrayOf(-5f, -1f, 0f, 1f, 5f)
+        val srcTensor = createAndInitTensor("silu_f32_src", GGMLType.F32, srcNe, dataOffset = 0uL)
+        for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
+
+        // Assuming computeSilu exists and has signature (GGMLGraphAllocator, GGMLTensor) -> GGMLTensor
+        val resultTensor = computeSilu(graphAllocator, srcTensor)
+
+        assertEquals(GGMLType.F32, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for SILU F32")
+
+        val expectedData = srcData.map { silu(it) }.toFloatArray()
+        val resultData = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        for(i in expectedData.indices) {
+            assertEquals(expectedData[i], resultData[i], 0.001f, "SILU F32 output mismatch at index $i")
+        }
+    }
+
+    @Test
+    fun testComputeSiluF16() {
+        val srcNe = longArrayOf(5)
+        val srcDataF32 = floatArrayOf(-5f, -1f, 0f, 1f, 5f)
+        val srcTensor = createAndInitTensor("silu_f16_src", GGMLType.F16, srcNe, dataOffset = 0uL)
+        for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
+
+        val resultTensor = computeSilu(graphAllocator, srcTensor)
+
+        assertEquals(GGMLType.F16, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for SILU F16")
+
+        val expectedDataF32 = srcDataF32.map { silu(it) }.toFloatArray()
+        val resultDataF16AsF32 = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        for(i in expectedDataF32.indices) {
+            assertEquals(halfToFloat(floatToHalf(expectedDataF32[i])), resultDataF16AsF32[i], 0.01f,
+                         "SILU F16 output mismatch at index $i. Expected F32: ${expectedDataF32[i]}, Got F16asF32: ${resultDataF16AsF32[i]}")
+        }
+    }
+
+    // --- RMS_NORM Tests ---
+    @Test
+    fun testComputeRMSNormF32() {
+        val srcNe = longArrayOf(4) // Simplified to just essential dimension for 1D
+        val srcData = floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f)
+
+        // Using createAndInitTensor and then populating for consistency
+        val srcTensor = createAndInitTensor("rms_f32_src", GGMLType.F32, srcNe, dataOffset = 0uL)
+        for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
+
+        val eps = 1e-5f
+
+        val resultTensor = computeRMSNorm(graphAllocator, srcTensor, eps)
+
+        assertEquals(GGMLType.F32, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "RMSNorm F32 result dimensions mismatch")
+
+        val expectedData = manualRMSNorm(srcData, eps)
+        val resultData = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        assertEquals(expectedData.size, resultData.size, "RMSNorm F32 result data size mismatch")
+        for(i in expectedData.indices) {
+            assertEquals(expectedData[i], resultData[i], 0.0001f, "RMSNorm F32 output mismatch at index $i")
+        }
+    }
+
+    @Test
+    fun testComputeRMSNormF16() {
+        val srcNe = longArrayOf(4) // Simplified to just essential dimension for 1D
+        val srcDataF32 = floatArrayOf(1.0f, 2.0f, -1.0f, -2.0f)
+
+        var currentOffset = 0uL // Manage offset if other tensors were created in testBuffer, though this test is self-contained for src
+        val srcTensor = createAndInitTensor("rms_f16_src", GGMLType.F16, srcNe, dataOffset = currentOffset)
+        for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
+
+        val eps = 1e-5f
+
+        val resultTensor = computeRMSNorm(graphAllocator, srcTensor, eps)
+
+        assertEquals(GGMLType.F16, resultTensor.type)
+        assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "RMSNorm F16 result dimensions mismatch")
+
+        val expectedDataF32 = manualRMSNorm(srcDataF32, eps)
+        val resultDataF16AsF32 = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+
+        assertEquals(expectedDataF32.size, resultDataF16AsF32.size, "RMSNorm F16 result data size mismatch")
+        for(i in expectedDataF32.indices) {
+            assertEquals(halfToFloat(floatToHalf(expectedDataF32[i])), resultDataF16AsF32[i], 0.01f,
+                         "RMSNorm F16 output mismatch at index $i. Expected F32: ${expectedDataF32[i]}, Got F16asF32: ${resultDataF16AsF32[i]}")
         }
     }
 }
