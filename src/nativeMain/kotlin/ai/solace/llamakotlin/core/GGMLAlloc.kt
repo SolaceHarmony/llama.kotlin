@@ -393,80 +393,6 @@ class GGMLGraphAllocator {
 
 
     /**
-     * Analyzes the computation graph to understand tensor usage patterns.
-     * This information can be used for memory optimization strategies like
-     * inplace operations and memory reuse.
-     */
-    private fun analyzeTensorUsage(graph: GGMLCGraph) {
-        tensorUsageMap.clear()
-
-        // Initialize map for all unique tensors in the graph (leafs and nodes)
-        // and mark output tensors.
-        val allTensors = (graph.leafs.filterNotNull() + graph.nodes.filterNotNull()).distinct()
-        for (tensor in allTensors) {
-            // isOutput() method was added to GGMLTensor in GGMLTypes.kt
-            tensorUsageMap.getOrPut(tensor) { TensorUsageInfo() }.isOutputTensor = tensor.isOutput()
-        }
-
-        // Populate numChildren and numViews
-        for (node in graph.nodes) {
-            if (node == null) continue
-
-            // Increment numViews for the source of a view tensor
-            // ggml_is_view() is defined at the end of this file.
-            if (ggml_is_view(node) && node.viewSrc != null) {
-                tensorUsageMap[node.viewSrc!!]?.let { it.numViews++ }
-            }
-
-            // Increment numChildren for each source tensor
-            for (j in 0 until GGML_MAX_SRC) {
-                val srcTensor = node.src[j]
-                if (srcTensor != null) {
-                    tensorUsageMap[srcTensor]?.let { it.numChildren++ }
-                }
-            }
-        }
-        // ownsMemory will be determined during allocation/memory planning phase
-    }
-
-    private fun ensureBufferCapacity(bufferId: Int, requiredSize: ULong) {
-        if (bufferId < 0 || bufferId >= buffers.size || bufferId >= tensorAllocators.size) {
-            // Or throw an IllegalArgumentException, depending on desired error handling
-            println("Error: Invalid bufferId $bufferId")
-            return
-        }
-
-        val currentBuffer = buffers[bufferId]
-        if (currentBuffer == null || currentBuffer.size < requiredSize.toInt()) {
-            // Ensure requiredSize is not zero if creating a new buffer,
-            // though ULong to Int conversion might cap it.
-            // Consider a minimum practical size or error if requiredSize is too large for Int.
-            val newSize = if (requiredSize > Int.MAX_VALUE.toULong()) {
-                println("Warning: requiredSize $requiredSize exceeds Int.MAX_VALUE. Clamping to Int.MAX_VALUE.")
-                Int.MAX_VALUE
-            } else {
-                requiredSize.toInt()
-            }
-
-            // Add the new check:
-            if (newSize <= 0 && requiredSize > 0uL) {
-                throw IllegalArgumentException(
-                    "Invalid buffer size for buffer $bufferId: " +
-                    "original requiredSize $requiredSize (ULong) resulted in " +
-                    "non-positive effective size $newSize (Int) for ByteArray construction. " +
-                    "This may indicate an overflow from ULong to Int or an invalid input."
-                )
-            }
-            // If requiredSize is 0uL, newSize will be 0. ByteArray(0) is valid.
-            // The condition above ensures that if requiredSize was > 0, newSize must also be > 0.
-
-            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer. If newSize is 0, this is ByteArray(0).
-            tensorAllocators[bufferId].reset(newSize.toULong()) // Reset the allocator with the new size
-        }
-    }
-
-
-    /**
      * Allocates memory for all tensors in a computation graph.
      *
      * @param graph The computation graph to allocate memory for
@@ -577,7 +503,6 @@ class GGMLGraphAllocator {
                     tensorUsage.dataOffset = tensor.dataOffset
                     // Ensure calculatedSize for the view tensor reflects its own dimensions and type, using byte size.
                     tensorUsage.calculatedSize = calculateTensorByteSize(tensor)
-
                 }
             }
             return // No new allocation needed
