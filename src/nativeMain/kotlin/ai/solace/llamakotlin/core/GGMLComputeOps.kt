@@ -200,17 +200,58 @@ fun computeAdd(
 
     when (a.type) {
         GGMLType.F32 -> {
-            applyNDIter(result, totalSize) { _, indices ->
+            val resultData = FloatArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices -> // Iterate based on 'a' which has same shape as result
                 val v0 = a.getFloat(graphAllocator, *indices)
                 val v1 = b.getFloat(graphAllocator, *indices)
-                result.setFloat(graphAllocator, v0 + v1, *indices)
+                resultData[flatIdx] = v0 + v1
             }
         }
         GGMLType.F16 -> {
-            applyNDIter(result, totalSize) { _, indices ->
+            val resultData = ShortArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices -> // Iterate based on 'a'
                 val v0 = a.getHalf(graphAllocator, *indices)
                 val v1 = b.getHalf(graphAllocator, *indices)
-                result.setHalf(graphAllocator, v0 + v1, *indices)
+                // Perform addition as Float for precision, then convert back to Half (Short)
+                resultData[flatIdx] = floatToHalf(v0 + v1)
+            }
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getInt(graphAllocator, *indices)
+                val valB = b.getInt(graphAllocator, *indices)
+                resultData[flatIdx] = valA + valB
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getShort(graphAllocator, *indices).toInt()
+                val valB = b.getShort(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (valA + valB).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I8 -> {
+            val resultData = ByteArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getByte(graphAllocator, *indices).toInt()
+                val valB = b.getByte(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (valA + valB).coerceIn(Byte.MIN_VALUE.toInt(), Byte.MAX_VALUE.toInt()).toByte()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getLong(graphAllocator, *indices)
+                val valB = b.getLong(graphAllocator, *indices)
+                resultData[flatIdx] = valA + valB
             }
         }
         GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
@@ -221,6 +262,85 @@ fun computeAdd(
             result.data = quantizedResult.data
         }
         else -> throw NotImplementedError("computeAdd not implemented for type ${a.type}")
+    }
+    return result
+}
+
+fun computeMul(
+    graphAllocator: GGMLGraphAllocator,
+    @Suppress("unused") context: GGMLContext,
+    a: GGMLTensor,
+    b: GGMLTensor
+): GGMLTensor {
+    for (i in 0 until GGML_MAX_DIMS) {
+        if (a.ne[i] != b.ne[i]) throw IllegalArgumentException("Incompatible dimensions for multiplication")
+    }
+    val result = GGMLTensor(type = a.type); result.ne = a.ne.copyOf(); result.nb = a.nb.copyOf()
+    val totalSize = result.numElements().toInt()
+
+    when (a.type) {
+        GGMLType.F32 -> {
+            val resultData = FloatArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val v0 = a.getFloat(graphAllocator, *indices)
+                val v1 = b.getFloat(graphAllocator, *indices)
+                resultData[flatIdx] = v0 * v1
+            }
+        }
+        GGMLType.F16 -> {
+            val resultData = ShortArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val v0 = a.getHalf(graphAllocator, *indices)
+                val v1 = b.getHalf(graphAllocator, *indices)
+                resultData[flatIdx] = floatToHalf(v0 * v1)
+            }
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getInt(graphAllocator, *indices)
+                val valB = b.getInt(graphAllocator, *indices)
+                resultData[flatIdx] = valA * valB
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getShort(graphAllocator, *indices).toInt()
+                val valB = b.getShort(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (valA * valB).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I8 -> {
+            val resultData = ByteArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getByte(graphAllocator, *indices).toInt()
+                val valB = b.getByte(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (valA * valB).coerceIn(Byte.MIN_VALUE.toInt(), Byte.MAX_VALUE.toInt()).toByte()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(totalSize)
+            result.data = resultData
+            applyNDIter(a, totalSize) { flatIdx, indices ->
+                val valA = a.getLong(graphAllocator, *indices)
+                val valB = b.getLong(graphAllocator, *indices)
+                resultData[flatIdx] = valA * valB
+            }
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            val aF32 = dequantizeTensor(graphAllocator, a)
+            val bF32 = dequantizeTensor(graphAllocator, b)
+            val resultF32 = computeMul(graphAllocator, context, aF32, bF32)
+            val quantizedResult = quantizeTensor(graphAllocator, resultF32, a.type)
+            result.data = quantizedResult.data
+        }
+        else -> throw NotImplementedError("computeMul not implemented for type ${a.type}")
     }
     return result
 }
@@ -595,10 +715,44 @@ fun computeSub(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
     for(i in 0 until GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
     val res=GGMLTensor(a.type); res.ne=a.ne.copyOf(); res.nb=a.nb.copyOf(); val ts=res.numElements().toInt()
     when(a.type){
-        GGMLType.F32->applyNDIter(res,ts){_,ind->res.setFloat(graphAllocator,a.getFloat(graphAllocator,*ind)-b.getFloat(graphAllocator,*ind),*ind)}
-        GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,a.getHalf(graphAllocator,*ind)-b.getHalf(graphAllocator,*ind),*ind)}
+        GGMLType.F32-> {
+            val resultData = FloatArray(ts); res.data = resultData
+            applyNDIter(a,ts){flatIdx,ind->resultData[flatIdx] = a.getFloat(graphAllocator,*ind)-b.getFloat(graphAllocator,*ind)}
+        }
+        GGMLType.F16-> {
+            val resultData = ShortArray(ts); res.data = resultData
+            applyNDIter(a,ts){flatIdx,ind->resultData[flatIdx] = floatToHalf(a.getHalf(graphAllocator,*ind)-b.getHalf(graphAllocator,*ind))}
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                resultData[flatIdx] = a.getInt(graphAllocator, *indices) - b.getInt(graphAllocator, *indices)
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getShort(graphAllocator, *indices).toInt()
+                val valB = b.getShort(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (valA - valB).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I8 -> {
+            val resultData = ByteArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getByte(graphAllocator, *indices).toInt()
+                val valB = b.getByte(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (valA - valB).coerceIn(Byte.MIN_VALUE.toInt(), Byte.MAX_VALUE.toInt()).toByte()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                resultData[flatIdx] = a.getLong(graphAllocator, *indices) - b.getLong(graphAllocator, *indices)
+            }
+        }
         GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val bf=dequantizeTensor(graphAllocator,b); val rf=computeSub(graphAllocator,context,af,bf); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
-        else->throw NotImplementedError("computeSub NI for ${a.type}")
+        else->throw NotImplementedError("computeSub NI for type ${a.type}")
     }
     return res
 }
@@ -619,10 +773,52 @@ fun computeDiv(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
     val res=GGMLTensor(a.type);res.ne=a.ne.copyOf();res.nb=a.nb.copyOf();val ts=res.numElements().toInt()
     val div={vA:Float,vB:Float->if(vB==0.0f){if(vA==0.0f)Float.NaN else if(vA>0.0f)Float.POSITIVE_INFINITY else Float.NEGATIVE_INFINITY}else{vA/vB}}
     when(a.type){
-        GGMLType.F32->applyNDIter(res,ts){_,ind->res.setFloat(graphAllocator,div(a.getFloat(graphAllocator,*ind),b.getFloat(graphAllocator,*ind)),*ind)}
-        GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,div(a.getHalf(graphAllocator,*ind),b.getHalf(graphAllocator,*ind)),*ind)}
+        GGMLType.F32-> {
+            val resultData = FloatArray(ts); res.data = resultData
+            applyNDIter(a,ts){flatIdx,ind->resultData[flatIdx] = div(a.getFloat(graphAllocator,*ind),b.getFloat(graphAllocator,*ind))}
+        }
+        GGMLType.F16-> {
+            val resultData = ShortArray(ts); res.data = resultData
+            applyNDIter(a,ts){flatIdx,ind->resultData[flatIdx] = floatToHalf(div(a.getHalf(graphAllocator,*ind),b.getHalf(graphAllocator,*ind)))}
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getInt(graphAllocator, *indices)
+                val valB = b.getInt(graphAllocator, *indices)
+                if (valB == 0) throw ArithmeticException("Division by zero for I32")
+                resultData[flatIdx] = valA / valB
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getShort(graphAllocator, *indices).toInt()
+                val valB = b.getShort(graphAllocator, *indices).toInt()
+                if (valB == 0) throw ArithmeticException("Division by zero for I16")
+                resultData[flatIdx] = (valA / valB).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I8 -> {
+            val resultData = ByteArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getByte(graphAllocator, *indices).toInt()
+                val valB = b.getByte(graphAllocator, *indices).toInt()
+                if (valB == 0) throw ArithmeticException("Division by zero for I8")
+                resultData[flatIdx] = (valA / valB).coerceIn(Byte.MIN_VALUE.toInt(), Byte.MAX_VALUE.toInt()).toByte()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getLong(graphAllocator, *indices)
+                val valB = b.getLong(graphAllocator, *indices)
+                if (valB == 0L) throw ArithmeticException("Division by zero for I64")
+                resultData[flatIdx] = valA / valB
+            }
+        }
         GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a);val bf=dequantizeTensor(graphAllocator,b);val rf=computeDiv(graphAllocator,context,af,bf);val qr=quantizeTensor(graphAllocator,rf,a.type);res.data=qr.data}
-        else->throw NotImplementedError("computeDiv NI for ${a.type}")
+        else->throw NotImplementedError("computeDiv NI for type ${a.type}")
     }
     return res
 }

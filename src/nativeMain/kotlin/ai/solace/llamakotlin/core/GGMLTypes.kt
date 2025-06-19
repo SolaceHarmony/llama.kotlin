@@ -40,6 +40,22 @@ internal fun ByteArray.setShortLe(offset: Int, value: Short) {
     this[offset + 1] = ((value.toInt() shr 8) and 0xFF).toByte()
 }
 
+internal fun ByteArray.getLongLe(offset: Int): Long {
+    require(offset + Long.SIZE_BYTES <= size) { "Offset $offset + ${Long.SIZE_BYTES} > size $size" }
+    var result = 0L
+    for (i in 0 until Long.SIZE_BYTES) {
+        result = result or ((this[offset + i].toLong() and 0xFF) shl (i * 8))
+    }
+    return result
+}
+
+internal fun ByteArray.setLongLe(offset: Int, value: Long) {
+    require(offset + Long.SIZE_BYTES <= size) { "Offset $offset + ${Long.SIZE_BYTES} > size $size" }
+    for (i in 0 until Long.SIZE_BYTES) {
+        this[offset + i] = ((value shr (i * 8)) and 0xFF).toByte()
+    }
+}
+
 
 /**
  * Kotlin Native port of GGML tensor library core data types.
@@ -377,6 +393,52 @@ class GGMLTensor(
         }
         val shortBits = floatToHalf(value) // floatToHalf is in NumericConversions.kt, assumed imported or accessible
         buffer.setShortLe(finalByteOffset.toInt(), shortBits)
+    }
+
+    // Accessor methods for I8 (Byte)
+    fun getByte(graphAllocator: GGMLGraphAllocator, vararg indices: Int): Byte {
+        // require(type == GGMLType.I8) { "getByte() called on non-I8 tensor: $type" }
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        val elementByteOffset = getElementByteOffset(*indices)
+        val finalByteOffset = dataOffset + elementByteOffset
+        if (finalByteOffset.toInt() < 0 || finalByteOffset.toInt() + Byte.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Byte at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - Byte.SIZE_BYTES}) for tensor $name")
+        }
+        return buffer[finalByteOffset.toInt()]
+    }
+
+    fun setByte(graphAllocator: GGMLGraphAllocator, value: Byte, vararg indices: Int) {
+        // require(type == GGMLType.I8) { "setByte() called on non-I8 tensor: $type" }
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        val elementByteOffset = getElementByteOffset(*indices)
+        val finalByteOffset = dataOffset + elementByteOffset
+        if (finalByteOffset.toInt() < 0 || finalByteOffset.toInt() + Byte.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to write Byte at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - Byte.SIZE_BYTES}) for tensor $name")
+        }
+        buffer[finalByteOffset.toInt()] = value
+    }
+
+    // Accessor methods for I64 (Long)
+    fun getLong(graphAllocator: GGMLGraphAllocator, vararg indices: Int): Long {
+        // require(type == GGMLType.I64) { "getLong() called on non-I64 tensor: $type" }
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        val elementByteOffset = getElementByteOffset(*indices)
+        val finalByteOffset = dataOffset + elementByteOffset
+        if (finalByteOffset.toInt() < 0 || finalByteOffset.toInt() + Long.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Long at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - Long.SIZE_BYTES}) for tensor $name")
+        }
+        return buffer.getLongLe(finalByteOffset.toInt()) // Uses new ByteArray extension
+    }
+
+    fun setLong(graphAllocator: GGMLGraphAllocator, value: Long, vararg indices: Int) {
+        // require(type == GGMLType.I64) { "setLong() called on non-I64 tensor: $type" }
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        val elementByteOffset = getElementByteOffset(*indices)
+        val finalByteOffset = dataOffset + elementByteOffset
+        if (finalByteOffset.toInt() < 0 || finalByteOffset.toInt() + Long.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to write Long at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - Long.SIZE_BYTES}) for tensor $name")
+        }
+        buffer.setLongLe(finalByteOffset.toInt(), value) // Uses new ByteArray extension
     }
 
     // --- Q8_0 Accessors ---
