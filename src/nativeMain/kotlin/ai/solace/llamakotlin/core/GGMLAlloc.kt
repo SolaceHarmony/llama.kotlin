@@ -317,6 +317,7 @@ class GGMLGraphAllocator {
         tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
 
+
     /**
      * Analyzes the computation graph to understand tensor usage patterns.
      * This information can be used for memory optimization strategies like
