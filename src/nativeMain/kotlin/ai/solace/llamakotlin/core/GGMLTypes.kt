@@ -101,7 +101,7 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     // Q4_0 byteSize is per block: sizeof(F16 scale) + (QK4_0/2) * sizeof(I8 weights_packed)
     Q4_0("q4_0", 2uL + (QK4_0 / 2).toULong()),   // 4-bit quantized, 18 bytes per block (2 + 32/2*1)
     // Q4_1 byteSize is per block: 2 * sizeof(F16 scale/min) + (QK4_1/2) * sizeof(I8 weights_packed)
-    Q4_1("q4_1", (2uL * SIZE_BYTES.toULong()) + (QK4_1 / 2).toULong()),   // 4-bit quantized: 2*F16 (scale d, min m) + QK4_1/2 bytes for packed weights = 4 + 16 = 20 bytes per block
+    Q4_1("q4_1", (2uL * Short.SIZE_BYTES.toULong()) + (QK4_1 / 2).toULong()),   // 4-bit quantized: 2*F16 (scale d, min m) + QK4_1/2 bytes for packed weights = 4 + 16 = 20 bytes per block
     Q5_0("q5_0", 0uL),   // 5-bit quantized
     Q5_1("q5_1", 0uL),   // 5-bit quantized with different scaling
     // Q8_0 byteSize is per block: sizeof(Float16 for scale) + QK8_0 * sizeof(Int8 for weights)
@@ -720,3 +720,63 @@ class GGMLCGraph(
     var visitedHashSet: Any? = null,
     var order: GGMLCGraphEvalOrder = GGMLCGraphEvalOrder.NONE
 )
+
+/**
+ * Calculates the byte size of a tensor, considering its type and dimensions.
+ * For block-quantized types, this calculates the size based on blocks.
+ * For regular types, it's num_elements * type_byte_size.
+ * For COUNT type or tensors with 0 elements, it's 0.
+ */
+internal fun calculateTensorByteSize(tensor: GGMLTensor): ULong {
+    val numElements = tensor.numElements().toULong()
+
+    // If a tensor has zero elements (e.g. ne = [0, ...]), its byte size is 0.
+    // Also, GGMLType.COUNT is defined with byteSize = 0uL, so it also results in 0.
+    if (numElements == 0uL) {
+        return 0uL
+    }
+    // For types like GGMLType.COUNT, type.byteSize is 0, which correctly yields 0.
+    if (tensor.type.byteSize == 0uL && tensor.type != GGMLType.COUNT) {
+        // This case indicates an issue with a new/custom type definition if it has elements but no byteSize.
+        // Standard block types have non-zero byteSize (representing block size).
+        println("Warning: Tensor ${tensor.name} of type ${tensor.type} has $numElements elements but type.byteSize is 0. Effective byte size will be 0.")
+        return 0uL
+    }
+
+
+    return when (tensor.type) {
+        // Explicitly list block-quantized types. Their type.byteSize is "bytes per block".
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0 -> {
+            // These constants should be defined in GGMLTypes.kt or accessible.
+            val elementsPerBlock = when(tensor.type) {
+                GGMLType.Q4_0 -> QK4_0.toULong()
+                GGMLType.Q4_1 -> QK4_1.toULong()
+                GGMLType.Q8_0 -> QK8_0.toULong()
+                // Add other K-quants or block types here if they have a similar structure
+                // For example: GGMLType.Q2_K -> QK_K.toULong() (if QK_K is its block size)
+                else -> {
+                    // This path should ideally not be reached if the outer 'when' is exhaustive for block types
+                    println("Warning: Unhandled block-quantized type ${tensor.type} in calculateTensorByteSize. Assuming elementsPerBlock = 1.")
+                    1uL
+                }
+            }
+
+            if (elementsPerBlock == 0uL) { // Should not happen for valid block types
+                println("Error: Tensor ${tensor.name} type ${tensor.type} has elementsPerBlock = 0. Byte size calculation invalid.")
+                return 0uL
+            }
+
+            // GGML requires the number of elements to be a multiple of the block size for quantized types.
+            if (numElements % elementsPerBlock != 0uL) {
+                 println("Warning: Tensor ${tensor.name} of type ${tensor.type} has $numElements elements, which is not perfectly divisible by block size $elementsPerBlock. Byte size calculation might be incorrect if padding or specific handling is expected.")
+                 // Depending on strictness, one might throw an error or adjust numElements to be block-aligned.
+                 // For now, proceed with integer division, which implies only full blocks are counted.
+            }
+            // Calculate size based on full blocks. tensor.type.byteSize for these types is defined as "bytes per block".
+            (numElements / elementsPerBlock) * tensor.type.byteSize
+        }
+        // For non-block types (F32, F16, I32, I16, I8, I64), type.byteSize is the size of one element.
+        // For GGMLType.COUNT, byteSize is 0, so this correctly results in 0.
+        else -> numElements * tensor.type.byteSize
+    }
+}

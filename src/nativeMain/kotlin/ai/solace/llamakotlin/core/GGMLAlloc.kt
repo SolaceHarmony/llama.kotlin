@@ -70,67 +70,32 @@ class GGMLTensorAllocator {
      * @param tensor The tensor to allocate memory for
      */
     fun allocate(tensor: GGMLTensor) {
-        // Calculate the size of the tensor
-        val size = calculateTensorSize(tensor)
+        // Calculate the number of elements for direct array allocation
+        val numElements = tensor.numElements().toInt() // Changed from calculateTensorSize
 
         // Align the offset to the required alignment
         offset = alignedOffset(offset, alignment)
 
         // Allocate memory for the tensor based on its type
         when (tensor.type) {
-            GGMLType.F32 -> tensor.data = FloatArray(size.toInt()) { 0.0f }
-            GGMLType.F16 -> tensor.data = ShortArray(size.toInt()) { 0 }
-            GGMLType.I8 -> tensor.data = ByteArray(size.toInt()) { 0 }
-            GGMLType.I16 -> tensor.data = ShortArray(size.toInt()) { 0 }
-            GGMLType.I32 -> tensor.data = IntArray(size.toInt()) { 0 }
-            GGMLType.I64 -> tensor.data = LongArray(size.toInt()) { 0L }
-            else -> tensor.data = ByteArray(size.toInt()) { 0 } // Default for quantized types
+            GGMLType.F32 -> tensor.data = FloatArray(numElements) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(numElements) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(numElements) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(numElements) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(numElements) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(numElements) { 0L }
+            // For quantized types, GGMLTensorAllocator does not allocate raw data array this way.
+            // It's more for unquantized, simple types.
+            // The `else` case here might be problematic if a quantized type reaches it.
+            // However, this GGMLTensorAllocator is generally for simpler, non-graph allocation scenarios.
+            else -> tensor.data = ByteArray(numElements * tensor.type.byteSize.toInt()) { 0 }
         }
 
-        // Update the offset
-        offset += size
+        // Update the offset based on byte size, not element count
+        offset += numElements.toULong() * tensor.type.byteSize
     }
 
-    /**
-     * Calculates the size of a tensor in elements.
-     *
-     * @param tensor The tensor to calculate the size for
-     * @return The size of the tensor in elements
-     */
-    private fun calculateTensorByteSize(tensor: GGMLTensor): ULong { // Renamed for clarity and correctness
-        val numElements = tensor.numElements().toULong()
-        if (numElements == 0uL && !tensor.isValidZeroSizedTensor()) {
-            // If numElements is 0 but it's not a valid zero-sized tensor (e.g. type COUNT or ne[i]=0),
-            // it might be an uninitialized tensor or an issue.
-            // However, isValidZeroSizedTensor also checks for ne[i]=0 which leads to numElements=0.
-            // The primary check for numElements == 0uL at the start is good.
-        }
-        if (numElements == 0uL) return 0uL
-
-
-        return when (tensor.type) {
-            GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0 -> { // Add other block types here if they have elementsPerBlock
-                val elementsPerBlock = when(tensor.type) {
-                    GGMLType.Q4_0 -> QK4_0.toULong()
-                    GGMLType.Q4_1 -> QK4_1.toULong()
-                    GGMLType.Q8_0 -> QK8_0.toULong()
-                    else -> 1uL // Should not happen due to outer when
-                }
-                if (elementsPerBlock == 0uL) return 0uL // Avoid division by zero
-
-                // GGML typically expects numElements to be a multiple of elementsPerBlock for quantized types.
-                // If not, it's often an error or requires padding logic not yet implemented.
-                if (numElements % elementsPerBlock != 0uL) {
-                     println("Warning: Tensor ${tensor.name} of type ${tensor.type} has $numElements elements, not perfectly divisible by block size $elementsPerBlock. Byte size calculation might be incorrect if padding is expected.")
-                }
-                // Calculate size based on full blocks needed for the given number of elements.
-                (numElements / elementsPerBlock) * tensor.type.byteSize
-            }
-            // For non-block types, type.byteSize is the size of one element.
-            // For GGMLType.COUNT, byteSize is 0, so this correctly results in 0.
-            else -> numElements * tensor.type.byteSize
-        }
-    }
+    // Removed private calculateTensorByteSize from GGMLTensorAllocator, will use global one from GGMLTypes.kt
 
     /**
      * Resets the allocator.
@@ -317,81 +282,6 @@ class GGMLGraphAllocator {
         tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
 
-
-    /**
-     * Analyzes the computation graph to understand tensor usage patterns.
-     * This information can be used for memory optimization strategies like
-     * inplace operations and memory reuse.
-     */
-    private fun analyzeTensorUsage(graph: GGMLCGraph) {
-        tensorUsageMap.clear()
-
-        // Initialize map for all unique tensors in the graph (leafs and nodes)
-        // and mark output tensors.
-        val allTensors = (graph.leafs.filterNotNull() + graph.nodes.filterNotNull()).distinct()
-        for (tensor in allTensors) {
-            // isOutput() method was added to GGMLTensor in GGMLTypes.kt
-            tensorUsageMap.getOrPut(tensor) { TensorUsageInfo() }.isOutputTensor = tensor.isOutput()
-        }
-
-        // Populate numChildren and numViews
-        for (node in graph.nodes) {
-            if (node == null) continue
-
-            // Increment numViews for the source of a view tensor
-            // ggml_is_view() is defined at the end of this file.
-            if (ggml_is_view(node) && node.viewSrc != null) {
-                tensorUsageMap[node.viewSrc!!]?.let { it.numViews++ }
-            }
-
-            // Increment numChildren for each source tensor
-            for (j in 0 until GGML_MAX_SRC) {
-                val srcTensor = node.src[j]
-                if (srcTensor != null) {
-                    tensorUsageMap[srcTensor]?.let { it.numChildren++ }
-                }
-            }
-        }
-        // ownsMemory will be determined during allocation/memory planning phase
-    }
-
-    private fun ensureBufferCapacity(bufferId: Int, requiredSize: ULong) {
-        if (bufferId < 0 || bufferId >= buffers.size || bufferId >= tensorAllocators.size) {
-            // Or throw an IllegalArgumentException, depending on desired error handling
-            println("Error: Invalid bufferId $bufferId")
-            return
-        }
-
-        val currentBuffer = buffers[bufferId]
-        if (currentBuffer == null || currentBuffer.size < requiredSize.toInt()) {
-            // Ensure requiredSize is not zero if creating a new buffer,
-            // though ULong to Int conversion might cap it.
-            // Consider a minimum practical size or error if requiredSize is too large for Int.
-            val newSize = if (requiredSize > Int.MAX_VALUE.toULong()) {
-                println("Warning: requiredSize $requiredSize exceeds Int.MAX_VALUE. Clamping to Int.MAX_VALUE.")
-                Int.MAX_VALUE
-            } else {
-                requiredSize.toInt()
-            }
-
-            // Add the new check:
-            if (newSize <= 0 && requiredSize > 0uL) {
-                throw IllegalArgumentException(
-                    "Invalid buffer size for buffer $bufferId: " +
-                    "original requiredSize $requiredSize (ULong) resulted in " +
-                    "non-positive effective size $newSize (Int) for ByteArray construction. " +
-                    "This may indicate an overflow from ULong to Int or an invalid input."
-                )
-            }
-            // If requiredSize is 0uL, newSize will be 0. ByteArray(0) is valid.
-            // The condition above ensures that if requiredSize was > 0, newSize must also be > 0.
-
-            buffers[bufferId] = ByteArray(newSize) // Create/resize the actual buffer. If newSize is 0, this is ByteArray(0).
-            tensorAllocators[bufferId].reset(newSize.toULong()) // Reset the allocator with the new size
-        }
-    }
-
-
     /**
      * Analyzes the computation graph to understand tensor usage patterns.
      * This information can be used for memory optimization strategies like
@@ -576,6 +466,7 @@ class GGMLGraphAllocator {
                     tensorUsage.bufferId = srcUsage.bufferId
                     tensorUsage.dataOffset = tensor.dataOffset
                     // Ensure calculatedSize for the view tensor reflects its own dimensions and type, using byte size.
+                    // Now calls the global/internal function from GGMLTypes.kt
                     tensorUsage.calculatedSize = calculateTensorByteSize(tensor)
                 }
             }
@@ -583,9 +474,9 @@ class GGMLGraphAllocator {
         }
 
         // tensorUsage is already fetched.
-        // val tensorUsage = tensorUsageMap[tensor]!! // This is already done at the start of the function.
 
-        val tensorCalculatedByteSize = calculateTensorByteSize(tensor) // Use the corrected byte size calculation
+        // Use the global/internal function from GGMLTypes.kt
+        val tensorCalculatedByteSize = calculateTensorByteSize(tensor)
 
         // New handling for zero-sized tensors, placed before inplace allocation logic
         if (tensorCalculatedByteSize == 0uL) {
@@ -643,7 +534,7 @@ class GGMLGraphAllocator {
                         parentUsageInfo.numViews == 0 &&
                         !parentUsageInfo.isOutputTensor &&
                         tensor.type == parentTensor.type &&
-                        tensorCalculatedSize == parentCalculatedSize && // Ensure sizes match
+                        tensorCalculatedByteSize == parentCalculatedSize && // Ensure sizes match - FIXED
                         parentUsageInfo.bufferId != -1) {
 
                         tensor.bufferId = parentUsageInfo.bufferId
@@ -652,7 +543,7 @@ class GGMLGraphAllocator {
                         tensorUsage.ownsMemory = true // This tensor now owns the memory segment
                         tensorUsage.bufferId = tensor.bufferId
                         tensorUsage.dataOffset = tensor.dataOffset
-                        tensorUsage.calculatedSize = tensorCalculatedSize
+                        tensorUsage.calculatedSize = tensorCalculatedByteSize // FIXED
 
                         parentUsageInfo.ownsMemory = false // Parent relinquishes ownership
 
@@ -739,7 +630,7 @@ class GGMLGraphAllocator {
      * @param bufferId The ID of the buffer to reserve from
      */
     private fun reserveTensor(tensor: GGMLTensor, bufferId: Int) {
-        // Calculate the byte size of the tensor
+        // Calculate the byte size of the tensor using the global/internal function
         val byteSize = calculateTensorByteSize(tensor)
 
         // Reserve memory from the tensor allocator
