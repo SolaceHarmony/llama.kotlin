@@ -32,32 +32,8 @@ class GGMLQuantizationAccuracyTest {
         return nb
     }
 
-    private fun calculateTensorByteSize(tensor: GGMLTensor): ULong {
-        val type = tensor.type
-        val ne = tensor.ne
-
-        if (type.byteSize == 0uL && type != GGMLType.COUNT && !type.name.startsWith("Q", ignoreCase = true)) {
-             println("Warning: Calculating byte size for type ${type.name} with byteSize 0.")
-            return 0uL
-        }
-
-        val elements = tensor.numElements().toULong() // Use existing numElements()
-
-        if (elements == 0UL && ne.isNotEmpty() && !ne.all { it == 0L }) return 0UL // Avoid mult by 0 if elements is 0 but ne has structure
-
-        return if (type == GGMLType.Q8_0 || type == GGMLType.Q4_0) { // Add other block types as needed
-            val elementsPerBlock = if (type == GGMLType.Q8_0) QK8_0.toLong() else QK4_0.toLong()
-            if (elementsPerBlock == 0L || elements.toLong() % elementsPerBlock != 0L) {
-                 println("Warning: Total elements $elements for ${type.name} is not divisible by block size $elementsPerBlock.")
-                 // Fallback or error, for now, let's assume numElements is the source of truth for element count
-                 // and byteSize * (num_elements / elements_per_block) is correct.
-                 if (elementsPerBlock == 0L) return 0uL // Avoid division by zero
-            }
-            (elements.toLong() / elementsPerBlock).toULong() * type.byteSize
-        } else {
-            elements * type.byteSize
-        }
-    }
+    // Removed local helper calculateTensorByteSize(tensor: GGMLTensor)
+    // Will use global ai.solace.llamakotlin.core.calculateTensorByteSize(tensor: GGMLTensor)
 
     // Copied from GGMLComputeOpsTest.kt - should be in a common test util
     internal fun applyNDIter(
@@ -146,7 +122,7 @@ class GGMLQuantizationAccuracyTest {
         val numElements = tensor.numElements().toInt()
         require(values.size == numElements) { "Provided FloatArray size (${values.size}) must match tensor element count ($numElements)." }
 
-        val tensorByteSize = calculateTensorByteSize(tensor)
+        val tensorByteSize = calculateTensorByteSize(tensor) // Use global function
         assertTrue(dataOffset + tensorByteSize <= bufferSize.toULong(),
             "Test tensor '$name' setup (offset $dataOffset + size $tensorByteSize) " +
             "dims ${dims.joinToString()} (effective ne: ${tensor.ne.joinToString()}) exceeds buffer capacity ($bufferSize).")
