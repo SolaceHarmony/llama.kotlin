@@ -85,40 +85,100 @@ const val GGML_TENSOR_FLAG_OUTPUT = 1 shl 0
 internal const val QK8_0: Int = 32 // Block size for Q8_0 blocks
 internal const val QK4_0: Int = 32 // Block size for Q4_0 blocks
 internal const val QK4_1: Int = 32 // Block size for Q4_1 blocks (same number of elements as Q4_0)
+internal const val QK_K: Int = 256 // Block size for K-quants (generic)
+internal const val QK4_K: Int = QK_K // Alias for Q4_K block size, using the generic K-quant block size
+
+// Constants for Q4_K type
+internal const val SCALES_SIZE_Q4_K: Int = 12 // Bytes for scales and mins (packed)
+internal const val QS_SIZE_Q4_K: Int = QK4_K / 2 // Bytes for quantized data (128 bytes)
+
+/**
+ * Represents the type of quantization.
+ */
+enum class QuantizationType {
+    NONE,           // No quantization / Float
+    LEGACY_Q,       // Legacy quantization (Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, Q8_1)
+    K_QUANTS        // K-Quantization (Q2_K, Q3_K, Q4_K, Q5_K, Q6_K, Q8_K)
+}
 
 /**
  * Tensor data types
  */
 @Suppress("UNUSED_PARAMETER") // For description in enum, if not used elsewhere
-enum class GGMLType(val description: String, val byteSize: ULong) {
-    F32("float32", 4uL),    // 32-bit float
-    F16("float16", 2uL),    // 16-bit float
-    // For quantized types, byteSize here represents the size of the fundamental element IF applicable for simple stride calculations.
-    // Actual memory per element for quantized types is fractional and depends on block size.
-    // Using 0uL as a placeholder signifies that direct byteSize-based stride calculation isn't straightforward.
-    // The ggml library itself has type_size and block_size fields and functions like ggml_type_size() / ggml_blck_size().
-    // For now, these are placeholders. The stride logic will primarily rely on non-zero byteSize for unquantized types.
-    // Q4_0 byteSize is per block: sizeof(F16 scale) + (QK4_0/2) * sizeof(I8 weights_packed)
-    Q4_0("q4_0", 2uL + (QK4_0 / 2).toULong()),   // 4-bit quantized, 18 bytes per block (2 + 32/2*1)
-    // Q4_1 byteSize is per block: 2 * sizeof(F16 scale/min) + (QK4_1/2) * sizeof(I8 weights_packed)
-    Q4_1("q4_1", (2uL * Short.SIZE_BYTES.toULong()) + (QK4_1 / 2).toULong()),   // 4-bit quantized: 2*F16 (scale d, min m) + QK4_1/2 bytes for packed weights = 4 + 16 = 20 bytes per block
-    Q5_0("q5_0", 0uL),   // 5-bit quantized
-    Q5_1("q5_1", 0uL),   // 5-bit quantized with different scaling
-    // Q8_0 byteSize is per block: sizeof(Float16 for scale) + QK8_0 * sizeof(Int8 for weights)
-    Q8_0("q8_0", 2uL + QK8_0.toULong()),   // 8-bit quantized, 34 bytes per block (2 + 32*1)
-    Q8_1("q8_1", 0uL),   // 8-bit quantized with different scaling
-    Q2_K("q2_k", 0uL),   // 2-bit quantized for K-quants
-    Q3_K("q3_k", 0uL),   // 3-bit quantized for K-quants
-    Q4_K("q4_k", 0uL),   // 4-bit quantized for K-quants
-    Q5_K("q5_k", 0uL),   // 5-bit quantized for K-quants
-    Q6_K("q6_k", 0uL),   // 6-bit quantized for K-quants
-    Q8_K("q8_k", 0uL),   // 8-bit quantized for K-quants (potentially 1 byte + K-scale factor)
-    Q1_5_K("q1_5_k", 0uL), // 1.5-bit quantized for K-quants (ternary: -1, 0, 1) - size is complex
-    I8("int8", 1uL),     // 8-bit integer
-    I16("int16", 2uL),    // 16-bit integer
-    I32("int32", 4uL),    // 32-bit integer
-    I64("int64", 8uL),    // 64-bit integer
-    COUNT("count", 0uL)   // Number of types (not a real data type)
+enum class GGMLType(
+    val description: String,
+    val byteSize: ULong,
+    val quantizationType: QuantizationType = QuantizationType.NONE,
+    val blckSize: Int = 1 // Number of elements in a block, 1 for non-block types
+) {
+    F32("float32", 4uL, QuantizationType.NONE),    // 32-bit float
+    F16("float16", 2uL, QuantizationType.NONE),    // 16-bit float
+    Q4_0("q4_0", 2uL + (QK4_0 / 2).toULong(), QuantizationType.LEGACY_Q, QK4_0),
+    Q4_1("q4_1", (2uL * Short.SIZE_BYTES.toULong()) + (QK4_1 / 2).toULong(), QuantizationType.LEGACY_Q, QK4_1),
+    Q5_0("q5_0", 0uL, QuantizationType.LEGACY_Q), // Placeholder, define actual size and blckSize if used
+    Q5_1("q5_1", 0uL, QuantizationType.LEGACY_Q), // Placeholder
+    Q8_0("q8_0", 2uL + QK8_0.toULong(), QuantizationType.LEGACY_Q, QK8_0),
+    Q8_1("q8_1", 0uL, QuantizationType.LEGACY_Q), // Placeholder
+    Q2_K("q2_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
+    Q3_K("q3_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
+    Q4_K("q4_k", (2uL + 2uL + SCALES_SIZE_Q4_K.toULong() + QS_SIZE_Q4_K.toULong()), QuantizationType.K_QUANTS, QK4_K),
+    Q5_K("q5_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
+    Q6_K("q6_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
+    Q8_K("q8_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize (usually d + qs (QK_K))
+    Q1_5_K("q1_5_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
+    I8("int8", 1uL, QuantizationType.NONE),     // 8-bit integer
+    I16("int16", 2uL, QuantizationType.NONE),    // 16-bit integer
+    I32("int32", 4uL, QuantizationType.NONE),    // 32-bit integer
+    I64("int64", 8uL, QuantizationType.NONE),    // 64-bit integer
+    COUNT("count", 0uL, QuantizationType.NONE)   // Number of types (not a real data type)
+}
+
+/**
+ * Data class representing a Q4_K quantization block.
+ * This structure mirrors the C `block_q4_K` but uses Kotlin types.
+ * Note: `d` and `dmin` are stored as Float, converted from FP16.
+ * `scales` array is 12 bytes.
+ * `qs` array is 128 bytes (256 nibbles).
+ */
+data class BlockQ4K(
+    val d: Float,          // super-block scale
+    val dmin: Float,       // super-block min
+    val scales: ByteArray, // 12 bytes for sub-block scales/mins
+    val qs: ByteArray      // 128 bytes for 256 4-bit quants
+) {
+    init {
+        require(scales.size == SCALES_SIZE_Q4_K) { "Scales ByteArray must be of size $SCALES_SIZE_Q4_K" }
+        require(qs.size == QS_SIZE_Q4_K) { "QS ByteArray must be of size $QS_SIZE_Q4_K" }
+    }
+
+    companion object {
+        /**
+         * Converts a raw ByteArray (representing a Q4_K block from memory) to a BlockQ4K object.
+         * The input ByteArray is assumed to be exactly the size of a Q4_K block (144 bytes).
+         */
+        fun fromByteArray(blockBytes: ByteArray): BlockQ4K {
+            require(blockBytes.size == GGMLType.Q4_K.byteSize.toInt()) {
+                "Input ByteArray size must be ${GGMLType.Q4_K.byteSize} for a Q4_K block."
+            }
+            val d = halfToFloat(blockBytes.getShortLe(0))
+            val dmin = halfToFloat(blockBytes.getShortLe(Short.SIZE_BYTES))
+            val scales = blockBytes.copyOfRange(2 * Short.SIZE_BYTES, 2 * Short.SIZE_BYTES + SCALES_SIZE_Q4_K)
+            val qs = blockBytes.copyOfRange(2 * Short.SIZE_BYTES + SCALES_SIZE_Q4_K, 2 * Short.SIZE_BYTES + SCALES_SIZE_Q4_K + QS_SIZE_Q4_K)
+            return BlockQ4K(d, dmin, scales, qs)
+        }
+    }
+
+    /**
+     * Converts this BlockQ4K object to a raw ByteArray.
+     */
+    fun toByteArray(): ByteArray {
+        val byteArray = ByteArray(GGMLType.Q4_K.byteSize.toInt())
+        byteArray.setShortLe(0, floatToHalf(d))
+        byteArray.setShortLe(Short.SIZE_BYTES, floatToHalf(dmin))
+        scales.copyInto(byteArray, destinationOffset = 2 * Short.SIZE_BYTES)
+        qs.copyInto(byteArray, destinationOffset = 2 * Short.SIZE_BYTES + SCALES_SIZE_Q4_K)
+        return byteArray
+    }
 }
 
 /**
@@ -455,6 +515,7 @@ class GGMLTensor(
             GGMLType.Q8_0 -> QK8_0.toLong()
             GGMLType.Q4_0 -> QK4_0.toLong()
             GGMLType.Q4_1 -> QK4_1.toLong()
+            GGMLType.Q4_K -> QK4_K.toLong()
             // Future block types can be added here
             else -> {
                 // Or throw IllegalArgumentException("getNumBlocks is only for block-quantized types")
@@ -670,6 +731,377 @@ class GGMLTensor(
         }
         return nibble.toByte()
     }
+
+    // --- Q4_K Accessors ---
+
+    /**
+     * Retrieves the overall F16 scale ('d') for a specific block in a Q4_K quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @return The overall scale value as a Float.
+     */
+    fun getQ4KOverallScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to get overall scale 'd'." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        // type.byteSize for Q4_K is the size of one block (144 bytes)
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalScaleByteOffset = dataOffset + blockByteOffset // Overall scale 'd' is the first F16
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Q4_K overall scale 'd' at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}).")
+        }
+        val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
+        return halfToFloat(scaleBits)
+    }
+
+    /**
+     * Sets the overall F16 scale ('d') for a specific block in a Q4_K quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param scale The overall scale value as a Float.
+     */
+    fun setQ4KOverallScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int, scale: Float) {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to set overall scale 'd'." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalScaleByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to write Q4_K overall scale 'd' at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}).")
+        }
+        val scaleBits = floatToHalf(scale)
+        buffer.setShortLe(finalScaleByteOffset.toInt(), scaleBits)
+    }
+
+    /**
+     * Retrieves the overall F16 min value ('dmin') for a specific block in a Q4_K quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @return The overall min value as a Float.
+     */
+    fun getQ4KOverallMin(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to get overall min 'dmin'." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val minOffsetWithinBlock = Short.SIZE_BYTES.toULong() // Overall min 'dmin' is the second F16
+        val finalMinByteOffset = dataOffset + blockByteOffset + minOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalMinByteOffset.toInt() < 0 || finalMinByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Q4_K overall min 'dmin' at offset ${finalMinByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}).")
+        }
+        val minBits = buffer.getShortLe(finalMinByteOffset.toInt())
+        return halfToFloat(minBits)
+    }
+
+    /**
+     * Sets the overall F16 min value ('dmin') for a specific block in a Q4_K quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param min The overall min value as a Float.
+     */
+    fun setQ4KOverallMin(graphAllocator: GGMLGraphAllocator, blockIndex: Int, min: Float) {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to set overall min 'dmin'." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val minOffsetWithinBlock = Short.SIZE_BYTES.toULong()
+        val finalMinByteOffset = dataOffset + blockByteOffset + minOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalMinByteOffset.toInt() < 0 || finalMinByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to write Q4_K overall min 'dmin' at offset ${finalMinByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}).")
+        }
+        val minBits = floatToHalf(min)
+        buffer.setShortLe(finalMinByteOffset.toInt(), minBits)
+    }
+
+    // Helper to get the base offset of the 12-byte scales/mins array within a Q4_K block
+    private fun getQ4KScalesArrayBaseOffset(blockIndex: Int): ULong {
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // d and dmin take 2 * Short.SIZE_BYTES
+        return dataOffset + blockByteOffset + (2 * Short.SIZE_BYTES).toULong()
+    }
+
+    /**
+     * Unpacks and returns the 6-bit quantized scale for a sub-block.
+     * This returns the raw 6-bit value.
+     */
+    private fun getQ4KSubBlockScaleQuantized(graphAllocator: GGMLGraphAllocator, blockIndex: Int, subBlockIdx: Int): Byte {
+        require(subBlockIdx in 0..7) { "subBlockIdx $subBlockIdx must be between 0 and 7." }
+
+        val scalesBaseOffset = getQ4KScalesArrayBaseOffset(blockIndex)
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Buffer not found for $name")
+
+        val scaleQuant: Int
+        if (subBlockIdx < 4) { // Sub-blocks 0-3
+            // ls_j is in lower 6 bits of scales_byte_array[j]
+            val byteOffset = scalesBaseOffset + subBlockIdx.toULong()
+            if (byteOffset.toInt() < 0 || byteOffset.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $byteOffset out of bounds for buffer size ${buffer.size}")
+            scaleQuant = buffer[byteOffset.toInt()].toInt() and 0x3F
+        } else { // Sub-blocks 4-7
+            // ls_{j+4} is split: lower 4 bits in scales_byte_array[j+8], upper 2 bits in scales_byte_array[j]
+            val j = subBlockIdx - 4
+            val byteOffset1 = scalesBaseOffset + j.toULong() // scales_byte_array[j]
+            val byteOffset2 = scalesBaseOffset + (j + 8).toULong() // scales_byte_array[j+8]
+
+            if (byteOffset1.toInt() < 0 || byteOffset1.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $byteOffset1 out of bounds for buffer size ${buffer.size}")
+            if (byteOffset2.toInt() < 0 || byteOffset2.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $byteOffset2 out of bounds for buffer size ${buffer.size}")
+
+            val upper2bits = (buffer[byteOffset1.toInt()].toInt() ushr 6) and 0x03
+            val lower4bits = buffer[byteOffset2.toInt()].toInt() and 0x0F
+            scaleQuant = (upper2bits shl 4) or lower4bits
+        }
+        return scaleQuant.toByte()
+    }
+
+     /**
+     * Unpacks and returns the 6-bit quantized min for a sub-block.
+     * This returns the raw 6-bit value.
+     */
+    private fun getQ4KSubBlockMinQuantized(graphAllocator: GGMLGraphAllocator, blockIndex: Int, subBlockIdx: Int): Byte {
+        require(subBlockIdx in 0..7) { "subBlockIdx $subBlockIdx must be between 0 and 7." }
+
+        val scalesBaseOffset = getQ4KScalesArrayBaseOffset(blockIndex)
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Buffer not found for $name")
+
+        val minQuant: Int
+        if (subBlockIdx < 4) { // Sub-blocks 0-3
+            // lm_j is in lower 6 bits of scales_byte_array[j+4]
+            val byteOffset = scalesBaseOffset + (subBlockIdx + 4).toULong()
+            if (byteOffset.toInt() < 0 || byteOffset.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $byteOffset out of bounds for buffer size ${buffer.size}")
+            minQuant = buffer[byteOffset.toInt()].toInt() and 0x3F
+        } else { // Sub-blocks 4-7
+            // lm_{j+4} is split: lower 4 bits in scales_byte_array[j+8] (upper nibble), upper 2 bits in scales_byte_array[j+4]
+            val j = subBlockIdx - 4
+            val byteOffset1 = scalesBaseOffset + (j + 4).toULong() // scales_byte_array[j+4]
+            val byteOffset2 = scalesBaseOffset + (j + 8).toULong() // scales_byte_array[j+8]
+
+            if (byteOffset1.toInt() < 0 || byteOffset1.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $byteOffset1 out of bounds for buffer size ${buffer.size}")
+            if (byteOffset2.toInt() < 0 || byteOffset2.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $byteOffset2 out of bounds for buffer size ${buffer.size}")
+
+            val upper2bits = (buffer[byteOffset1.toInt()].toInt() ushr 6) and 0x03
+            val lower4bits = (buffer[byteOffset2.toInt()].toInt() ushr 4) and 0x0F
+            minQuant = (upper2bits shl 4) or lower4bits
+        }
+        return minQuant.toByte()
+    }
+
+    /**
+     * Retrieves the dequantized scale for a sub-block in a Q4_K tensor.
+     * Effective_scale = overall_scale * sub_block_scale_quantized.
+     */
+    fun getQ4KSubBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int, subBlockIdx: Int): Float {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K." }
+        val overallScale = getQ4KOverallScale(graphAllocator, blockIndex)
+        val scaleQuant = getQ4KSubBlockScaleQuantized(graphAllocator, blockIndex, subBlockIdx)
+        return overallScale * (scaleQuant.toInt() and 0xFF) // scaleQuant is 0-63
+    }
+
+    /**
+     * Retrieves the dequantized min for a sub-block in a Q4_K tensor.
+     * Effective_min = overall_min * sub_block_min_quantized.
+     */
+    fun getQ4KSubBlockMin(graphAllocator: GGMLGraphAllocator, blockIndex: Int, subBlockIdx: Int): Float {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K." }
+        val overallMin = getQ4KOverallMin(graphAllocator, blockIndex)
+        val minQuant = getQ4KSubBlockMinQuantized(graphAllocator, blockIndex, subBlockIdx)
+        // In llama.cpp, dmin is positive, and the actual min is negative.
+        // If overallMin is stored as a positive value (like scales), then effective min is -(overallMin * minQuant)
+        // However, the quantization formula is usually (val - min)/scale or val/scale + min.
+        // Let's assume dmin is stored as is, and used as `d_eff * q - min_eff`.
+        // If lm is 0-63 and dmin is positive, min_eff = dmin * lm.
+        return overallMin * (minQuant.toInt() and 0xFF) // minQuant is 0-63
+    }
+
+    /**
+     * Sets the 6-bit quantized scale and min for a sub-block in a Q4_K tensor.
+     * @param scaleQuant Raw 6-bit scale (0-63).
+     * @param minQuant Raw 6-bit min (0-63).
+     */
+    fun setQ4KSubBlockScaleAndMin(graphAllocator: GGMLGraphAllocator, blockIndex: Int, subBlockIdx: Int, scaleQuant: Byte, minQuant: Byte) {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K." }
+        require(subBlockIdx in 0..7) { "subBlockIdx $subBlockIdx must be between 0 and 7." }
+        require(scaleQuant >= 0 && scaleQuant < 64) { "scaleQuant $scaleQuant out of 6-bit range (0-63)." }
+        require(minQuant >= 0 && minQuant < 64) { "minQuant $minQuant out of 6-bit range (0-63)." }
+
+        val scalesBaseOffset = getQ4KScalesArrayBaseOffset(blockIndex)
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Buffer not found for $name")
+
+        val sQ = scaleQuant.toInt() and 0x3F
+        val mQ = minQuant.toInt() and 0x3F
+
+        if (subBlockIdx < 4) { // Sub-blocks 0-3
+            // Scale: ls_j is in lower 6 bits of scales_byte_array[j]
+            val scaleByteOffset = scalesBaseOffset + subBlockIdx.toULong()
+            if (scaleByteOffset.toInt() < 0 || scaleByteOffset.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $scaleByteOffset out of bounds for buffer size ${buffer.size}")
+            var currentByte = buffer[scaleByteOffset.toInt()].toInt()
+            currentByte = (currentByte and 0xC0) or sQ // Keep upper 2 bits, set lower 6
+            buffer[scaleByteOffset.toInt()] = currentByte.toByte()
+
+            // Min: lm_j is in lower 6 bits of scales_byte_array[j+4]
+            val minByteOffset = scalesBaseOffset + (subBlockIdx + 4).toULong()
+            if (minByteOffset.toInt() < 0 || minByteOffset.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $minByteOffset out of bounds for buffer size ${buffer.size}")
+            currentByte = buffer[minByteOffset.toInt()].toInt()
+            currentByte = (currentByte and 0xC0) or mQ // Keep upper 2 bits, set lower 6
+            buffer[minByteOffset.toInt()] = currentByte.toByte()
+        } else { // Sub-blocks 4-7
+            val j = subBlockIdx - 4
+            // Scale: ls_{j+4} is split. Lower 4 bits in scales_byte_array[j+8], upper 2 bits in scales_byte_array[j]
+            val sUpper2 = (sQ ushr 4) and 0x03 // sQ_3, sQ_2
+            val sLower4 = sQ and 0x0F          // sQ_1, sQ_0 (conventionally, this is how it's split in code)
+
+            // Update upper 2 bits of scale in scales_byte_array[j]
+            val scaleByteOffset1 = scalesBaseOffset + j.toULong()
+            if (scaleByteOffset1.toInt() < 0 || scaleByteOffset1.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $scaleByteOffset1 out of bounds for buffer size ${buffer.size}")
+            var currentByte1 = buffer[scaleByteOffset1.toInt()].toInt()
+            currentByte1 = (currentByte1 and 0x3F) or (sUpper2 shl 6) // Keep lower 6 bits, set upper 2
+            buffer[scaleByteOffset1.toInt()] = currentByte1.toByte()
+
+            // Update lower 4 bits of scale in scales_byte_array[j+8]
+            val commonByteOffset = scalesBaseOffset + (j + 8).toULong()
+            if (commonByteOffset.toInt() < 0 || commonByteOffset.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $commonByteOffset out of bounds for buffer size ${buffer.size}")
+            var commonByte = buffer[commonByteOffset.toInt()].toInt()
+            commonByte = (commonByte and 0xF0) or sLower4 // Keep upper 4 bits, set lower 4
+            // This commonByte will be updated again by min, so write it back after min part.
+
+            // Min: lm_{j+4} is split. Lower 4 bits in scales_byte_array[j+8] (upper nibble), upper 2 bits in scales_byte_array[j+4]
+            val mUpper2 = (mQ ushr 4) and 0x03
+            val mLower4 = mQ and 0x0F
+
+            // Update upper 2 bits of min in scales_byte_array[j+4]
+            val minByteOffset1 = scalesBaseOffset + (j + 4).toULong()
+            if (minByteOffset1.toInt() < 0 || minByteOffset1.toInt() >= buffer.size) throw IndexOutOfBoundsException("Offset $minByteOffset1 out of bounds for buffer size ${buffer.size}")
+            var currentByte2 = buffer[minByteOffset1.toInt()].toInt()
+            currentByte2 = (currentByte2 and 0x3F) or (mUpper2 shl 6) // Keep lower 6 bits, set upper 2
+            buffer[minByteOffset1.toInt()] = currentByte2.toByte()
+
+            // Update lower 4 bits of min in scales_byte_array[j+8] (upper nibble)
+            commonByte = (commonByte and 0x0F) or (mLower4 shl 4) // Keep lower 4 bits (from scale), set upper 4 for min
+            buffer[commonByteOffset.toInt()] = commonByte.toByte()
+        }
+    }
+
+
+    /**
+     * Retrieves a single 4-bit quantized weight (nibble) from a specific block in a Q4_K tensor.
+     * The returned Byte contains the raw 4-bit value (0-15).
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK4_K - 1, i.e., 0-255).
+     * @return The quantized 4-bit weight as a Byte (value 0-15).
+     */
+    fun getQ4KNibble(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to get nibble weight." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK4_K) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${QK4_K -1}) for Q4_K block in tensor '$name'."}
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // qs array starts after: d (F16), dmin (F16), scales array (12 bytes)
+        val qsArrayBaseOffsetInBlock = (2 * Short.SIZE_BYTES + SCALES_SIZE_Q4_K).toULong()
+        val byteContainingNibbleIndex = itemIndexInBlock / 2 // Each byte stores two 4-bit nibbles
+
+        val finalByteToReadOffset = dataOffset + blockByteOffset + qsArrayBaseOffsetInBlock + byteContainingNibbleIndex.toULong()
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalByteToReadOffset.toInt() < 0 || finalByteToReadOffset.toInt() + Byte.SIZE_BYTES > buffer.size) {
+             throw IndexOutOfBoundsException("Attempt to read Q4_K nibble weight byte at offset ${finalByteToReadOffset.toInt()} for block $blockIndex, item $itemIndexInBlock in tensor '$name' is out of buffer bounds.")
+        }
+        val packedByte = buffer[finalByteToReadOffset.toInt()]
+
+        val nibble = if (itemIndexInBlock % 2 == 0) {
+            packedByte.toInt() and 0x0F // First item in the byte (lower 4 bits)
+        } else {
+            (packedByte.toInt() ushr 4) and 0x0F // Second item in the byte (upper 4 bits)
+        }
+        return nibble.toByte()
+    }
+
+    /**
+     * Sets a single 4-bit quantized weight (nibble) in a specific block in a Q4_K tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK4_K - 1).
+     * @param nibble The 4-bit weight to set (value 0-15).
+     */
+    fun setQ4KNibble(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int, nibble: Byte) {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to set nibble weight." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK4_K) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${QK4_K -1}) for Q4_K block in tensor '$name'."}
+        require(nibble >= 0 && nibble < 16) { "Nibble value $nibble must be between 0 and 15." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val qsArrayBaseOffsetInBlock = (2 * Short.SIZE_BYTES + SCALES_SIZE_Q4_K).toULong()
+        val byteContainingNibbleIndex = itemIndexInBlock / 2
+
+        val finalByteToModifyOffset = dataOffset + blockByteOffset + qsArrayBaseOffsetInBlock + byteContainingNibbleIndex.toULong()
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalByteToModifyOffset.toInt() < 0 || finalByteToModifyOffset.toInt() + Byte.SIZE_BYTES > buffer.size) {
+             throw IndexOutOfBoundsException("Attempt to write Q4_K nibble weight byte at offset ${finalByteToModifyOffset.toInt()} for block $blockIndex, item $itemIndexInBlock in tensor '$name' is out of buffer bounds.")
+        }
+
+        var currentByte = buffer[finalByteToModifyOffset.toInt()].toInt()
+        if (itemIndexInBlock % 2 == 0) { // First item in the byte (lower 4 bits)
+            currentByte = (currentByte and 0xF0) or (nibble.toInt() and 0x0F)
+        } else { // Second item in the byte (upper 4 bits)
+            currentByte = (currentByte and 0x0F) or ((nibble.toInt() and 0x0F) shl 4)
+        }
+        buffer[finalByteToModifyOffset.toInt()] = currentByte.toByte()
+    }
+
+    /**
+     * Retrieves a raw byte array representing one block of data for this tensor.
+     * This is primarily useful for block-quantized types.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @return A ByteArray containing the raw bytes of the specified block.
+     */
+    fun getBlockByteArray(graphAllocator: GGMLGraphAllocator, blockIndex: Int): ByteArray {
+        require(type.blckSize > 1) { "getBlockByteArray is intended for block-quantized types. Tensor '$name' is type ${type.description} with blckSize ${type.blckSize}." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockSizeInBytes = type.byteSize.toInt() // For block types, byteSize is per block.
+        if (blockSizeInBytes <= 0) {
+            throw IllegalStateException("Cannot get block bytes for type ${type.description} as its type.byteSize is not positive ($blockSizeInBytes).")
+        }
+
+        val blockByteOffsetInTensorData = blockIndex.toULong() * type.byteSize
+        val finalBlockReadOffset = dataOffset + blockByteOffsetInTensorData
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated for tensor '$name'.")
+
+        if (finalBlockReadOffset.toInt() < 0 || finalBlockReadOffset.toInt() + blockSizeInBytes > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read block $blockIndex at offset ${finalBlockReadOffset.toInt()} (size $blockSizeInBytes bytes) for tensor '$name' is out of buffer bounds (0-${buffer.size}). DataOffset: $dataOffset, BlockByteOffsetInTensor: $blockByteOffsetInTensorData.")
+        }
+
+        return buffer.copyOfRange(finalBlockReadOffset.toInt(), finalBlockReadOffset.toInt() + blockSizeInBytes)
+    }
 }
 
 /**
@@ -695,7 +1127,9 @@ class GGMLContext(
     var objectsEnd: GGMLObject? = null,
     var scratch: GGMLScratch = GGMLScratch(),
     var scratchSave: GGMLScratch = GGMLScratch(),
-    var computeImmediately: Boolean = true
+    var computeImmediately: Boolean = true,
+    var graphAllocator: GGMLGraphAllocator? = null, // Added for graph execution
+    var backend: ai.solace.llamakotlin.backends.Backend? = null // Added for graph execution
 )
 
 /**
@@ -752,11 +1186,16 @@ internal fun calculateTensorByteSize(tensor: GGMLTensor): ULong {
                 GGMLType.Q4_0 -> QK4_0.toULong()
                 GGMLType.Q4_1 -> QK4_1.toULong()
                 GGMLType.Q8_0 -> QK8_0.toULong()
+                GGMLType.Q4_K -> QK4_K.toULong()
                 // Add other K-quants or block types here if they have a similar structure
                 // For example: GGMLType.Q2_K -> QK_K.toULong() (if QK_K is its block size)
+                // For Q2_K, Q3_K, Q5_K, Q6_K, Q8_K, their byteSize is currently 0uL.
+                // If their byteSize is updated to represent block size, they should be added here.
+                // For now, they will fall into the 'else' for byte size calculation based on numElements * type.byteSize.
                 else -> {
                     // This path should ideally not be reached if the outer 'when' is exhaustive for block types
-                    println("Warning: Unhandled block-quantized type ${tensor.type} in calculateTensorByteSize. Assuming elementsPerBlock = 1.")
+                    // with non-zero type.byteSize intended as block size.
+                    println("Warning: Unhandled block-quantized type ${tensor.type} in calculateTensorByteSize or type.byteSize is 0. Assuming elementsPerBlock = 1 for safety, but this is likely an error for block types.")
                     1uL
                 }
             }

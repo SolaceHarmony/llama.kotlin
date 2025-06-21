@@ -171,7 +171,16 @@ fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
 
     // If the context requests immediate computation, perform it now
     return if (context.computeImmediately) {
-        computeAdd(context, a, b)
+        val graphAllocator = context.graphAllocator
+            ?: throw IllegalStateException("GraphAllocator not found in context for immediate computation.")
+        val backendToUse = context.backend
+            ?: ai.solace.llamakotlin.backends.cpu.CPUBackend // Default to CPUBackend
+
+        // The 'result' tensor here is the node defining the operation.
+        // The backend.executeOp will return a tensor (often a new instance, or it could be 'result' modified)
+        // whose data (bufferId, dataOffset) is now populated.
+        // This returned tensor is what represents the actual computed value.
+        backend.executeOp(result, graphAllocator, context)
     } else {
         result
     }
