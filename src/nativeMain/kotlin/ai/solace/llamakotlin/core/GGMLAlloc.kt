@@ -1,11 +1,14 @@
 package ai.solace.llamakotlin.core
 
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
+
 /**
  * Data class to store usage information for each tensor in the graph.
  */
 internal data class TensorUsageInfo(
-    var numChildren: Int = 0,       // Number of direct consumers of this tensor
-    var numViews: Int = 0,          // Number of views pointing to this tensor's data
+    var numChildren: AtomicInt = atomic(0), // Number of direct consumers of this tensor
+    var numViews: AtomicInt = atomic(0),    // Number of views pointing to this tensor's data
     var ownsMemory: Boolean = false, // True if this tensor is the original owner of its allocated memory segment
                                    // Becomes false if its memory is reused by an inplace child.
     var isOutputTensor: Boolean = false, // True if this tensor is marked as a graph output
@@ -195,49 +198,51 @@ class GGMLDynTensorAllocator {
      * @param tensor The tensor to free memory for (used for debugging)
      */
     fun freeTensor(offset: ULong, size: ULong, @Suppress("unused") tensor: GGMLTensor) {
-        // Align the size to the required alignment
-        val alignedSize = alignedOffset(size, alignment)
+        synchronized(freeBlocks) {
+            // Align the size to the required alignment
+            val alignedSize = alignedOffset(size, alignment)
 
-        // Try to merge with an existing block
-        for (i in freeBlocks.indices) {
-            val block = freeBlocks[i]
+            // Try to merge with an existing block
+            for (i in freeBlocks.indices) {
+                val block = freeBlocks[i]
 
-            // Check if the memory is at the end of the block
-            if (block.offset + block.size == offset) {
-                block.size += alignedSize
+                // Check if the memory is at the end of the block
+                if (block.offset + block.size == offset) {
+                    block.size += alignedSize
 
-                // Check if we can merge with the next block
-                if (i < freeBlocks.size - 1 && block.offset + block.size == freeBlocks[i + 1].offset) {
-                    block.size += freeBlocks[i + 1].size
-                    freeBlocks.removeAt(i + 1)
+                    // Check if we can merge with the next block
+                    if (i < freeBlocks.size - 1 && block.offset + block.size == freeBlocks[i + 1].offset) {
+                        block.size += freeBlocks[i + 1].size
+                        freeBlocks.removeAt(i + 1)
+                    }
+                    return
                 }
-                return
+
+                // Check if the memory is at the beginning of the block
+                if (offset + alignedSize == block.offset) {
+                    block.offset = offset
+                    block.size += alignedSize
+
+                    // Check if we can merge with the previous block
+                    if (i > 0 && freeBlocks[i - 1].offset + freeBlocks[i - 1].size == block.offset) {
+                        freeBlocks[i - 1].size += block.size
+                        freeBlocks.removeAt(i)
+                    }
+                    return
+                }
             }
 
-            // Check if the memory is at the beginning of the block
-            if (offset + alignedSize == block.offset) {
-                block.offset = offset
-                block.size += alignedSize
+            // Add a new block
+            val newBlock = FreeBlock(offset, alignedSize)
 
-                // Check if we can merge with the previous block
-                if (i > 0 && freeBlocks[i - 1].offset + freeBlocks[i - 1].size == block.offset) {
-                    freeBlocks[i - 1].size += block.size
-                    freeBlocks.removeAt(i)
-                }
-                return
+            // Insert the new block in the correct position to keep the array sorted by address
+            var insertPos = 0
+            while (insertPos < freeBlocks.size && freeBlocks[insertPos].offset < offset) {
+                insertPos++
             }
+
+            freeBlocks.add(insertPos, newBlock)
         }
-
-        // Add a new block
-        val newBlock = FreeBlock(offset, alignedSize)
-
-        // Insert the new block in the correct position to keep the array sorted by address
-        var insertPos = 0
-        while (insertPos < freeBlocks.size && freeBlocks[insertPos].offset < offset) {
-            insertPos++
-        }
-
-        freeBlocks.add(insertPos, newBlock)
     }
 
     /**
@@ -305,14 +310,14 @@ class GGMLGraphAllocator {
             // Increment numViews for the source of a view tensor
             // ggml_is_view() is defined at the end of this file.
             if (ggml_is_view(node) && node.viewSrc != null) {
-                tensorUsageMap[node.viewSrc!!]?.let { it.numViews++ }
+                tensorUsageMap[node.viewSrc!!]?.numViews?.getAndIncrement()
             }
 
             // Increment numChildren for each source tensor
             for (j in 0 until GGML_MAX_SRC) {
                 val srcTensor = node.src[j]
                 if (srcTensor != null) {
-                    tensorUsageMap[srcTensor]?.let { it.numChildren++ }
+                    tensorUsageMap[srcTensor]?.numChildren?.getAndIncrement()
                 }
             }
         }
@@ -395,43 +400,7 @@ class GGMLGraphAllocator {
                 allocateTensor(node, 0) // Current node (child) gets its memory
             }
 
-            // After node is allocated (and potentially reused parent's memory),
-            // check if any of its parents can be freed.
-            for (j in 0 until GGML_MAX_SRC) {
-                val parentTensor = node.src[j]
-                if (parentTensor != null) {
-                    val parentUsageInfo = tensorUsageMap[parentTensor]
-                        ?: continue // Should have been populated by analyzeTensorUsage
-
-                    parentUsageInfo.numChildren--
-
-                    if (parentUsageInfo.numChildren == 0 && parentUsageInfo.numViews == 0) {
-                        if (ggml_is_view(parentTensor)) {
-                            parentTensor.viewSrc?.let { viewSrc ->
-                                tensorUsageMap[viewSrc]?.let { viewSrcUsage ->
-                                    viewSrcUsage.numViews--
-                                    if (viewSrcUsage.numChildren == 0 && viewSrcUsage.numViews == 0 &&
-                                        viewSrcUsage.ownsMemory && !viewSrcUsage.isOutputTensor && viewSrcUsage.bufferId != -1) {
-                                        tensorAllocators[viewSrcUsage.bufferId].freeTensor(
-                                            viewSrcUsage.dataOffset,
-                                            viewSrcUsage.calculatedSize,
-                                            viewSrc
-                                        )
-                                        viewSrcUsage.ownsMemory = false
-                                    }
-                                }
-                            }
-                        } else if (parentUsageInfo.ownsMemory && !parentUsageInfo.isOutputTensor && parentUsageInfo.bufferId != -1) {
-                            tensorAllocators[parentUsageInfo.bufferId].freeTensor(
-                                parentUsageInfo.dataOffset,
-                                parentUsageInfo.calculatedSize,
-                                parentTensor
-                            )
-                            parentUsageInfo.ownsMemory = false
-                        }
-                    }
-                }
-            }
+            // Memory freeing logic has been moved to GGMLGraph.kt to be called after node execution.
         }
 
         val calculatedMaxSize = getBufferSize(0)
@@ -649,6 +618,54 @@ class GGMLGraphAllocator {
         }
 
         return tensorAllocators[bufferId].getMaxSize()
+    }
+
+    /**
+     * Retrieves the usage information for a given tensor.
+     * This is a helper function to allow GGMLGraph.kt to access tensorUsageMap.
+     *
+     * @param tensor The tensor for which to retrieve usage info.
+     * @return The [TensorUsageInfo] for the tensor, or null if not found.
+     */
+    fun getTensorUsageInfo(tensor: GGMLTensor): TensorUsageInfo? = tensorUsageMap[tensor]
+
+    /**
+     * Checks if a tensor's memory can be freed and frees it if all conditions are met.
+     * Conditions for freeing:
+     * - No remaining children users (numChildren.value == 0)
+     * - No remaining views (numViews.value == 0)
+     * - The tensor owns its memory (ownsMemory == true)
+     * - It's not a designated output tensor of the graph (isOutputTensor == false)
+     * - It has a valid buffer assignment (bufferId != -1)
+     *
+     * @param tensor The tensor to potentially free.
+     */
+    fun freeTensorDataIfUnused(tensor: GGMLTensor) {
+        val usageInfo = tensorUsageMap[tensor]
+        if (usageInfo == null) {
+            // This might happen if the tensor was not part of the graph analyzed by analyzeTensorUsage
+            // or if it's a temporary tensor not tracked. Log or handle as appropriate.
+            println("Warning: TensorUsageInfo not found for tensor ${tensor.name} in freeTensorDataIfUnused.")
+            return
+        }
+
+        if (usageInfo.numChildren.value == 0 &&
+            usageInfo.numViews.value == 0 &&
+            usageInfo.ownsMemory &&
+            !usageInfo.isOutputTensor &&
+            usageInfo.bufferId != -1
+        ) {
+            if (usageInfo.bufferId < 0 || usageInfo.bufferId >= tensorAllocators.size) {
+                println("Error: Invalid bufferId ${usageInfo.bufferId} for tensor ${tensor.name} during free operation.")
+                return
+            }
+            tensorAllocators[usageInfo.bufferId].freeTensor(
+                usageInfo.dataOffset,
+                usageInfo.calculatedSize,
+                tensor
+            )
+            usageInfo.ownsMemory = false // Mark that this tensor's original memory block is now freed
+        }
     }
 }
 

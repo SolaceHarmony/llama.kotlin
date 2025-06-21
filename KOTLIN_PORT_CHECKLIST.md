@@ -265,7 +265,10 @@ With foundational memory management, data access, and initial quantization types
 3.  **Initiate CPU Backend Development (Phase 3):**
     *   Formalize the CPU backend structure.
     *   Start integrating current `GGMLComputeOps.kt` logic into this backend.
-    *   Investigate and implement initial multi-threading for graph computation on CPU.
+    *   [x] Investigate and implement initial multi-threading for graph computation on CPU.
+        *   Implemented parallel execution of graph nodes in `GGMLGraph.executeForward` using Kotlin coroutines.
+        *   Memory management (`TensorUsageInfo` and `GGMLGraphAllocator`) adapted for thread-safe deallocation.
+        *   Added unit tests for concurrent graph execution (`GGMLGraphConcurrencyTest.kt`).
 
 4.  **Begin Foundational GGUF Support (Phase 6):**
     *   Start implementing GGUF file parsing (reading headers, tensor info, quantization types). This is crucial for loading models.

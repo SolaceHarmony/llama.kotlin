@@ -1,5 +1,15 @@
 package ai.solace.llamakotlin.core
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.ConcurrentHashMap
+// It's good practice to keep existing comments if they are relevant.
+// The original comment described the file, so I'll keep it.
+
 /**
  * Kotlin Native port of GGML computation graph functionality.
  * This file contains the implementation of computation graph building and execution.
@@ -2565,10 +2575,76 @@ private fun executeForward(context: GGMLContext, cgraph: GGMLCGraph) {
     val backendToUse = context.backend
         ?: ai.solace.llamakotlin.backends.cpu.CPUBackend // Fallback to CPUBackend if none is set in context
 
-    // Execute the nodes in order
-    for (i in 0 until cgraph.nNodes) {
-        val node = cgraph.nodes[i] ?: continue
-        executeNode(context, node, graphAllocator, backendToUse)
+    // Map to store jobs associated with each tensor computation
+    val nodeJobs = ConcurrentHashMap<GGMLTensor, Job>()
+
+    // Using runBlocking to bridge the non-suspend executeForward with coroutines.
+    runBlocking {
+        val scope = CoroutineScope(Dispatchers.Default) // Use Default dispatcher for CPU-bound tasks
+
+        for (i in 0 until cgraph.nNodes) {
+            val node = cgraph.nodes[i] ?: continue
+
+            // Leaf nodes (GGMLOp.NONE) don't have jobs but might be inputs.
+            // Their "job" can be considered completed.
+            // They are not processed by executeNode in the original logic either.
+            if (node.op == GGMLOp.NONE) {
+                // If we needed to represent them as completed jobs:
+                // nodeJobs[node] = CompletableJob(Job()).apply { complete() }
+                // However, current dependency logic handles missing jobs by not awaiting them.
+                continue
+            }
+
+            val dependencyJobs = mutableListOf<Job>()
+            for (srcTensor in node.src) {
+                if (srcTensor != null) {
+                    // Only await jobs for tensors that are part of this graph's computation sequence.
+                    // Input tensors or weights might not have jobs from *this* graph computation.
+                    nodeJobs[srcTensor]?.let { dependencyJobs.add(it) }
+                }
+            }
+
+            val currentJob = scope.async {
+                if (dependencyJobs.isNotEmpty()) {
+                    dependencyJobs.awaitAll() // Wait for all input tensor jobs to complete
+                }
+                // Ensure executeNode is called within the coroutine
+                executeNode(context, node, graphAllocator, backendToUse)
+
+                // After node execution, attempt to free its source tensors' data
+                for (srcTensor in node.src) {
+                    if (srcTensor != null) {
+                        val srcUsageInfo = graphAllocator.getTensorUsageInfo(srcTensor)
+                        if (srcUsageInfo != null) {
+                            srcUsageInfo.numChildren.decrementAndGet()
+
+                            // Check if the source tensor itself is a view
+                            if (ggml_is_view(srcTensor) && srcTensor.viewSrc != null) {
+                                val viewSrcTensor = srcTensor.viewSrc!!
+                                val viewSrcUsageInfo = graphAllocator.getTensorUsageInfo(viewSrcTensor)
+                                if (viewSrcUsageInfo != null) {
+                                    viewSrcUsageInfo.numViews.decrementAndGet()
+                                    // Attempt to free the original tensor backing the view
+                                    graphAllocator.freeTensorDataIfUnused(viewSrcTensor)
+                                }
+                            } else {
+                                // If not a view, attempt to free the source tensor directly
+                                graphAllocator.freeTensorDataIfUnused(srcTensor)
+                            }
+                        }
+                    }
+                }
+            }
+            nodeJobs[node] = currentJob
+        }
+
+        // Wait for all submitted jobs to complete.
+        // This ensures executeForward doesn't return until the graph is fully processed.
+        // We collect to a list to avoid issues with concurrent modification if the map could change.
+        val allJobs = nodeJobs.values.toList()
+        if (allJobs.isNotEmpty()) {
+            allJobs.awaitAll()
+        }
     }
 }
 
