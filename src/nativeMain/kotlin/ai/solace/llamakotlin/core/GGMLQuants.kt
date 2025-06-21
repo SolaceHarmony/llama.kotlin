@@ -17,6 +17,40 @@ package ai.solace.llamakotlin.core
 //      Or, it could be related to other K-quant packing where a fixed number of values (e.g., 16 or 32) are packed.
 //      The exact packing scheme for Q1.5_K needs to be defined by its specification.
 
+// Constants for ternary value mapping
+internal const val TERNARY_MINUS_ONE: Byte = 0
+internal const val TERNARY_ZERO: Byte = 1
+internal const val TERNARY_PLUS_ONE: Byte = 2
+
+/**
+ * Packs 5 mapped ternary values (each 0, 1, or 2) into a single byte.
+ * v0 is the least significant.
+ */
+internal fun packTernaryValuesToByte(v0: Byte, v1: Byte, v2: Byte, v3: Byte, v4: Byte): Byte {
+    // Ensure inputs are valid (0, 1, or 2) - assertions can be added for debugging
+    // assert(v0 in 0..2 && v1 in 0..2 && v2 in 0..2 && v3 in 0..2 && v4 in 0..2)
+    return (v0 + v1 * 3 + v2 * 9 + v3 * 27 + v4 * 81).toByte()
+}
+
+/**
+ * Unpacks 5 mapped ternary values (each 0, 1, or 2) from a single byte.
+ * result[0] is the least significant.
+ */
+internal fun unpackTernaryValuesFromByte(packedByte: Byte): ByteArray {
+    val result = ByteArray(5)
+    var temp = packedByte.toInt() and 0xFF // Work with positive Int for modulo
+    result[0] = (temp % 3).toByte()
+    temp /= 3
+    result[1] = (temp % 3).toByte()
+    temp /= 3
+    result[2] = (temp % 3).toByte()
+    temp /= 3
+    result[3] = (temp % 3).toByte()
+    temp /= 3
+    result[4] = temp.toByte() // Remaining value after divisions
+    return result
+}
+
 /**
  * Quantizes a row of float values to Q1.5_K format.
  * The Q1.5_K format represents ternary values (-1, 0, 1) scaled by a block scale.
@@ -24,15 +58,53 @@ package ai.solace.llamakotlin.core
  *
  * @param source The input array of floats.
  * @param dest The output byte array where quantized data will be stored.
- * @param elements The number of float elements in the source array.
- * @param scale The scaling factor for this block of elements.
+ * @param elements The number of float elements in the source array (must be QK1_5_K).
  */
-fun quantizeRowQ15K(source: FloatArray, dest: ByteArray, elements: Int, scale: Float) {
-    // Placeholder implementation
-    // 1. Determine mapping of float to ternary (-1, 0, 1) based on the scale and thresholds.
-    //    e.g., value = round(float_val / scale) clamped to [-1, 1].
-    // 2. Pack these ternary values into the `dest` ByteArray according to Q1.5_K spec.
-    TODO("Implement Q1.5_K quantization logic")
+fun quantizeRowQ15K(source: FloatArray, dest: ByteArray, elements: Int) {
+    require(elements == QK1_5_K) { "quantizeRowQ15K: Number of elements must be $QK1_5_K, got $elements" }
+    require(source.size == QK1_5_K) { "quantizeRowQ15K: Source array size must be $QK1_5_K, got ${source.size}" }
+    val expectedDestSize = BYTES_SCALE_Q1_5_K + PACKED_DATA_SIZE_Q1_5_K
+    require(dest.size == expectedDestSize) { "quantizeRowQ15K: Destination array size must be $expectedDestSize, got ${dest.size}" }
+
+    // Calculate Scale
+    val absmaxScale = source.maxOfOrNull { kotlin.math.abs(it) } ?: 0.0f
+    val scaleToWrite = if (absmaxScale == 0.0f) 1.0f else absmaxScale
+
+    // Store scale as Float16
+    // Assuming floatToHalf and setShortLe are accessible (e.g. imported from GGMLTypes.kt or NumericConversions.kt)
+    dest.setShortLe(0, floatToHalf(scaleToWrite))
+
+    // Quantize and Pack Data
+    var sourceIdx = 0
+    var packedByteWriteIdx = BYTES_SCALE_Q1_5_K
+    val mappedValues = ByteArray(5)
+
+    while (sourceIdx < elements) {
+        for (j in 0 until 5) {
+            if (sourceIdx < elements) {
+                val f = source[sourceIdx]
+                // Handle potential division by zero if scaleToWrite was determined from all-zero input,
+                // though we set it to 1.0f in that case.
+                // If scaleToWrite is extremely small, scaledVal could be very large.
+                val scaledVal = if (scaleToWrite == 0.0f) 0.0f else f / scaleToWrite
+
+                mappedValues[j] = when {
+                    scaledVal > 0.5f -> TERNARY_PLUS_ONE
+                    scaledVal < -0.5f -> TERNARY_MINUS_ONE
+                    else -> TERNARY_ZERO
+                }
+                sourceIdx++
+            } else {
+                mappedValues[j] = TERNARY_ZERO // Pad remaining spots in the 5-value group
+            }
+        }
+        dest[packedByteWriteIdx++] = packTernaryValuesToByte(
+            mappedValues[0], mappedValues[1], mappedValues[2], mappedValues[3], mappedValues[4]
+        )
+    }
+    // Ensure all packed bytes are written.
+    // packedByteWriteIdx should now be BYTES_SCALE_Q1_5_K + PACKED_DATA_SIZE_Q1_5_K
+    // This check is implicitly covered by the dest.size require and the loop structure.
 }
 
 /**
@@ -40,15 +112,53 @@ fun quantizeRowQ15K(source: FloatArray, dest: ByteArray, elements: Int, scale: F
  *
  * @param source The input byte array with Q1.5_K quantized data.
  * @param dest The output float array.
- * @param elements The number of elements to dequantize.
- * @param scale The scaling factor used during quantization for this block.
+ * @param elements The number of elements to dequantize (must be QK1_5_K).
  */
-fun dequantizeRowQ15K(source: ByteArray, dest: FloatArray, elements: Int, scale: Float) {
-    // Placeholder implementation
-    // 1. Unpack ternary values (-1, 0, 1) from the `source` ByteArray.
-    // 2. For each ternary value, dequantized_float = ternary_value * scale.
-    // 3. Store in `dest` FloatArray.
-    TODO("Implement Q1.5_K dequantization logic")
+fun dequantizeRowQ15K(source: ByteArray, dest: FloatArray, elements: Int) {
+    require(elements == QK1_5_K) { "dequantizeRowQ15K: Number of elements must be $QK1_5_K, got $elements" }
+    val expectedSourceSize = BYTES_SCALE_Q1_5_K + PACKED_DATA_SIZE_Q1_5_K
+    require(source.size == expectedSourceSize) { "dequantizeRowQ15K: Source array size must be $expectedSourceSize, got ${source.size}" }
+    require(dest.size == QK1_5_K) { "dequantizeRowQ15K: Destination array size must be $QK1_5_K, got ${dest.size}" }
+
+    // Read Scale
+    // Assuming halfToFloat and getShortLe are accessible
+    val scale = halfToFloat(source.getShortLe(0))
+
+    // Unpack Data and Dequantize
+    var packedByteReadIdx = BYTES_SCALE_Q1_5_K
+    var destIdx = 0
+
+    // Loop PACKED_DATA_SIZE_Q1_5_K times (52 times for 256 elements / 5 elements per byte rounded up)
+    for (i in 0 until PACKED_DATA_SIZE_Q1_5_K) {
+        if (packedByteReadIdx >= source.size) break // Should not happen if source size is correct
+
+        val packedByte = source[packedByteReadIdx++]
+        val mappedValues: ByteArray = unpackTernaryValuesFromByte(packedByte)
+
+        for (j in 0 until 5) { // Each byte contains 5 mapped ternary values
+            if (destIdx < elements) {
+                val mappedVal = mappedValues[j]
+                val ternaryFloat: Float = when (mappedVal) {
+                    TERNARY_MINUS_ONE -> -1.0f
+                    TERNARY_PLUS_ONE -> 1.0f
+                    TERNARY_ZERO -> 0.0f
+                    else -> {
+                        // This case should ideally not be reached if pack/unpack and constants are correct.
+                        // Consider logging a warning or throwing an error for unexpected mappedVal.
+                        // Defaulting to 0.0f for robustness.
+                        println("Warning: Unexpected mapped ternary value $mappedVal during dequantization.")
+                        0.0f
+                    }
+                }
+                dest[destIdx++] = ternaryFloat * scale
+            } else {
+                // All 'elements' (QK1_5_K) have been dequantized.
+                // This handles the case where the last packed byte might contain padding.
+                break
+            }
+        }
+        if (destIdx >= elements) break // Optimization: exit outer loop if all elements are done
+    }
 }
 
 /**

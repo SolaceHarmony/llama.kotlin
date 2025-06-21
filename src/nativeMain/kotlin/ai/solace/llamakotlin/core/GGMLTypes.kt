@@ -92,6 +92,12 @@ internal const val QK4_K: Int = QK_K // Alias for Q4_K block size, using the gen
 internal const val SCALES_SIZE_Q4_K: Int = 12 // Bytes for scales and mins (packed)
 internal const val QS_SIZE_Q4_K: Int = QK4_K / 2 // Bytes for quantized data (128 bytes)
 
+// Constants for Q1_5_K type
+internal const val QK1_5_K: Int = QK_K // Number of elements in a Q1_5_K block, typically same as other K-quants
+internal const val BYTES_SCALE_Q1_5_K: Int = 2 // Size of scale (Float16)
+internal const val PACKED_DATA_SIZE_Q1_5_K: Int = 52 // ceil(QK1_5_K / 5) = ceil(256 / 5) = 52 bytes for packed data
+
+
 /**
  * Represents the type of quantization.
  */
@@ -125,7 +131,7 @@ enum class GGMLType(
     Q5_K("q5_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
     Q6_K("q6_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
     Q8_K("q8_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize (usually d + qs (QK_K))
-    Q1_5_K("q1_5_k", 0uL, QuantizationType.K_QUANTS, QK_K), // Placeholder for byteSize
+    Q1_5_K("q1_5_k", (BYTES_SCALE_Q1_5_K + PACKED_DATA_SIZE_Q1_5_K).toULong(), QuantizationType.K_QUANTS, QK1_5_K),
     I8("int8", 1uL, QuantizationType.NONE),     // 8-bit integer
     I16("int16", 2uL, QuantizationType.NONE),    // 16-bit integer
     I32("int32", 4uL, QuantizationType.NONE),    // 32-bit integer
@@ -1180,13 +1186,15 @@ internal fun calculateTensorByteSize(tensor: GGMLTensor): ULong {
 
     return when (tensor.type) {
         // Explicitly list block-quantized types. Their type.byteSize is "bytes per block".
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0 -> {
+        // Add Q1_5_K and Q4_K to this list.
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0, GGMLType.Q1_5_K, GGMLType.Q4_K -> {
             // These constants should be defined in GGMLTypes.kt or accessible.
             val elementsPerBlock = when(tensor.type) {
                 GGMLType.Q4_0 -> QK4_0.toULong()
                 GGMLType.Q4_1 -> QK4_1.toULong()
                 GGMLType.Q8_0 -> QK8_0.toULong()
                 GGMLType.Q4_K -> QK4_K.toULong()
+                GGMLType.Q1_5_K -> QK1_5_K.toULong() // Added Q1_5_K
                 // Add other K-quants or block types here if they have a similar structure
                 // For example: GGMLType.Q2_K -> QK_K.toULong() (if QK_K is its block size)
                 // For Q2_K, Q3_K, Q5_K, Q6_K, Q8_K, their byteSize is currently 0uL.

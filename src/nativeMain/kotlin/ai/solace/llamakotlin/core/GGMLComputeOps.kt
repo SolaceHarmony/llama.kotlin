@@ -1,6 +1,16 @@
 package ai.solace.llamakotlin.core
 
 import ai.solace.llamakotlin.core.GGMLGraphAllocator // Required for new function signatures
+import ai.solace.llamakotlin.core.GGMLType
+import ai.solace.llamakotlin.core.QK1_5_K
+import ai.solace.llamakotlin.core.BYTES_SCALE_Q1_5_K
+import ai.solace.llamakotlin.core.PACKED_DATA_SIZE_Q1_5_K
+import ai.solace.llamakotlin.core.TERNARY_MINUS_ONE
+import ai.solace.llamakotlin.core.TERNARY_ZERO
+import ai.solace.llamakotlin.core.TERNARY_PLUS_ONE
+import ai.solace.llamakotlin.core.unpackTernaryValuesFromByte
+import ai.solace.llamakotlin.core.halfToFloat // Already used by other functions, ensure it's accessible
+import ai.solace.llamakotlin.core.getShortLe // Already used by other functions, ensure it's accessible
 import kotlin.math.abs
 import kotlin.math.round
 import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
@@ -242,6 +252,84 @@ internal fun computeDotProductQ40F32(
         sumF32 += dequantizedQ40Value * f32Value
     }
     return sumF32
+}
+
+internal fun computeDotProductQ15KF32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ15K: GGMLTensor,
+    tensorF32: GGMLTensor,
+    rowIndexInQ15K: Int, // For Q15K tensor (M x K)
+    colIndexInF32: Int,  // For F32 tensor (K x N)
+    commonDimK: Int
+): Float {
+    require(tensorQ15K.type == GGMLType.Q1_5_K) { "tensorQ15K must be Q1_5_K. Got ${tensorQ15K.type}" }
+    require(tensorF32.type == GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(commonDimK > 0) { "commonDimK must be positive, got $commonDimK" }
+    // For this initial implementation, strictly require commonDimK to be QK1_5_K for simplicity.
+    // This means the dot product is over exactly one block of Q1.5_K data.
+    require(commonDimK == QK1_5_K) { "commonDimK ($commonDimK) must be equal to QK1_5_K ($QK1_5_K) for this implementation." }
+
+    // Assuming tensorQ15K is [M, K] (ne[1]=M rows, ne[0]=K elements per row)
+    // and tensorF32 is [K, N] (ne[1]=K rows, ne[0]=N columns)
+    // This validation assumes that ne[0] of Q15K is the K dimension.
+    require(tensorQ15K.ne[0].toInt() == commonDimK) { "tensorQ15K K-dimension (ne[0]=${tensorQ15K.ne[0]}) must match commonDimK ($commonDimK)" }
+    // This validation assumes that ne[1] of F32 is the K dimension.
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K-dimension (ne[1]=${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
+
+
+    // Calculate the byte offset for the start of the specified rowIndexInQ15K block in tensorQ15K.
+    // tensorQ15K.type.byteSize is the size of one Q1.5_K block (scale + packed data = 54 bytes).
+    // tensorQ15K.nb[1] would be the stride in bytes to get to the next row (if M > 1).
+    // If tensorQ15K is effectively a 1D array of blocks (e.g. shape [M*blocks_per_row, QK1_5_K]),
+    // then rowIndexInQ15K would refer to the M-th block.
+    // Let's assume rowIndexInQ15K directly maps to the "row of blocks".
+    // If ne = [QK1_5_K, M_ROWS_OF_BLOCKS], then nb[1] is block_size.
+    val blockRowByteOffset = tensorQ15K.dataOffset + (rowIndexInQ15K.toULong() * tensorQ15K.type.byteSize)
+
+    val q15kBuffer = graphAllocator.buffers[tensorQ15K.bufferId]
+        ?: throw IllegalStateException("Q1.5_K tensor buffer not found for bufferId ${tensorQ15K.bufferId}")
+
+    // Read scale for the block
+    val scale = halfToFloat(q15kBuffer.getShortLe(blockRowByteOffset.toInt()))
+
+    var sum = 0.0f
+    var currentElementIndex = 0 // Tracks elements from 0 to commonDimK-1
+
+    // Loop through the packed bytes for this block
+    for (packedByteNum in 0 until PACKED_DATA_SIZE_Q1_5_K) {
+        val packedByteFullOffset = blockRowByteOffset.toInt() + BYTES_SCALE_Q1_5_K + packedByteNum
+        if (packedByteFullOffset >= q15kBuffer.size) {
+             // This should not happen if commonDimK == QK1_5_K and tensor data is correctly sized.
+            println("Warning: Attempting to read past Q1.5_K buffer bounds.")
+            break
+        }
+        val packedByte = q15kBuffer[packedByteFullOffset]
+        val mappedTernaries = unpackTernaryValuesFromByte(packedByte)
+
+        for (j_in_packed in 0 until 5) { // 5 ternary values per packed byte
+            if (currentElementIndex >= commonDimK) {
+                break // All K elements for this dot product have been processed
+            }
+
+            val mappedVal = mappedTernaries[j_in_packed]
+
+            // Access F32 tensor: tensorF32 is KxN. We need element (currentElementIndex, colIndexInF32)
+            // GGMLTensor.getFloat expects (idx_dim0=col, idx_dim1=row, ...)
+            // So, for F32 tensor of shape [N_cols, K_rows], indices are (colIndexInF32, currentElementIndex)
+            val f32Activation = tensorF32.getFloat(graphAllocator, colIndexInF32, currentElementIndex)
+
+            when (mappedVal) {
+                TERNARY_MINUS_ONE -> sum -= f32Activation
+                TERNARY_PLUS_ONE -> sum += f32Activation
+                // TERNARY_ZERO -> do nothing (sum += 0 * f32Activation)
+            }
+            currentElementIndex++
+        }
+        if (currentElementIndex >= commonDimK) {
+            break // Exit outer loop if all K elements processed
+        }
+    }
+    return sum * scale
 }
 
 // Helper to iterate N-dimensionally
@@ -827,6 +915,43 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
     val K_b = b.ne[1].toInt()
     if (K_a != K_b) throw IllegalArgumentException("Dim mismatch K: a.ne[0]($K_a) != b.ne[1]($K_b)")
     val K = K_a
+
+    if (a.type == GGMLType.Q1_5_K && b.type == GGMLType.F32) {
+        require(K_a == QK1_5_K) {
+            "Q1.5_K matmul currently requires K_a dimension (${K_a}) to be equal to QK1_5_K (${QK1_5_K})."
+        }
+        val result = GGMLTensor(GGMLType.F32)
+        result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) {
+            val neA = a.ne.getOrElse(i_dim){1L}; val neB = b.ne.getOrElse(i_dim){1L}
+            result.ne[i_dim] = maxOf(neA, neB)
+            if(!(neA == neB || neA == 1L || neB == 1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim for Q1_5_KxF32: ${a.ne[i_dim]} vs ${b.ne[i_dim]}")
+        }
+        result.nb[0] = result.type.byteSize
+        for (d in 1 until GGML_MAX_DIMS) {
+            result.nb[d] = result.ne.getOrElse(d-1) { 1L }.toULong() * result.nb[d-1]
+        }
+
+        var totalResultElements = M.toLong() * N.toLong()
+        for (i_dim in 2 until GGML_MAX_DIMS) { totalResultElements *= result.ne[i_dim] }
+        if (totalResultElements > Int.MAX_VALUE) throw IllegalStateException("Result tensor too large for FloatArray")
+
+        val resultArray = FloatArray(totalResultElements.toInt())
+        result.data = resultArray
+
+        var flatIdx = 0
+        // Assuming M,N loops cover all broadcasted elements if higher dims exist.
+        // This needs careful thought if result.ne[2] or result.ne[3] > 1.
+        // For now, let's assume simple 2D equivalent for loop for the primary matrix plane.
+        for (i in 0 until M) { // Output row
+            for (j in 0 until N) { // Output col
+                // K_a is commonDimK, and we've required K_a == QK1_5_K.
+                // rowIndexInQ15K is 'i'.
+                resultArray[flatIdx++] = computeDotProductQ15KF32(graphAllocator, a, b, i, j, K_a)
+            }
+        }
+        return result
+    }
 
     if (a.type == GGMLType.Q4_0 && b.type == GGMLType.F32) {
         val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
