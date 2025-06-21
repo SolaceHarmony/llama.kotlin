@@ -2560,56 +2560,62 @@ private fun executeBackward(context: GGMLContext, cgraph: GGMLCGraph) {
  * @param cgraph The computation graph to execute
  */
 private fun executeForward(context: GGMLContext, cgraph: GGMLCGraph) {
+    val graphAllocator = context.graphAllocator
+        ?: throw IllegalStateException("GraphAllocator not found in context for executeForward. It must be initialized in GGMLContext.")
+    val backendToUse = context.backend
+        ?: ai.solace.llamakotlin.backends.cpu.CPUBackend // Fallback to CPUBackend if none is set in context
+
     // Execute the nodes in order
     for (i in 0 until cgraph.nNodes) {
         val node = cgraph.nodes[i] ?: continue
-        executeNode(context, node)
+        executeNode(context, node, graphAllocator, backendToUse)
     }
 }
 
 /**
- * Executes a single node in the computation graph.
+ * Executes a single node in the computation graph using a specified backend.
  *
- * @param context The GGML context
- * @param node The node to execute
+ * @param context The GGML context.
+ * @param node The node to execute.
+ * @param graphAllocator The graph allocator for managing tensor data.
+ * @param backend The backend to use for execution.
  */
-private fun executeNode(context: GGMLContext, node: GGMLTensor) {
-    // Execute the node based on its operation
-    when (node.op) {
-        GGMLOp.ADD -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("ADD operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("ADD operation requires two source tensors")
-            node.data = computeAdd(context, a, b).data
-        }
-        GGMLOp.SUB -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("SUB operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("SUB operation requires two source tensors")
-            node.data = computeSub(context, a, b).data
-        }
-        GGMLOp.MUL -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("MUL operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("MUL operation requires two source tensors")
-            node.data = computeMul(context, a, b).data
-        }
-        GGMLOp.MUL_MAT -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("MUL_MAT operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("MUL_MAT operation requires two source tensors")
-            node.data = computeMatMul(context, a, b).data
-        }
-        GGMLOp.NEG -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("NEG operation requires one source tensor")
-            node.data = computeNeg(context, a).data
-        }
-        GGMLOp.RELU -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("RELU operation requires one source tensor")
-            node.data = computeRelu(context, a).data
-        }
-        GGMLOp.GELU -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("GELU operation requires one source tensor")
-            node.data = computeGelu(context, a).data
-        }
-        else -> throw NotImplementedError("Operation ${node.op} not implemented yet")
+private fun executeNode(
+    context: GGMLContext,
+    node: GGMLTensor,
+    graphAllocator: GGMLGraphAllocator,
+    backend: ai.solace.llamakotlin.backends.Backend
+) {
+    if (node.op == GGMLOp.NONE) { // Leaf nodes (inputs, weights) don't need execution
+        return
     }
+
+    // Delegate execution to the backend
+    val resultTensor = backend.executeOp(node, graphAllocator, context)
+
+    // Update the graph node's properties with the results from the backend.
+    node.bufferId = resultTensor.bufferId
+    node.dataOffset = resultTensor.dataOffset
+    node.data = null // Data is now in graphAllocator's buffer, not directly in GGMLTensor.data
+
+    // If an operation could change the type or shape, update it.
+    // Most element-wise ops preserve type. MatMul output type is usually F32 or matches inputs.
+    if (node.type != resultTensor.type) {
+        println("Warning: Node ${node.name} type changed from ${node.type} to ${resultTensor.type} after op ${node.op}.")
+        node.type = resultTensor.type
+        // Strides (nb) should also be updated if type/shape changes and resultTensor has new strides.
+        // Assuming resultTensor.nb is correctly set by the computeOp.
+        node.nb = resultTensor.nb.copyOf()
+    }
+    // If shape (ne) could change (e.g. MatMul), it should also be updated.
+    // Current computeOps generally expect 'result' tensor (passed to them or created by them)
+    // to have its 'ne' and 'nb' pre-calculated by graph building phase.
+    // The tensor returned by backend.executeOp IS the result tensor with correct ne/nb.
+    // So, if node is just a placeholder, we also need to update its ne/nb.
+    // Let's assume for now that the graph node's ne/nb are already what the result should be.
+    // If backend.executeOp can return a tensor with a *different shape* than the graph node
+    // originally had (e.g. for an op like RESHAPE if it were backend-executed), then ne would need update.
+    // For current ops, they fill into a result tensor that matches the expected output shape.
 }
 
 /**
