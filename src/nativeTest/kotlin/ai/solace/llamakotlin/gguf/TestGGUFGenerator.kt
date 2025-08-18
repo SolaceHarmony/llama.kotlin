@@ -107,11 +107,3 @@ class TestGGUFGenerator {
         return bytes.toList()
     }
 }
-
-// Extension function for setLongLe (similar to existing setIntLe)
-internal fun ByteArray.setLongLe(offset: Int, value: Long) {
-    require(offset + Long.SIZE_BYTES <= size) { "Offset $offset + ${Long.SIZE_BYTES} > size $size" }
-    for (i in 0 until Long.SIZE_BYTES) {
-        this[offset + i] = ((value shr (i * 8)) and 0xFF).toByte()
-    }
-}
