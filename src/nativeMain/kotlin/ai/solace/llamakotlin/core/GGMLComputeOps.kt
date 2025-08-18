@@ -823,6 +823,183 @@ fun computeDiv(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
     return res
 }
 
+/**
+ * Main compute operations object for executing graphs
+ */
+object GGMLComputeOps {
+    /**
+     * Compute a computational graph
+     * 
+     * @param graph The computational graph to execute
+     */
+    fun computeGraph(graph: GGMLCGraph) {
+        val graphAllocator = graph.allocator ?: throw IllegalStateException("Graph must have an allocator")
+        
+        // Process each node in the graph in topological order
+        for (i in 0 until graph.nNodes) {
+            val node = graph.nodes[i] ?: continue
+            computeNode(graphAllocator, node)
+        }
+    }
+    
+    /**
+     * Compute a single node in the graph
+     */
+    private fun computeNode(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        when (node.op) {
+            GGMLOp.NONE -> { /* No operation */ }
+            GGMLOp.DUP -> computeDup(graphAllocator, node)
+            GGMLOp.ADD -> computeAdd(graphAllocator, node)
+            GGMLOp.SUB -> computeSub(graphAllocator, node)
+            GGMLOp.MUL -> computeMul(graphAllocator, node)
+            GGMLOp.DIV -> computeDiv(graphAllocator, node)
+            GGMLOp.SQR -> computeSqr(graphAllocator, node)
+            GGMLOp.SQRT -> computeSqrt(graphAllocator, node)
+            GGMLOp.NEG -> computeNeg(graphAllocator, node)
+            GGMLOp.RELU -> computeRelu(graphAllocator, node)
+            GGMLOp.GELU -> computeGelu(graphAllocator, node)
+            GGMLOp.SILU -> computeSilu(graphAllocator, node)
+            GGMLOp.RMS_NORM -> computeRmsNorm(graphAllocator, node)
+            GGMLOp.MUL_MAT -> computeMulMat(graphAllocator, node)
+            GGMLOp.SUM -> computeSum(graphAllocator, node)
+            GGMLOp.MEAN -> computeMean(graphAllocator, node)
+            GGMLOp.REPEAT -> computeRepeat(graphAllocator, node)
+            // Add more operations as needed
+            else -> throw NotImplementedError("Operation ${node.op} not implemented in compute graph")
+        }
+    }
+    
+    // Helper methods for individual operations
+    
+    private fun computeDup(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("DUP operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeDup(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeAdd(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src0 = node.src[0] ?: throw IllegalArgumentException("ADD operation requires first source tensor")
+        val src1 = node.src[1] ?: throw IllegalArgumentException("ADD operation requires second source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeAdd(graphAllocator, context, src0, src1)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeSub(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src0 = node.src[0] ?: throw IllegalArgumentException("SUB operation requires first source tensor")
+        val src1 = node.src[1] ?: throw IllegalArgumentException("SUB operation requires second source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeSub(graphAllocator, context, src0, src1)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeMul(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src0 = node.src[0] ?: throw IllegalArgumentException("MUL operation requires first source tensor")
+        val src1 = node.src[1] ?: throw IllegalArgumentException("MUL operation requires second source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeMul(graphAllocator, context, src0, src1)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeDiv(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src0 = node.src[0] ?: throw IllegalArgumentException("DIV operation requires first source tensor")
+        val src1 = node.src[1] ?: throw IllegalArgumentException("DIV operation requires second source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeDiv(graphAllocator, context, src0, src1)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeSqr(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("SQR operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeSqr(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeSqrt(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("SQRT operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeSqrt(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeNeg(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("NEG operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeNeg(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeRelu(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("RELU operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeRelu(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeGelu(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("GELU operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeGelu(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeSilu(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("SILU operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeSilu(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeRmsNorm(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("RMS_NORM operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeRmsNorm(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeMulMat(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src0 = node.src[0] ?: throw IllegalArgumentException("MUL_MAT operation requires first source tensor")
+        val src1 = node.src[1] ?: throw IllegalArgumentException("MUL_MAT operation requires second source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeMulMat(graphAllocator, context, src0, src1)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeSum(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("SUM operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeSum(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeMean(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("MEAN operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeMean(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    private fun computeRepeat(graphAllocator: GGMLGraphAllocator, node: GGMLTensor) {
+        val src = node.src[0] ?: throw IllegalArgumentException("REPEAT operation requires source tensor")
+        val context = graphAllocator.context
+        val result = ai.solace.llamakotlin.core.computeRepeat(graphAllocator, context, src)
+        copyTensorData(result, node)
+    }
+    
+    /**
+     * Copy data from result tensor to target node tensor
+     */
+    private fun copyTensorData(source: GGMLTensor, target: GGMLTensor) {
+        target.data = source.data
+        target.type = source.type
+        // Copy dimensions if they differ
+        source.ne.copyInto(target.ne)
+        source.nb.copyInto(target.nb)
+    }
+}
+
 [end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
 
 [end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]

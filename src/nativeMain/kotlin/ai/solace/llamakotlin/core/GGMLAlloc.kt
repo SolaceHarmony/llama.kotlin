@@ -261,26 +261,65 @@ class GGMLDynTensorAllocator {
 
 /**
  * Graph allocator for managing memory allocation for computation graphs.
+ * Now supports backend-specific buffer allocation.
  */
 class GGMLGraphAllocator {
     // Tensor allocator for each buffer
     var tensorAllocators = mutableListOf<GGMLDynTensorAllocator>()
 
-    // Buffers
+    // Backend buffers
     var buffers = mutableListOf<ByteArray?>()
+    
+    // Backend buffer objects (new)
+    var backendBuffers = mutableListOf<GGMLBackendBuffer?>()
 
     // Map to store usage information for each tensor
     private val tensorUsageMap = mutableMapOf<GGMLTensor, TensorUsageInfo>()
+    
+    // Backend for this allocator
+    var backend: GGMLBackend? = null
+    
+    // Context associated with this allocator
+    var context: GGMLContext = GGMLContext()
 
     /**
-     * Creates a new graph allocator.
+     * Creates a new graph allocator with a specific backend.
      */
-    constructor() {
-        // Create a default tensor allocator
+    constructor(backend: GGMLBackend? = null) {
+        this.backend = backend
+        
+        // Create a default buffer
         val defaultBufferSize = 1024 * 1024
-        buffers.add(ByteArray(defaultBufferSize))
+        
+        if (backend != null) {
+            // Use backend buffer
+            val backendBuffer = backend.allocBuffer(defaultBufferSize.toULong())
+            if (backendBuffer != null) {
+                backendBuffers.add(backendBuffer)
+                // For CPU backend, we can still access the underlying ByteArray
+                if (backendBuffer is GGMLCpuBuffer) {
+                    buffers.add(backendBuffer.getBase() as ByteArray)
+                } else {
+                    buffers.add(null) // Non-CPU backends don't expose ByteArray
+                }
+            } else {
+                // Fallback to regular ByteArray
+                buffers.add(ByteArray(defaultBufferSize))
+                backendBuffers.add(null)
+            }
+        } else {
+            // Fallback to regular ByteArray
+            buffers.add(ByteArray(defaultBufferSize))
+            backendBuffers.add(null)
+        }
+        
         tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
+
+    /**
+     * Creates a new graph allocator (legacy constructor).
+     */
+    constructor() : this(null)
 
     /**
      * Analyzes the computation graph to understand tensor usage patterns.

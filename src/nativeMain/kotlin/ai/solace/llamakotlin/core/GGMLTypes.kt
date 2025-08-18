@@ -193,7 +193,7 @@ class GGMLObject(
  */
 class GGMLTensor(
     var type: GGMLType = GGMLType.F32,
-    var buffer: Any? = null,
+    var buffer: GGMLBackendBuffer? = null,
     var ne: LongArray = LongArray(GGML_MAX_DIMS) { 0L },
     var nb: ULongArray = ULongArray(GGML_MAX_DIMS) { 0u },
     var op: GGMLOp = GGMLOp.NONE,
@@ -718,7 +718,8 @@ class GGMLCGraph(
     var grads: Array<GGMLTensor?> = emptyArray(),
     var leafs: Array<GGMLTensor?> = emptyArray(),
     var visitedHashSet: Any? = null,
-    var order: GGMLCGraphEvalOrder = GGMLCGraphEvalOrder.NONE
+    var order: GGMLCGraphEvalOrder = GGMLCGraphEvalOrder.NONE,
+    var allocator: GGMLGraphAllocator? = null
 )
 
 /**
