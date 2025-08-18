@@ -1,9 +1,5 @@
 package ai.solace.llamakotlin.core
 
-import kotlin.native.concurrent.Worker
-import kotlin.native.concurrent.TransferMode
-import kotlin.native.concurrent.Future
-
 /**
  * Kotlin Native port of GGML scheduler functionality.
  * This file contains the multi-threaded and multi-backend scheduler implementation.
@@ -156,82 +152,37 @@ class GGMLScheduler(
     private fun executeParallel(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus {
         dependencyTracker.buildDependencies(graph)
         
-        val workers = mutableListOf<Worker>()
-        val futures = mutableListOf<Future<Boolean>>()
-        val errors = mutableListOf<Exception>()
+        // For now, fall back to sequential execution with dependency tracking
+        // Workers in Kotlin Native can be complex in some environments
+        return executeSequentialWithDependencies(graph, context)
+    }
+    
+    /**
+     * Execute graph sequentially but with proper dependency tracking
+     */
+    private fun executeSequentialWithDependencies(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus {
+        dependencyTracker.buildDependencies(graph)
         
-        try {
-            // Create worker pool
-            repeat(maxWorkers.coerceAtMost(graph.nNodes)) {
-                workers.add(Worker.start())
+        while (!dependencyTracker.isComplete()) {
+            val readyNodes = dependencyTracker.getReadyNodes()
+            
+            if (readyNodes.isEmpty()) {
+                // This shouldn't happen if dependencies are correctly tracked
+                return GGMLBackendStatus.FAILED
             }
             
-            var currentWorker = 0
-            
-            while (!dependencyTracker.isComplete()) {
-                val readyNodes = dependencyTracker.getReadyNodes()
-                
-                if (readyNodes.isEmpty()) {
-                    // Wait for some operations to complete
-                    Thread.sleep(1)
-                    continue
-                }
-                
-                for (node in readyNodes) {
-                    val worker = workers[currentWorker % workers.size]
-                    currentWorker++
-                    
-                    val future = worker.execute(TransferMode.SAFE, { Triple(node, context, backendManager) }) { input ->
-                        try {
-                            val (nodeToExecute, ctx, manager) = input
-                            val backend = manager.getBestBackend(nodeToExecute) ?: return@execute false
-                            
-                            // Execute single node
-                            executeNode(nodeToExecute, ctx, backend)
-                            true
-                        } catch (e: Exception) {
-                            false
-                        }
-                    }
-                    
-                    futures.add(future)
-                    dependencyTracker.markCompleted(node)
-                }
-                
-                // Check for completed futures
-                val iterator = futures.iterator()
-                while (iterator.hasNext()) {
-                    val future = iterator.next()
-                    if (future.isDone) {
-                        try {
-                            if (!future.result) {
-                                return GGMLBackendStatus.FAILED
-                            }
-                        } catch (e: Exception) {
-                            errors.add(e)
-                        }
-                        iterator.remove()
-                    }
-                }
-            }
-            
-            // Wait for all remaining futures
-            futures.forEach { future ->
+            for (node in readyNodes) {
                 try {
-                    if (!future.result) {
-                        return GGMLBackendStatus.FAILED
-                    }
+                    val backend = backendManager.getBestBackend(node) ?: return GGMLBackendStatus.FAILED
+                    executeNode(node, context, backend)
+                    dependencyTracker.markCompleted(node)
                 } catch (e: Exception) {
-                    errors.add(e)
+                    return GGMLBackendStatus.FAILED
                 }
             }
-            
-            return if (errors.isEmpty()) GGMLBackendStatus.SUCCESS else GGMLBackendStatus.FAILED
-            
-        } finally {
-            // Cleanup workers
-            workers.forEach { it.requestTermination() }
         }
+        
+        return GGMLBackendStatus.SUCCESS
     }
     
     /**
@@ -245,44 +196,23 @@ class GGMLScheduler(
             return executeSequential(graph, context)
         }
         
-        // Execute splits in parallel across backends
-        val futures = mutableListOf<Future<GGMLBackendStatus>>()
-        val workers = mutableListOf<Worker>()
-        
-        try {
-            for (split in splits) {
-                val backend = backendManager.getBackends().find { it.type == split.backendType }
-                    ?: continue
-                
-                val worker = Worker.start()
-                workers.add(worker)
-                
-                val future = worker.execute(TransferMode.SAFE, { Triple(split, context, backend) }) { input ->
-                    val (graphSplit, ctx, backendToUse) = input
-                    executeGraphSplit(graphSplit, ctx, backendToUse)
-                }
-                
-                futures.add(future)
+        // Execute splits sequentially for now (can be enhanced later with true parallelism)
+        for (split in splits) {
+            val backend = backendManager.getBackends().find { it.type == split.backendType }
+                ?: continue
+            
+            val status = executeGraphSplit(split, context, backend)
+            if (status != GGMLBackendStatus.SUCCESS) {
+                return status
             }
-            
-            // Wait for all splits to complete
-            for (future in futures) {
-                val result = future.result
-                if (result != GGMLBackendStatus.SUCCESS) {
-                    return result
-                }
-            }
-            
-            // Synchronize all backends
-            for (backend in backendManager.getBackends()) {
-                backend.synchronize()
-            }
-            
-            return GGMLBackendStatus.SUCCESS
-            
-        } finally {
-            workers.forEach { it.requestTermination() }
         }
+        
+        // Synchronize all backends
+        for (backend in backendManager.getBackends()) {
+            backend.synchronize()
+        }
+        
+        return GGMLBackendStatus.SUCCESS
     }
     
     /**
