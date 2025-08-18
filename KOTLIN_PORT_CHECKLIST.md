@@ -72,36 +72,57 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [ ] Implement 1.5-bit integer quantization
   - [ ] Implement 2-bit integer quantization
   - [ ] Implement 3-bit integer quantization
-  - [~] Implement 4-bit integer quantization (Q4_0 focused)
+  - [x] Implement 4-bit integer quantization (Q4_0 focused)
     - [x] Defined Q4_0 block structure (F16 scale + 32x4-bit packed weights, type.byteSize = 18).
     - [x] Implemented data accessors for Q4_0 blocks (`getQ4_0BlockScale`, `getQ4_0NibbleWeight`).
     - [x] Implemented Q4_0 to F32 dequantization in `dequantizeTensor`.
     - [x] Implement Q4_0 quantization (F32 to Q4_0) in `quantizeTensor`.
-    - [~] Implement optimized Q4_0 dot product routines (e.g., for MatMul with F32).
+    - [x] Implement optimized Q4_0 dot product routines (e.g., for MatMul with F32).
       - [x] Implemented `computeDotProductQ40F32` for efficient Q4_0 x F32 operations.
       - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_0 x F32 -> F32) cases.
-      - [ ] Consider optimized dot product for the symmetric F32 x Q4_0 case (currently uses dequantization).
-  - [~] Implement 4-bit integer quantization (Q4_1 focused)
+      - [x] Implemented optimized dot product for the symmetric F32 x Q4_0 case (`computeDotProductF32Q40`).
+      - [x] Implemented direct quantized Q4_0 x Q4_0 operations (`computeDotProductQ40Q40`).
+  - [x] Implement 4-bit integer quantization (Q4_1 focused)
     - [x] Defined Q4_1 block structure (2x F16 scale/min + 32x4-bit packed weights, type.byteSize = 20).
     - [x] Implemented data accessors for Q4_1 blocks (`getQ4_1BlockScale`, `getQ4_1BlockMin`, `getQ4_1NibbleWeight`).
     - [x] Implemented Q4_1 to F32 dequantization in `dequantizeTensor`.
     - [x] Implemented F32 to Q4_1 quantization in `quantizeTensor`.
-    - [~] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
+    - [x] Implement optimized Q4_1 dot product routines (e.g., for MatMul with F32).
       - [x] Implemented `computeDotProductQ41F32` for efficient Q4_1 x F32 operations.
       - [x] Refactored `computeMatMul` to use the optimized dot product for (Q4_1 x F32 -> F32) cases.
-      - [ ] Consider optimized dot product for the symmetric F32 x Q4_1 case (currently uses dequantization).
+      - [x] Implemented optimized dot product for the symmetric F32 x Q4_1 case (`computeDotProductF32Q41`).
+      - [x] Implemented direct quantized Q4_1 x Q4_1 operations (`computeDotProductQ41Q41`).
   - [ ] Implement 5-bit integer quantization
   - [ ] Implement 6-bit integer quantization
-  - [~] Implement 8-bit integer quantization (Q8_0 focused)
+  - [x] Implement 8-bit integer quantization (Q8_0 focused)
     - [x] Defined Q8_0 block structure (F16 scale + 32xI8 weights, type.byteSize = 34).
     - [x] Implemented data accessors for Q8_0 blocks (`getQ8_0BlockScale`, `getQ8_0Weight`).
     - [x] Implemented Q8_0 to F32 dequantization in `dequantizeTensor`.
     - [x] Implement Q8_0 quantization (F32 to Q8_0) in `quantizeTensor`.
-    - [~] Implement optimized Q8_0 dot product routines (e.g., for MatMul with F32).
+    - [x] Implement optimized Q8_0 dot product routines (e.g., for MatMul with F32).
       - [x] Implemented `computeDotProductQ80F32` for efficient Q8_0 x F32 operations.
       - [x] Refactored `computeMatMul` to use the optimized dot product for (Q8_0 x F32 -> F32) cases.
-      - [ ] Consider optimized dot product for the symmetric F32 x Q8_0 case (currently uses dequantization).
-  - [ ] Implement quantized operations
+      - [x] Implemented optimized dot product for the symmetric F32 x Q8_0 case (`computeDotProductF32Q80`).
+      - [x] Implemented direct quantized Q8_0 x Q8_0 operations (`computeDotProductQ80Q80`).
+      - [x] Implemented mixed quantized Q8_0 x Q4_0 operations (`computeDotProductQ80Q40`).
+  - [x] **Comprehensive Matrix Multiplication Optimization** (Issue #48)
+    - [x] Implemented symmetric F32 x Q_type optimizations replacing expensive dequantization fallbacks
+      - [x] `computeDotProductF32Q40` for F32 x Q4_0 operations  
+      - [x] `computeDotProductF32Q41` for F32 x Q4_1 operations
+      - [x] `computeDotProductF32Q80` for F32 x Q8_0 operations
+    - [x] Implemented direct quantized-to-quantized Q_type x Q_type operations
+      - [x] `computeDotProductQ80Q80` for Q8_0 x Q8_0 operations
+      - [x] `computeDotProductQ40Q40` for Q4_0 x Q4_0 operations  
+      - [x] `computeDotProductQ41Q41` for Q4_1 x Q4_1 operations
+      - [x] `computeDotProductQ80Q40` for mixed Q8_0 x Q4_0 operations
+    - [x] Integrated all optimizations into `computeMatMul` with proper type dispatch
+    - [x] **Performance Testing & Validation**
+      - [x] `GGMLMatMulOptimizationTest.kt` - Comprehensive accuracy validation comparing optimized vs fallback paths
+      - [x] `GGMLMatMulBenchmarkTest.kt` - Performance microbenchmarking for common LLM matrix sizes  
+      - [x] Performance profiling for individual dot product kernels
+      - [x] Memory usage analysis and stress testing with large matrices
+      - [x] Expected speedups: 2-5x for Q×Q operations, 1.5-3x for F32×Q operations
+    - [x] **Documentation**: Created `MATMUL_OPTIMIZATION_SUMMARY.md` with comprehensive implementation details
 
 ## Phase 3: CPU Backend Implementation
 
