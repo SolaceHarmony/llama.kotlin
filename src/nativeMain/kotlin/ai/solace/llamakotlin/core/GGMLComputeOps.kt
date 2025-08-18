@@ -151,6 +151,259 @@ internal fun computeDotProductQ40F32(
     return sumF32
 }
 
+// K-Quant Optimized Dot Product Functions
+
+/**
+ * Computes the dot product of a row from a Q2_K tensor and a column from an F32 tensor.
+ */
+internal fun computeDotProductQ2_KF32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ2_K: GGMLTensor,
+    tensorF32: GGMLTensor,
+    rowIndexInQ2_K: Int,
+    colIndexInF32: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ2_K.type == GGMLType.Q2_K) { "tensorQ2_K must be Q2_K. Got ${tensorQ2_K.type}" }
+    require(tensorF32.type == GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ2_K.ne[0].toInt() == commonDimK) { "tensorQ2_K K dim (${tensorQ2_K.ne[0]}) must match commonDimK ($commonDimK)" }
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
+
+    var sumF32 = 0.0f
+    
+    // Process in blocks of QK_K
+    for (blockStart in 0 until commonDimK step QK_K) {
+        val blockEnd = minOf(blockStart + QK_K, commonDimK)
+        val blockSize = blockEnd - blockStart
+        
+        if (blockSize == QK_K) {
+            // Full block optimization
+            val flatIndexStart = rowIndexInQ2_K * commonDimK + blockStart
+            val blockIndex = flatIndexStart / QK_K
+            
+            val d = tensorQ2_K.getQ2_KBlockScale(graphAllocator, blockIndex)
+            val dmin = tensorQ2_K.getQ2_KBlockScaleMin(graphAllocator, blockIndex)
+            
+            // Process sub-blocks
+            for (subBlock in 0 until QK_K/16) {
+                val scaleAndMin = tensorQ2_K.getQ2_KScale(graphAllocator, blockIndex, subBlock)
+                val quantizedScale = scaleAndMin.toInt() and 0x0F
+                val quantizedMin = (scaleAndMin.toInt() shr 4) and 0x0F
+                
+                val scale = (quantizedScale.toFloat() / 15.0f) * d
+                val min = (quantizedMin.toFloat() * d) + dmin
+                
+                // Process 16 values in this sub-block
+                for (i in 0 until 16 step 4) {
+                    val quantByte = tensorQ2_K.getQ2_KQuant(graphAllocator, blockIndex, subBlock * 4 + i / 4)
+                    
+                    for (j in 0 until 4) {
+                        val k = blockStart + subBlock * 16 + i + j
+                        if (k < blockEnd) {
+                            val quantizedValue = (quantByte.toInt() shr (j * 2)) and 0x03
+                            val dequantizedValue = (quantizedValue.toFloat() / 3.0f) * scale + min
+                            val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+                            sumF32 += dequantizedValue * f32Value
+                        }
+                    }
+                }
+            }
+        } else {
+            // Handle partial blocks by dequantizing (fallback)
+            for (k in blockStart until blockEnd) {
+                val flatIndex = rowIndexInQ2_K * commonDimK + k
+                val blockIndex = flatIndex / QK_K
+                val itemInBlock = flatIndex % QK_K
+                
+                // Simplified dequantization for partial blocks
+                val d = tensorQ2_K.getQ2_KBlockScale(graphAllocator, blockIndex)
+                val dmin = tensorQ2_K.getQ2_KBlockScaleMin(graphAllocator, blockIndex)
+                
+                val subBlock = itemInBlock / 16
+                val scaleAndMin = tensorQ2_K.getQ2_KScale(graphAllocator, blockIndex, subBlock)
+                val quantizedScale = scaleAndMin.toInt() and 0x0F
+                val quantizedMin = (scaleAndMin.toInt() shr 4) and 0x0F
+                
+                val scale = (quantizedScale.toFloat() / 15.0f) * d
+                val min = (quantizedMin.toFloat() * d) + dmin
+                
+                val quantByteIdx = (subBlock * 4) + ((itemInBlock % 16) / 4)
+                val quantByte = tensorQ2_K.getQ2_KQuant(graphAllocator, blockIndex, quantByteIdx)
+                val bitPos = ((itemInBlock % 16) % 4) * 2
+                val quantizedValue = (quantByte.toInt() shr bitPos) and 0x03
+                
+                val dequantizedValue = (quantizedValue.toFloat() / 3.0f) * scale + min
+                val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+                sumF32 += dequantizedValue * f32Value
+            }
+        }
+    }
+    
+    return sumF32
+}
+
+/**
+ * Computes the dot product of a row from a Q4_K tensor and a column from an F32 tensor.
+ */
+internal fun computeDotProductQ4_KF32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ4_K: GGMLTensor,
+    tensorF32: GGMLTensor,
+    rowIndexInQ4_K: Int,
+    colIndexInF32: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ4_K.type == GGMLType.Q4_K) { "tensorQ4_K must be Q4_K. Got ${tensorQ4_K.type}" }
+    require(tensorF32.type == GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ4_K.ne[0].toInt() == commonDimK) { "tensorQ4_K K dim (${tensorQ4_K.ne[0]}) must match commonDimK ($commonDimK)" }
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
+
+    var sumF32 = 0.0f
+    
+    // Process in blocks of QK_K
+    for (blockStart in 0 until commonDimK step QK_K) {
+        val blockEnd = minOf(blockStart + QK_K, commonDimK)
+        val blockSize = blockEnd - blockStart
+        
+        if (blockSize == QK_K) {
+            val flatIndexStart = rowIndexInQ4_K * commonDimK + blockStart
+            val blockIndex = flatIndexStart / QK_K
+            
+            val d = tensorQ4_K.getQ4_KBlockScale(graphAllocator, blockIndex)
+            val dmin = tensorQ4_K.getQ4_KBlockScaleMin(graphAllocator, blockIndex)
+            
+            val buffer = graphAllocator.buffers[tensorQ4_K.bufferId] ?: throw IllegalStateException("Tensor buffer not found")
+            val blockByteOffset = blockIndex * tensorQ4_K.type.byteSize.toInt()
+            
+            // Process 8 sub-blocks of 32 elements each
+            for (subBlock in 0 until 8) {
+                // Get quantized scale and min for this sub-block
+                val scaleByteOffset = blockByteOffset + 4 + subBlock
+                val scaleByte = buffer[(tensorQ4_K.dataOffset + scaleByteOffset.toULong()).toInt()]
+                val quantizedScale = scaleByte.toInt() and 0x3F
+                val quantizedMinLow = (scaleByte.toInt() shr 6) and 0x03
+                
+                val minByteOffset = blockByteOffset + 4 + subBlock * 2 + 1
+                val quantizedMinHigh = if (minByteOffset < blockByteOffset + 4 + K_SCALE_SIZE) {
+                    buffer[(tensorQ4_K.dataOffset + minByteOffset.toULong()).toInt()].toInt() and 0x0F
+                } else 0
+                val quantizedMin = quantizedMinLow or (quantizedMinHigh shl 2)
+                
+                val scale = (quantizedScale.toFloat() / 63.0f) * d
+                val min = (quantizedMin.toFloat() / 63.0f) * d + dmin
+                
+                // Process 32 4-bit values in this sub-block
+                val qsBaseOffset = blockByteOffset + 4 + K_SCALE_SIZE + subBlock * 16
+                for (i in 0 until 32 step 2) {
+                    val k1 = blockStart + subBlock * 32 + i
+                    val k2 = blockStart + subBlock * 32 + i + 1
+                    
+                    if (k1 < blockEnd) {
+                        val qsByte = buffer[(tensorQ4_K.dataOffset + qsBaseOffset.toULong() + (i / 2).toULong()).toInt()]
+                        
+                        val q1 = qsByte.toInt() and 0x0F
+                        val dequantizedValue1 = (q1.toFloat() / 15.0f) * scale + min
+                        val f32Value1 = tensorF32.getFloat(graphAllocator, colIndexInF32, k1)
+                        sumF32 += dequantizedValue1 * f32Value1
+                        
+                        if (k2 < blockEnd) {
+                            val q2 = (qsByte.toInt() shr 4) and 0x0F
+                            val dequantizedValue2 = (q2.toFloat() / 15.0f) * scale + min
+                            val f32Value2 = tensorF32.getFloat(graphAllocator, colIndexInF32, k2)
+                            sumF32 += dequantizedValue2 * f32Value2
+                        }
+                    }
+                }
+            }
+        } else {
+            // Fallback for partial blocks
+            for (k in blockStart until blockEnd) {
+                val flatIndex = rowIndexInQ4_K * commonDimK + k
+                val blockIndex = flatIndex / QK_K
+                val itemInBlock = flatIndex % QK_K
+                
+                val d = tensorQ4_K.getQ4_KBlockScale(graphAllocator, blockIndex)
+                val dmin = tensorQ4_K.getQ4_KBlockScaleMin(graphAllocator, blockIndex)
+                
+                // Simplified dequantization
+                val subBlock = itemInBlock / 32
+                val buffer = graphAllocator.buffers[tensorQ4_K.bufferId] ?: throw IllegalStateException("Tensor buffer not found")
+                val blockByteOffset = blockIndex * tensorQ4_K.type.byteSize.toInt()
+                
+                val scaleByteOffset = blockByteOffset + 4 + subBlock
+                val scaleByte = buffer[(tensorQ4_K.dataOffset + scaleByteOffset.toULong()).toInt()]
+                val quantizedScale = scaleByte.toInt() and 0x3F
+                val scale = (quantizedScale.toFloat() / 63.0f) * d
+                
+                val qsOffset = blockByteOffset + 4 + K_SCALE_SIZE + subBlock * 16 + ((itemInBlock % 32) / 2)
+                val qsByte = buffer[(tensorQ4_K.dataOffset + qsOffset.toULong()).toInt()]
+                val q = if ((itemInBlock % 32) % 2 == 0) qsByte.toInt() and 0x0F else (qsByte.toInt() shr 4) and 0x0F
+                
+                val dequantizedValue = (q.toFloat() / 15.0f) * scale + dmin
+                val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+                sumF32 += dequantizedValue * f32Value
+            }
+        }
+    }
+    
+    return sumF32
+}
+
+/**
+ * Computes the dot product of a row from a Q8_K tensor and a column from an F32 tensor.
+ */
+internal fun computeDotProductQ8_KF32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ8_K: GGMLTensor,
+    tensorF32: GGMLTensor,
+    rowIndexInQ8_K: Int,
+    colIndexInF32: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ8_K.type == GGMLType.Q8_K) { "tensorQ8_K must be Q8_K. Got ${tensorQ8_K.type}" }
+    require(tensorF32.type == GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ8_K.ne[0].toInt() == commonDimK) { "tensorQ8_K K dim (${tensorQ8_K.ne[0]}) must match commonDimK ($commonDimK)" }
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
+
+    var sumF32 = 0.0f
+    
+    // Process in blocks of QK_K (simpler for Q8_K)
+    for (blockStart in 0 until commonDimK step QK_K) {
+        val blockEnd = minOf(blockStart + QK_K, commonDimK)
+        
+        if (blockEnd - blockStart == QK_K) {
+            val flatIndexStart = rowIndexInQ8_K * commonDimK + blockStart
+            val blockIndex = flatIndexStart / QK_K
+            
+            val d = tensorQ8_K.getQ8_KBlockScale(graphAllocator, blockIndex)
+            
+            // Simple dot product for Q8_K block
+            for (i in 0 until QK_K) {
+                val k = blockStart + i
+                val quantizedValue = tensorQ8_K.getQ8_KWeight(graphAllocator, blockIndex, i)
+                val dequantizedValue = quantizedValue.toFloat() * d
+                val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+                sumF32 += dequantizedValue * f32Value
+            }
+        } else {
+            // Fallback for partial blocks
+            for (k in blockStart until blockEnd) {
+                val flatIndex = rowIndexInQ8_K * commonDimK + k
+                val blockIndex = flatIndex / QK_K
+                val itemInBlock = flatIndex % QK_K
+                
+                val d = tensorQ8_K.getQ8_KBlockScale(graphAllocator, blockIndex)
+                val quantizedValue = tensorQ8_K.getQ8_KWeight(graphAllocator, blockIndex, itemInBlock)
+                val dequantizedValue = quantizedValue.toFloat() * d
+                val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+                sumF32 += dequantizedValue * f32Value
+            }
+        }
+    }
+    
+    return sumF32
+}
+
 // Helper to iterate N-dimensionally
 internal fun applyNDIter(tensor: GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
     val n0 = tensor.ne[0].toInt(); val n1 = tensor.ne[1].toInt()
@@ -254,7 +507,7 @@ fun computeAdd(
                 resultData[flatIdx] = valA + valB
             }
         }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1, GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
             val aF32 = dequantizeTensor(graphAllocator, a)
             val bF32 = dequantizeTensor(graphAllocator, b)
             val resultF32 = computeAdd(graphAllocator, context, aF32, bF32)
@@ -333,7 +586,7 @@ fun computeMul(
                 resultData[flatIdx] = valA * valB
             }
         }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1, GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
             val aF32 = dequantizeTensor(graphAllocator, a)
             val bF32 = dequantizeTensor(graphAllocator, b)
             val resultF32 = computeMul(graphAllocator, context, aF32, bF32)
@@ -867,6 +1120,83 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
         }
         return result
     }
+    
+    // K-Quant optimized matrix multiplication paths
+    if (a.type == GGMLType.Q2_K && b.type == GGMLType.F32) {
+        val result = GGMLTensor(GGMLType.F32)
+        result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { 
+            val neA = a.ne.getOrElse(i_dim){1L}
+            val neB = b.ne.getOrElse(i_dim){1L}
+            result.ne[i_dim] = maxOf(neA, neB)
+            if(!(neA == neB || neA == 1L || neB == 1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}")
+        }
+        result.nb[0] = result.type.byteSize
+        for(d in 1 until GGML_MAX_DIMS) {
+            result.nb[d] = result.ne.getOrElse(d-1){1L}.toULong() * result.nb[d-1]
+        }
+        
+        val resArr = FloatArray(M * N)
+        result.data = resArr
+        var flatIdx = 0
+        for(i in 0 until M) {
+            for(j in 0 until N) {
+                resArr[flatIdx++] = computeDotProductQ2_KF32(graphAllocator, a, b, i, j, K)
+            }
+        }
+        return result
+    }
+    
+    if (a.type == GGMLType.Q4_K && b.type == GGMLType.F32) {
+        val result = GGMLTensor(GGMLType.F32)
+        result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { 
+            val neA = a.ne.getOrElse(i_dim){1L}
+            val neB = b.ne.getOrElse(i_dim){1L}
+            result.ne[i_dim] = maxOf(neA, neB)
+            if(!(neA == neB || neA == 1L || neB == 1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}")
+        }
+        result.nb[0] = result.type.byteSize
+        for(d in 1 until GGML_MAX_DIMS) {
+            result.nb[d] = result.ne.getOrElse(d-1){1L}.toULong() * result.nb[d-1]
+        }
+        
+        val resArr = FloatArray(M * N)
+        result.data = resArr
+        var flatIdx = 0
+        for(i in 0 until M) {
+            for(j in 0 until N) {
+                resArr[flatIdx++] = computeDotProductQ4_KF32(graphAllocator, a, b, i, j, K)
+            }
+        }
+        return result
+    }
+    
+    if (a.type == GGMLType.Q8_K && b.type == GGMLType.F32) {
+        val result = GGMLTensor(GGMLType.F32)
+        result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { 
+            val neA = a.ne.getOrElse(i_dim){1L}
+            val neB = b.ne.getOrElse(i_dim){1L}
+            result.ne[i_dim] = maxOf(neA, neB)
+            if(!(neA == neB || neA == 1L || neB == 1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}")
+        }
+        result.nb[0] = result.type.byteSize
+        for(d in 1 until GGML_MAX_DIMS) {
+            result.nb[d] = result.ne.getOrElse(d-1){1L}.toULong() * result.nb[d-1]
+        }
+        
+        val resArr = FloatArray(M * N)
+        result.data = resArr
+        var flatIdx = 0
+        for(i in 0 until M) {
+            for(j in 0 until N) {
+                resArr[flatIdx++] = computeDotProductQ8_KF32(graphAllocator, a, b, i, j, K)
+            }
+        }
+        return result
+    }
+    
     if (a.type == GGMLType.Q8_0 && b.type == GGMLType.F32) {
         val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
         for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
@@ -892,7 +1222,7 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
             val resArr = ShortArray(M*N); resultTensor.data=resArr; var flatIdx=0
             for(i in 0 until M){for(j in 0 until N){var sum=0.0f; for(l in 0 until K){sum+=effA.getHalf(graphAllocator,l,i)*effB.getHalf(graphAllocator,j,l)}; resArr[flatIdx++]=floatToHalf(sum)}}
         }
-        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1 -> {
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1,GGMLType.Q2_K,GGMLType.Q3_K,GGMLType.Q4_K,GGMLType.Q5_K,GGMLType.Q6_K,GGMLType.Q8_K -> {
             val aF32=dequantizeTensor(graphAllocator,a); val bF32=dequantizeTensor(graphAllocator,b)
             val resF32=computeMatMul(graphAllocator,context,aF32,bF32)
             val qRes=quantizeTensor(graphAllocator,resF32,resultTensor.type); resultTensor.data=qRes.data
@@ -965,7 +1295,7 @@ fun computeSub(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
                 resultData[flatIdx] = a.getLong(graphAllocator, *indices) - b.getLong(graphAllocator, *indices)
             }
         }
-        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val bf=dequantizeTensor(graphAllocator,b); val rf=computeSub(graphAllocator,context,af,bf); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1,GGMLType.Q2_K,GGMLType.Q3_K,GGMLType.Q4_K,GGMLType.Q5_K,GGMLType.Q6_K,GGMLType.Q8_K->{val af=dequantizeTensor(graphAllocator,a); val bf=dequantizeTensor(graphAllocator,b); val rf=computeSub(graphAllocator,context,af,bf); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
         else->throw NotImplementedError("computeSub NI for type ${a.type}")
     }
     return res
@@ -976,7 +1306,7 @@ fun computeNeg(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
     when(a.type){
         GGMLType.F32->applyNDIter(res,ts){_,ind->res.setFloat(graphAllocator,-a.getFloat(graphAllocator,*ind),*ind)}
         GGMLType.F16->applyNDIter(res,ts){_,ind->res.setHalf(graphAllocator,-a.getHalf(graphAllocator,*ind),*ind)}
-        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a); val rf=computeNeg(graphAllocator,context,af); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1,GGMLType.Q2_K,GGMLType.Q3_K,GGMLType.Q4_K,GGMLType.Q5_K,GGMLType.Q6_K,GGMLType.Q8_K->{val af=dequantizeTensor(graphAllocator,a); val rf=computeNeg(graphAllocator,context,af); val qr=quantizeTensor(graphAllocator,rf,a.type); res.data=qr.data}
         else->throw NotImplementedError("computeNeg NI for ${a.type}")
     }
     return res
@@ -1031,7 +1361,7 @@ fun computeDiv(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
                 resultData[flatIdx] = valA / valB
             }
         }
-        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1->{val af=dequantizeTensor(graphAllocator,a);val bf=dequantizeTensor(graphAllocator,b);val rf=computeDiv(graphAllocator,context,af,bf);val qr=quantizeTensor(graphAllocator,rf,a.type);res.data=qr.data}
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1,GGMLType.Q2_K,GGMLType.Q3_K,GGMLType.Q4_K,GGMLType.Q5_K,GGMLType.Q6_K,GGMLType.Q8_K->{val af=dequantizeTensor(graphAllocator,a);val bf=dequantizeTensor(graphAllocator,b);val rf=computeDiv(graphAllocator,context,af,bf);val qr=quantizeTensor(graphAllocator,rf,a.type);res.data=qr.data}
         else->throw NotImplementedError("computeDiv NI for type ${a.type}")
     }
     return res

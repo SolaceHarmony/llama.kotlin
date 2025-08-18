@@ -235,4 +235,105 @@ class GGMLKQuantAccuracyTest {
         val madThreshold = 0.1
         assertTrue(mad < madThreshold, "Q8_K Mean Absolute Difference $mad too high (threshold $madThreshold)")
     }
+
+    @Test
+    fun testQ2_KMatrixMultiplication() {
+        // Test Q2_K x F32 matrix multiplication with the optimized path
+        val M = 4
+        val K = QK_K // Use a single K-Quant block
+        val N = 3
+        
+        // Create Q2_K matrix (M x K)
+        val q2kValues = FloatArray(M * K) { i ->
+            val row = i / K
+            val col = i % K
+            when {
+                row == 0 -> col.toFloat() / K.toFloat() * 2.0f - 1.0f // Row 0: -1 to 1
+                row == 1 -> if (col % 16 < 8) 0.5f else -0.5f // Row 1: alternating
+                row == 2 -> col.toFloat() / K.toFloat() * 0.1f // Row 2: 0 to 0.1
+                else -> (col.toFloat() - K/2) / K.toFloat() // Row 3: centered around 0
+            }
+        }
+        
+        val q2kTensorF32 = createAndPopulateF32Tensor("q2k_matrix", longArrayOf(K.toLong(), M.toLong()), q2kValues)
+        val q2kTensor = quantizeTensor(graphAllocator, q2kTensorF32, GGMLType.Q2_K)
+        
+        // Create F32 matrix (K x N)
+        val f32Values = FloatArray(K * N) { i ->
+            val row = i / N
+            val col = i % N
+            when (col) {
+                0 -> 1.0f // Column 0: all ones
+                1 -> if (row % 32 < 16) 1.0f else 0.0f // Column 1: alternating blocks
+                else -> row.toFloat() / K.toFloat() // Column 2: linear
+            }
+        }
+        
+        val f32Tensor = createAndPopulateF32Tensor("f32_matrix", longArrayOf(N.toLong(), K.toLong()), f32Values)
+        
+        // Perform matrix multiplication
+        val resultTensor = computeMatMul(graphAllocator, GGMLContext(), q2kTensor, f32Tensor)
+        
+        // Verify result dimensions
+        assertEquals(GGMLType.F32, resultTensor.type)
+        assertEquals(N.toLong(), resultTensor.ne[0])
+        assertEquals(M.toLong(), resultTensor.ne[1])
+        
+        // The result should be reasonable (not all zeros or infinities)
+        val resultData = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+        assertEquals(M * N, resultData.size)
+        
+        // Check that we don't have NaN or infinite values
+        for (i in resultData.indices) {
+            assertTrue(resultData[i].isFinite(), "Result[$i] = ${resultData[i]} should be finite")
+        }
+        
+        // The result should not be all zeros (given our test inputs)
+        val hasNonZero = resultData.any { abs(it) > 1e-6f }
+        assertTrue(hasNonZero, "Matrix multiplication result should have non-zero values")
+    }
+
+    @Test 
+    fun testQ4_KMatrixMultiplication() {
+        // Test Q4_K x F32 matrix multiplication
+        val M = 2
+        val K = QK_K
+        val N = 2
+        
+        // Create Q4_K matrix
+        val q4kValues = FloatArray(M * K) { i ->
+            val row = i / K
+            val col = i % K
+            if (row == 0) col.toFloat() / K.toFloat() * 4.0f - 2.0f
+            else if (col % 64 < 32) 1.0f else -1.0f
+        }
+        
+        val q4kTensorF32 = createAndPopulateF32Tensor("q4k_matrix", longArrayOf(K.toLong(), M.toLong()), q4kValues)
+        val q4kTensor = quantizeTensor(graphAllocator, q4kTensorF32, GGMLType.Q4_K)
+        
+        // Create F32 matrix
+        val f32Values = FloatArray(K * N) { i ->
+            val col = i % N
+            if (col == 0) 1.0f else 0.5f
+        }
+        
+        val f32Tensor = createAndPopulateF32Tensor("f32_matrix", longArrayOf(N.toLong(), K.toLong()), f32Values)
+        
+        // Perform matrix multiplication
+        val resultTensor = computeMatMul(graphAllocator, GGMLContext(), q4kTensor, f32Tensor)
+        
+        assertEquals(GGMLType.F32, resultTensor.type)
+        assertEquals(N.toLong(), resultTensor.ne[0])
+        assertEquals(M.toLong(), resultTensor.ne[1])
+        
+        val resultData = getTensorDataAsFloatArray(resultTensor, graphAllocator)
+        assertEquals(M * N, resultData.size)
+        
+        for (i in resultData.indices) {
+            assertTrue(resultData[i].isFinite(), "Result[$i] = ${resultData[i]} should be finite")
+        }
+        
+        val hasNonZero = resultData.any { abs(it) > 1e-6f }
+        assertTrue(hasNonZero, "Matrix multiplication result should have non-zero values")
+    }
 }
