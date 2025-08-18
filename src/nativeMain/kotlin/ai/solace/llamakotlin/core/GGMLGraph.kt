@@ -2618,7 +2618,13 @@ private fun executeNode(context: GGMLContext, node: GGMLTensor) {
  * @param size The maximum number of nodes in the graph
  * @return The new computation graph
  */
-fun createGraph(size: Int): GGMLCGraph {
+fun createGraph(size: Int, backend: GGMLBackend? = null): GGMLCGraph {
+    val allocator = if (backend != null) {
+        GGMLGraphAllocator(backend)
+    } else {
+        GGMLGraphAllocator()
+    }
+    
     return GGMLCGraph(
         size = size,
         nNodes = 0,
@@ -2627,6 +2633,35 @@ fun createGraph(size: Int): GGMLCGraph {
         grads = Array(size) { null },
         leafs = Array(size) { null },
         visitedHashSet = null,
-        order = GGMLCGraphEvalOrder.NONE
+        order = GGMLCGraphEvalOrder.NONE,
+        allocator = allocator
     )
+}
+
+/**
+ * Compute a graph using its associated backend.
+ * Falls back to the existing executeGraph function if no backend is available.
+ * 
+ * @param graph The graph to compute
+ * @param context Optional context for legacy execution
+ * @return The computation status
+ */
+fun computeGraphWithBackend(graph: GGMLCGraph, context: GGMLContext? = null): GGMLStatus {
+    val allocator = graph.allocator
+    val backend = allocator?.backend
+    
+    return if (backend != null) {
+        // Use backend computation
+        backend.graphCompute(graph)
+    } else {
+        // Fall back to legacy execution
+        val ctx = context ?: allocator?.context ?: GGMLContext()
+        return try {
+            executeGraph(ctx, graph)
+            GGMLStatus.SUCCESS
+        } catch (e: Exception) {
+            println("Graph computation failed: ${e.message}")
+            GGMLStatus.FAILED
+        }
+    }
 }
