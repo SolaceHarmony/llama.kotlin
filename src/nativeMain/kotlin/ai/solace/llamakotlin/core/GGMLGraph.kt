@@ -2630,3 +2630,36 @@ fun createGraph(size: Int): GGMLCGraph {
         order = GGMLCGraphEvalOrder.NONE
     )
 }
+
+/**
+ * Execute a computation graph with optimization and scheduling
+ */
+fun executeOptimizedGraph(
+    graph: GGMLCGraph, 
+    context: GGMLContext,
+    optimizer: GGMLGraphOptimizer? = null,
+    scheduler: GGMLScheduler? = null
+): GGMLBackendStatus {
+    // Apply optimizations if optimizer is provided
+    optimizer?.let {
+        val result = it.optimize(graph, context)
+        if (result.iterations > 0) {
+            println("Graph optimization completed in ${result.iterations} iterations")
+            result.passResults.forEach { (pass, count) ->
+                println("  $pass: $count modifications")
+            }
+        }
+    }
+    
+    // Execute with scheduler if provided, otherwise use regular execution
+    return if (scheduler != null) {
+        scheduler.execute(graph, context)
+    } else {
+        try {
+            computeGraph(context, graph)
+            GGMLBackendStatus.SUCCESS
+        } catch (e: Exception) {
+            GGMLBackendStatus.FAILED
+        }
+    }
+}

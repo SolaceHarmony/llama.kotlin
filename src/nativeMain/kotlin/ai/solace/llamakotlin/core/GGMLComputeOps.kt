@@ -823,6 +823,63 @@ fun computeDiv(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
     return res
 }
 
-[end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
-
-[end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
+/**
+ * Computes the negation of a tensor: result = -a
+ */
+fun computeNeg(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val res = graphAllocator.allocateTensor(a.type, a.ne.copyOf())
+    val ts = a.numElements().toInt()
+    
+    when (a.type) {
+        GGMLType.F32 -> {
+            val resultData = FloatArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getF32(graphAllocator, *indices)
+                resultData[flatIdx] = -valA
+            }
+        }
+        GGMLType.F16 -> {
+            val resultData = ShortArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = halfToFloat(a.getF16(graphAllocator, *indices))
+                resultData[flatIdx] = floatToHalf(-valA)
+            }
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getI32(graphAllocator, *indices)
+                resultData[flatIdx] = -valA
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getI16(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (-valA).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I8 -> {
+            val resultData = ByteArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getByte(graphAllocator, *indices).toInt()
+                resultData[flatIdx] = (-valA).coerceIn(Byte.MIN_VALUE.toInt(), Byte.MAX_VALUE.toInt()).toByte()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(ts); res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val valA = a.getLong(graphAllocator, *indices)
+                resultData[flatIdx] = -valA
+            }
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            val af = dequantizeTensor(graphAllocator, a)
+            val rf = computeNeg(graphAllocator, context, af)
+            val qr = quantizeTensor(graphAllocator, rf, a.type)
+            res.data = qr.data
+        }
+        else -> throw NotImplementedError("computeNeg not implemented for type ${a.type}")
+    }
+    return res
+}
