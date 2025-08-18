@@ -86,6 +86,10 @@ internal const val QK8_0: Int = 32 // Block size for Q8_0 blocks
 internal const val QK4_0: Int = 32 // Block size for Q4_0 blocks
 internal const val QK4_1: Int = 32 // Block size for Q4_1 blocks (same number of elements as Q4_0)
 
+// K-Quant constants
+internal const val QK_K: Int = 256 // Super-block size for K-quants
+internal const val K_SCALE_SIZE: Int = 12 // Number of scale bytes for Q4_K and Q5_K
+
 /**
  * Tensor data types
  */
@@ -107,13 +111,14 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     // Q8_0 byteSize is per block: sizeof(Float16 for scale) + QK8_0 * sizeof(Int8 for weights)
     Q8_0("q8_0", 2uL + QK8_0.toULong()),   // 8-bit quantized, 34 bytes per block (2 + 32*1)
     Q8_1("q8_1", 0uL),   // 8-bit quantized with different scaling
-    Q2_K("q2_k", 0uL),   // 2-bit quantized for K-quants
-    Q3_K("q3_k", 0uL),   // 3-bit quantized for K-quants
-    Q4_K("q4_k", 0uL),   // 4-bit quantized for K-quants
-    Q5_K("q5_k", 0uL),   // 5-bit quantized for K-quants
-    Q6_K("q6_k", 0uL),   // 6-bit quantized for K-quants
-    Q8_K("q8_k", 0uL),   // 8-bit quantized for K-quants (potentially 1 byte + K-scale factor)
-    Q1_5_K("q1_5_k", 0uL), // 1.5-bit quantized for K-quants (ternary: -1, 0, 1) - size is complex
+    // K-Quant types with correct block sizes (based on ggml-common.h)
+    Q2_K("q2_k", (2uL * Short.SIZE_BYTES.toULong()) + (QK_K/16).toULong() + (QK_K/4).toULong()),   // 2*F16 + QK_K/16 + QK_K/4 = 4 + 16 + 64 = 84 bytes
+    Q3_K("q3_k", Short.SIZE_BYTES.toULong() + (QK_K/4).toULong() + (QK_K/8).toULong() + 12uL),   // F16 + QK_K/4 + QK_K/8 + 12 = 2 + 64 + 32 + 12 = 110 bytes
+    Q4_K("q4_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K/2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/2 = 4 + 12 + 128 = 144 bytes
+    Q5_K("q5_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K/8).toULong() + (QK_K/2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/8 + QK_K/2 = 4 + 12 + 32 + 128 = 176 bytes  
+    Q6_K("q6_k", Short.SIZE_BYTES.toULong() + (QK_K/16).toULong() + (3uL*QK_K/4uL)),   // F16 + QK_K/16 + 3*QK_K/4 = 2 + 16 + 192 = 210 bytes
+    Q8_K("q8_k", 4uL + QK_K.toULong() + (QK_K/16uL*2uL)),   // F32 + QK_K + QK_K/16*sizeof(int16_t) = 4 + 256 + 32 = 292 bytes
+    Q1_5_K("q1_5_k", 0uL), // 1.5-bit quantized for K-quants (ternary: -1, 0, 1) - size is complex - TODO
     I8("int8", 1uL),     // 8-bit integer
     I16("int16", 2uL),    // 16-bit integer
     I32("int32", 4uL),    // 32-bit integer
@@ -455,7 +460,8 @@ class GGMLTensor(
             GGMLType.Q8_0 -> QK8_0.toLong()
             GGMLType.Q4_0 -> QK4_0.toLong()
             GGMLType.Q4_1 -> QK4_1.toLong()
-            // Future block types can be added here
+            // K-Quant types
+            GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> QK_K.toLong()
             else -> {
                 // Or throw IllegalArgumentException("getNumBlocks is only for block-quantized types")
                 return 0L
@@ -670,6 +676,191 @@ class GGMLTensor(
         }
         return nibble.toByte()
     }
+    
+    // --- K-Quant Accessor Methods ---
+    
+    /**
+     * Retrieves the super-block scale (d) for a Q2_K block.
+     * Q2_K structure: scales[QK_K/16], qs[QK_K/4], d (F16), dmin (F16)
+     */
+    fun getQ2_KBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q2_K) { "Tensor type must be Q2_K to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // d is located after scales[QK_K/16] + qs[QK_K/4]
+        val scaleOffsetWithinBlock = (QK_K/16).toULong() + (QK_K/4).toULong()
+        val finalByteOffset = dataOffset + blockByteOffset + scaleOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+    
+    /**
+     * Retrieves the super-block scale for mins (dmin) for a Q2_K block.
+     */
+    fun getQ2_KBlockScaleMin(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q2_K) { "Tensor type must be Q2_K to get block scale min." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // dmin is located after scales[QK_K/16] + qs[QK_K/4] + d (F16)
+        val scaleMinOffsetWithinBlock = (QK_K/16).toULong() + (QK_K/4).toULong() + 2uL
+        val finalByteOffset = dataOffset + blockByteOffset + scaleMinOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+    
+    /**
+     * Retrieves a quantized scale value for a Q2_K block.
+     */
+    fun getQ2_KScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int, scaleIndex: Int): Byte {
+        require(type == GGMLType.Q2_K) { "Tensor type must be Q2_K to get scale." }
+        require(scaleIndex >= 0 && scaleIndex < QK_K/16) { "scaleIndex $scaleIndex out of bounds for Q2_K scales" }
+        
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalByteOffset = dataOffset + blockByteOffset + scaleIndex.toULong()
+        
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return buffer[finalByteOffset.toInt()]
+    }
+    
+    /**
+     * Retrieves a quantized value for a Q2_K block.
+     */
+    fun getQ2_KQuant(graphAllocator: GGMLGraphAllocator, blockIndex: Int, quantIndex: Int): Byte {
+        require(type == GGMLType.Q2_K) { "Tensor type must be Q2_K to get quant." }
+        require(quantIndex >= 0 && quantIndex < QK_K/4) { "quantIndex $quantIndex out of bounds for Q2_K quants" }
+        
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val quantOffsetWithinBlock = (QK_K/16).toULong() + quantIndex.toULong()
+        val finalByteOffset = dataOffset + blockByteOffset + quantOffsetWithinBlock
+        
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return buffer[finalByteOffset.toInt()]
+    }
+
+    /**
+     * Retrieves the super-block scale (d) for a Q3_K block.
+     * Q3_K structure: hmask[QK_K/8], qs[QK_K/4], scales[12], d (F16)
+     */
+    fun getQ3_KBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q3_K) { "Tensor type must be Q3_K to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // d is located after hmask[QK_K/8] + qs[QK_K/4] + scales[12]
+        val scaleOffsetWithinBlock = (QK_K/8).toULong() + (QK_K/4).toULong() + 12uL
+        val finalByteOffset = dataOffset + blockByteOffset + scaleOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+
+    /**
+     * Retrieves the super-block scale (d) for a Q4_K block.
+     * Q4_K structure: d (F16), dmin (F16), scales[K_SCALE_SIZE], qs[QK_K/2]
+     */
+    fun getQ4_KBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // d is the first F16 in the block
+        val finalByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+    
+    /**
+     * Retrieves the super-block scale for mins (dmin) for a Q4_K block.
+     */
+    fun getQ4_KBlockScaleMin(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q4_K) { "Tensor type must be Q4_K to get block scale min." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // dmin is the second F16 in the block (after d)
+        val finalByteOffset = dataOffset + blockByteOffset + 2uL
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+
+    /**
+     * Retrieves the super-block scale (d) for a Q5_K block.
+     * Q5_K structure: d (F16), dmin (F16), scales[K_SCALE_SIZE], qh[QK_K/8], qs[QK_K/2]
+     */
+    fun getQ5_KBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q5_K) { "Tensor type must be Q5_K to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+
+    /**
+     * Retrieves the super-block scale (d) for a Q6_K block.
+     * Q6_K structure: ql[QK_K/2], qh[QK_K/4], scales[QK_K/16], d (F16)
+     */
+    fun getQ6_KBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q6_K) { "Tensor type must be Q6_K to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // d is located after ql[QK_K/2] + qh[QK_K/4] + scales[QK_K/16]
+        val scaleOffsetWithinBlock = (QK_K/2).toULong() + (QK_K/4).toULong() + (QK_K/16).toULong()
+        val finalByteOffset = dataOffset + blockByteOffset + scaleOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+    }
+
+    /**
+     * Retrieves the super-block scale (d) for a Q8_K block.
+     * Q8_K structure: d (F32), qs[QK_K], bsums[QK_K/16]
+     */
+    fun getQ8_KBlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.Q8_K) { "Tensor type must be Q8_K to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return buffer.getFloatLe(finalByteOffset.toInt())
+    }
+
+    /**
+     * Retrieves a quantized weight from a Q8_K block.
+     */
+    fun getQ8_KWeight(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == GGMLType.Q8_K) { "Tensor type must be Q8_K to get weight." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK_K) { "itemIndexInBlock $itemIndexInBlock out of bounds for Q8_K block" }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        // qs starts after d (F32)
+        val weightOffsetWithinBlock = 4uL + itemIndexInBlock.toULong()
+        val finalByteOffset = dataOffset + blockByteOffset + weightOffsetWithinBlock
+
+        val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
+        return buffer[finalByteOffset.toInt()]
+    }
 }
 
 /**
@@ -746,14 +937,15 @@ internal fun calculateTensorByteSize(tensor: GGMLTensor): ULong {
 
     return when (tensor.type) {
         // Explicitly list block-quantized types. Their type.byteSize is "bytes per block".
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0 -> {
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0, 
+        GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
             // These constants should be defined in GGMLTypes.kt or accessible.
             val elementsPerBlock = when(tensor.type) {
                 GGMLType.Q4_0 -> QK4_0.toULong()
                 GGMLType.Q4_1 -> QK4_1.toULong()
                 GGMLType.Q8_0 -> QK8_0.toULong()
-                // Add other K-quants or block types here if they have a similar structure
-                // For example: GGMLType.Q2_K -> QK_K.toULong() (if QK_K is its block size)
+                // K-Quant types all use QK_K as block size
+                GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> QK_K.toULong()
                 else -> {
                     // This path should ideally not be reached if the outer 'when' is exhaustive for block types
                     println("Warning: Unhandled block-quantized type ${tensor.type} in calculateTensorByteSize. Assuming elementsPerBlock = 1.")

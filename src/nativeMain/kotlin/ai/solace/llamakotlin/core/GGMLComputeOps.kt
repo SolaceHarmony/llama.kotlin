@@ -392,6 +392,61 @@ private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTen
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q4_1 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
+        // K-Quant dequantization
+        GGMLType.Q2_K -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                dequantizeQ2_KBlock(graphAllocator, tensor, blockIdx, resultDataArray, fidx)
+                fidx += QK_K
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q2_K dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q2_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q3_K -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                dequantizeQ3_KBlock(graphAllocator, tensor, blockIdx, resultDataArray, fidx)
+                fidx += QK_K
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q3_K dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q3_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q4_K -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                dequantizeQ4_KBlock(graphAllocator, tensor, blockIdx, resultDataArray, fidx)
+                fidx += QK_K
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q4_K dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q4_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q5_K -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                dequantizeQ5_KBlock(graphAllocator, tensor, blockIdx, resultDataArray, fidx)
+                fidx += QK_K
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q5_K dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q5_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q6_K -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                dequantizeQ6_KBlock(graphAllocator, tensor, blockIdx, resultDataArray, fidx)
+                fidx += QK_K
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q6_K dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q6_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
+        GGMLType.Q8_K -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                dequantizeQ8_KBlock(graphAllocator, tensor, blockIdx, resultDataArray, fidx)
+                fidx += QK_K
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q8_K dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: Q8_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
         else -> println("Warning: dequantizeTensor from ${tensor.type} to F32 not fully implemented. Result is zeroed for ${tensor.name}.")
     }
     result.data = resultDataArray; return result
@@ -561,6 +616,165 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
                 currentElementInF32++
             }
             result.data = q4_1DataArray
+        }
+        // K-Quant quantization implementations
+        GGMLType.Q2_K -> {
+            require(numElements % QK_K == 0) { "Q2_K numElements $numElements not div by $QK_K" }
+            val numBlocks = numElements / QK_K
+            val blockByteSize = targetType.byteSize.toInt()
+            val resArr = ByteArray(numBlocks * blockByteSize)
+            result.data = resArr
+            
+            var currentElementIndex = 0
+            for (blockNum in 0 until numBlocks) {
+                // Gather QK_K elements for this block
+                val blockValues = FloatArray(QK_K)
+                for (i in 0 until QK_K) {
+                    // Convert flat index to multidimensional indices
+                    val flatIdx = currentElementIndex++
+                    var tempIdx = flatIdx.toLong()
+                    val indices = IntArray(GGML_MAX_DIMS)
+                    for (dim in 0 until GGML_MAX_DIMS) {
+                        if (tensorF32.ne[dim] > 0) {
+                            indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
+                            tempIdx /= tensorF32.ne[dim]
+                        }
+                    }
+                    blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
+                }
+                
+                quantizeQ2_KBlock(blockValues, resArr, blockNum * blockByteSize)
+            }
+        }
+        GGMLType.Q3_K -> {
+            require(numElements % QK_K == 0) { "Q3_K numElements $numElements not div by $QK_K" }
+            val numBlocks = numElements / QK_K
+            val blockByteSize = targetType.byteSize.toInt()
+            val resArr = ByteArray(numBlocks * blockByteSize)
+            result.data = resArr
+            
+            var currentElementIndex = 0
+            for (blockNum in 0 until numBlocks) {
+                val blockValues = FloatArray(QK_K)
+                for (i in 0 until QK_K) {
+                    val flatIdx = currentElementIndex++
+                    var tempIdx = flatIdx.toLong()
+                    val indices = IntArray(GGML_MAX_DIMS)
+                    for (dim in 0 until GGML_MAX_DIMS) {
+                        if (tensorF32.ne[dim] > 0) {
+                            indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
+                            tempIdx /= tensorF32.ne[dim]
+                        }
+                    }
+                    blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
+                }
+                
+                quantizeQ3_KBlock(blockValues, resArr, blockNum * blockByteSize)
+            }
+        }
+        GGMLType.Q4_K -> {
+            require(numElements % QK_K == 0) { "Q4_K numElements $numElements not div by $QK_K" }
+            val numBlocks = numElements / QK_K
+            val blockByteSize = targetType.byteSize.toInt()
+            val resArr = ByteArray(numBlocks * blockByteSize)
+            result.data = resArr
+            
+            var currentElementIndex = 0
+            for (blockNum in 0 until numBlocks) {
+                val blockValues = FloatArray(QK_K)
+                for (i in 0 until QK_K) {
+                    val flatIdx = currentElementIndex++
+                    var tempIdx = flatIdx.toLong()
+                    val indices = IntArray(GGML_MAX_DIMS)
+                    for (dim in 0 until GGML_MAX_DIMS) {
+                        if (tensorF32.ne[dim] > 0) {
+                            indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
+                            tempIdx /= tensorF32.ne[dim]
+                        }
+                    }
+                    blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
+                }
+                
+                quantizeQ4_KBlock(blockValues, resArr, blockNum * blockByteSize)
+            }
+        }
+        GGMLType.Q5_K -> {
+            require(numElements % QK_K == 0) { "Q5_K numElements $numElements not div by $QK_K" }
+            val numBlocks = numElements / QK_K
+            val blockByteSize = targetType.byteSize.toInt()
+            val resArr = ByteArray(numBlocks * blockByteSize)
+            result.data = resArr
+            
+            var currentElementIndex = 0
+            for (blockNum in 0 until numBlocks) {
+                val blockValues = FloatArray(QK_K)
+                for (i in 0 until QK_K) {
+                    val flatIdx = currentElementIndex++
+                    var tempIdx = flatIdx.toLong()
+                    val indices = IntArray(GGML_MAX_DIMS)
+                    for (dim in 0 until GGML_MAX_DIMS) {
+                        if (tensorF32.ne[dim] > 0) {
+                            indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
+                            tempIdx /= tensorF32.ne[dim]
+                        }
+                    }
+                    blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
+                }
+                
+                quantizeQ5_KBlock(blockValues, resArr, blockNum * blockByteSize)
+            }
+        }
+        GGMLType.Q6_K -> {
+            require(numElements % QK_K == 0) { "Q6_K numElements $numElements not div by $QK_K" }
+            val numBlocks = numElements / QK_K
+            val blockByteSize = targetType.byteSize.toInt()
+            val resArr = ByteArray(numBlocks * blockByteSize)
+            result.data = resArr
+            
+            var currentElementIndex = 0
+            for (blockNum in 0 until numBlocks) {
+                val blockValues = FloatArray(QK_K)
+                for (i in 0 until QK_K) {
+                    val flatIdx = currentElementIndex++
+                    var tempIdx = flatIdx.toLong()
+                    val indices = IntArray(GGML_MAX_DIMS)
+                    for (dim in 0 until GGML_MAX_DIMS) {
+                        if (tensorF32.ne[dim] > 0) {
+                            indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
+                            tempIdx /= tensorF32.ne[dim]
+                        }
+                    }
+                    blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
+                }
+                
+                quantizeQ6_KBlock(blockValues, resArr, blockNum * blockByteSize)
+            }
+        }
+        GGMLType.Q8_K -> {
+            require(numElements % QK_K == 0) { "Q8_K numElements $numElements not div by $QK_K" }
+            val numBlocks = numElements / QK_K
+            val blockByteSize = targetType.byteSize.toInt()
+            val resArr = ByteArray(numBlocks * blockByteSize)
+            result.data = resArr
+            
+            var currentElementIndex = 0
+            for (blockNum in 0 until numBlocks) {
+                val blockValues = FloatArray(QK_K)
+                for (i in 0 until QK_K) {
+                    val flatIdx = currentElementIndex++
+                    var tempIdx = flatIdx.toLong()
+                    val indices = IntArray(GGML_MAX_DIMS)
+                    for (dim in 0 until GGML_MAX_DIMS) {
+                        if (tensorF32.ne[dim] > 0) {
+                            indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
+                            tempIdx /= tensorF32.ne[dim]
+                        }
+                    }
+                    blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
+                }
+                
+                quantizeQ8_KBlock(blockValues, resArr, blockNum * blockByteSize)
+            }
         }
         GGMLType.Q5_0, GGMLType.Q5_1 -> { result.data = ByteArray((numElements * 5 + 7) / 8); println("Warn: Quant F32 to ${targetType.name} NI") }
         else -> { println("Error: Unsupp target quant type $targetType"); result.data = null }
@@ -821,6 +1035,642 @@ fun computeDiv(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
         else->throw NotImplementedError("computeDiv NI for type ${a.type}")
     }
     return res
+}
+
+// K-Quant Block Quantization Functions
+
+/**
+ * Quantizes a block of QK_K float values to Q2_K format.
+ * Q2_K structure: scales[QK_K/16], qs[QK_K/4], d (F16), dmin (F16)
+ * Effectively 2.625 bits per weight
+ */
+private fun quantizeQ2_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
+    require(blockValues.size == QK_K) { "Q2_K block must have $QK_K values" }
+    
+    // Find overall min/max for the block
+    var minVal = Float.POSITIVE_INFINITY
+    var maxVal = Float.NEGATIVE_INFINITY
+    for (value in blockValues) {
+        minVal = minOf(minVal, value)
+        maxVal = maxOf(maxVal, value)
+    }
+    
+    // Calculate super-block scales
+    val range = maxVal - minVal
+    val d = if (range > 0.0f) range / 3.0f else 1.0f  // scale for quantized scales 
+    val dmin = minVal // scale for quantized mins
+    
+    // Write super-block scales (d and dmin) at the end of the block
+    val dOffset = destOffset + QK_K/16 + QK_K/4
+    dest.setShortLe(dOffset, floatToHalf(d))
+    dest.setShortLe(dOffset + 2, floatToHalf(dmin))
+    
+    // Quantize in 16-element sub-blocks
+    for (subBlock in 0 until QK_K/16) {
+        val subBlockStart = subBlock * 16
+        val subBlockEnd = subBlockStart + 16
+        
+        // Find min/max for this sub-block
+        var subMin = Float.POSITIVE_INFINITY
+        var subMax = Float.NEGATIVE_INFINITY
+        for (i in subBlockStart until subBlockEnd) {
+            subMin = minOf(subMin, blockValues[i])
+            subMax = maxOf(subMax, blockValues[i])
+        }
+        
+        // Calculate and store quantized scale and min for this sub-block
+        val subRange = subMax - subMin
+        val scale = if (subRange > 0.0f) subRange / 3.0f else 1.0f
+        val quantizedScale = round((scale / d) * 15.0f).toInt().coerceIn(0, 15)
+        val quantizedMin = round((subMin - dmin) / d).toInt().coerceIn(0, 15)
+        
+        // Pack scale and min into one byte (4 bits each)
+        val scaleAndMin = (quantizedScale and 0x0F) or ((quantizedMin and 0x0F) shl 4)
+        dest[destOffset + subBlock] = scaleAndMin.toByte()
+        
+        // Quantize the 16 values in this sub-block to 2 bits each (4 values per byte)
+        for (i in 0 until 16 step 4) {
+            val globalIdx = subBlockStart + i
+            var packedByte = 0
+            for (j in 0 until 4) {
+                if (globalIdx + j < blockValues.size) {
+                    val value = blockValues[globalIdx + j]
+                    val quantizedValue = if (subRange > 0.0f) {
+                        round(((value - subMin) / subRange) * 3.0f).toInt().coerceIn(0, 3)
+                    } else 0
+                    packedByte = packedByte or ((quantizedValue and 0x03) shl (j * 2))
+                }
+            }
+            dest[destOffset + QK_K/16 + (subBlock * 4) + (i / 4)] = packedByte.toByte()
+        }
+    }
+}
+
+/**
+ * Quantizes a block of QK_K float values to Q3_K format.
+ * Q3_K structure: hmask[QK_K/8], qs[QK_K/4], scales[12], d (F16)
+ * Effectively 3.4375 bits per weight
+ */
+private fun quantizeQ3_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
+    require(blockValues.size == QK_K) { "Q3_K block must have $QK_K values" }
+    
+    // Find absolute maximum for super-block scale
+    var amax = 0.0f
+    for (value in blockValues) {
+        amax = maxOf(amax, abs(value))
+    }
+    
+    val d = if (amax > 0.0f) amax / 127.0f else 1.0f
+    val invD = if (d > 0.0f) 1.0f / d else 0.0f
+    
+    // Write super-block scale d at the end
+    val dOffset = destOffset + QK_K/8 + QK_K/4 + 12
+    dest.setShortLe(dOffset, floatToHalf(d))
+    
+    // Process in 16-element sub-blocks
+    for (subBlock in 0 until QK_K/16) {
+        val subBlockStart = subBlock * 16
+        
+        // Find max absolute value in this sub-block
+        var subAmax = 0.0f
+        for (i in 0 until 16) {
+            subAmax = maxOf(subAmax, abs(blockValues[subBlockStart + i]))
+        }
+        
+        // Calculate and store quantized scale for this sub-block
+        val scale = if (subAmax > 0.0f) subAmax / 7.0f else 1.0f
+        val quantizedScale = round((scale / d) * 63.0f).toInt().coerceIn(0, 63)
+        dest[destOffset + QK_K/8 + QK_K/4 + subBlock] = quantizedScale.toByte()
+        
+        // Quantize values in this sub-block
+        val invScale = if (scale > 0.0f) 1.0f / scale else 0.0f
+        for (i in 0 until 16) {
+            val value = blockValues[subBlockStart + i]
+            val quantizedValue = round(value * invScale).toInt().coerceIn(-7, 7)
+            
+            // Pack 3-bit values: 2 bits in qs, 1 bit in hmask
+            val byteIdx = (subBlockStart + i) / 4
+            val bitPos = ((subBlockStart + i) % 4) * 2
+            val maskByteIdx = (subBlockStart + i) / 8
+            val maskBitPos = (subBlockStart + i) % 8
+            
+            // Store low 2 bits in qs
+            val lowBits = quantizedValue and 0x03
+            dest[destOffset + QK_K/8 + byteIdx] = (dest[destOffset + QK_K/8 + byteIdx].toInt() or (lowBits shl bitPos)).toByte()
+            
+            // Store high bit in hmask
+            val highBit = (quantizedValue shr 2) and 0x01
+            dest[destOffset + maskByteIdx] = (dest[destOffset + maskByteIdx].toInt() or (highBit shl maskBitPos)).toByte()
+        }
+    }
+}
+
+/**
+ * Quantizes a block of QK_K float values to Q4_K format.
+ * Q4_K structure: d (F16), dmin (F16), scales[K_SCALE_SIZE], qs[QK_K/2]
+ * Effectively 4.5 bits per weight
+ */
+private fun quantizeQ4_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
+    require(blockValues.size == QK_K) { "Q4_K block must have $QK_K values" }
+    
+    // Find min and max for the entire block
+    var minVal = Float.POSITIVE_INFINITY
+    var maxVal = Float.NEGATIVE_INFINITY
+    for (value in blockValues) {
+        minVal = minOf(minVal, value)
+        maxVal = maxOf(maxVal, value)
+    }
+    
+    val range = maxVal - minVal
+    val d = if (range > 0.0f) range / 255.0f else 1.0f
+    val dmin = minVal
+    val invD = if (d > 0.0f) 1.0f / d else 0.0f
+    
+    // Write super-block scales
+    dest.setShortLe(destOffset, floatToHalf(d))
+    dest.setShortLe(destOffset + 2, floatToHalf(dmin))
+    
+    // Process in 32-element sub-blocks (8 sub-blocks total)
+    for (subBlock in 0 until 8) {
+        val subBlockStart = subBlock * 32
+        
+        // Find min/max for this sub-block
+        var subMin = Float.POSITIVE_INFINITY  
+        var subMax = Float.NEGATIVE_INFINITY
+        for (i in 0 until 32) {
+            val idx = subBlockStart + i
+            if (idx < blockValues.size) {
+                subMin = minOf(subMin, blockValues[idx])
+                subMax = maxOf(subMax, blockValues[idx])
+            }
+        }
+        
+        // Calculate sub-block scale and min
+        val subRange = subMax - subMin
+        val scale = if (subRange > 0.0f) subRange / 15.0f else 1.0f
+        val quantizedScale = round((scale / d) * 63.0f).toInt().coerceIn(0, 63)
+        val quantizedMin = round((subMin - dmin) / d).toInt().coerceIn(0, 63)
+        
+        // Store quantized scale and min (6 bits each, packed into 12 bits)
+        if (subBlock < K_SCALE_SIZE) {
+            dest[destOffset + 4 + subBlock] = ((quantizedScale and 0x3F) or ((quantizedMin and 0x03) shl 6)).toByte()
+            if (subBlock * 2 + 1 < K_SCALE_SIZE) {
+                dest[destOffset + 4 + subBlock * 2 + 1] = ((quantizedMin shr 2) and 0x0F).toByte()
+            }
+        }
+        
+        // Quantize and pack the 32 values (2 values per byte)
+        val invScale = if (scale > 0.0f) 1.0f / scale else 0.0f
+        for (i in 0 until 32 step 2) {
+            val idx1 = subBlockStart + i
+            val idx2 = subBlockStart + i + 1
+            
+            val q1 = if (idx1 < blockValues.size && subRange > 0.0f) {
+                round(((blockValues[idx1] - subMin) * invScale)).toInt().coerceIn(0, 15)
+            } else 0
+            
+            val q2 = if (idx2 < blockValues.size && subRange > 0.0f) {
+                round(((blockValues[idx2] - subMin) * invScale)).toInt().coerceIn(0, 15)
+            } else 0
+            
+            val packedNibbles = (q1 and 0x0F) or ((q2 and 0x0F) shl 4)
+            dest[destOffset + 4 + K_SCALE_SIZE + subBlock * 16 + i / 2] = packedNibbles.toByte()
+        }
+    }
+}
+
+/**
+ * Quantizes a block of QK_K float values to Q5_K format.
+ * Q5_K structure: d (F16), dmin (F16), scales[K_SCALE_SIZE], qh[QK_K/8], qs[QK_K/2]  
+ * Effectively 5.5 bits per weight
+ */
+private fun quantizeQ5_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
+    require(blockValues.size == QK_K) { "Q5_K block must have $QK_K values" }
+    
+    // Similar to Q4_K but with 5-bit quantization (0-31 range)
+    var minVal = Float.POSITIVE_INFINITY
+    var maxVal = Float.NEGATIVE_INFINITY
+    for (value in blockValues) {
+        minVal = minOf(minVal, value)
+        maxVal = maxOf(maxVal, value)
+    }
+    
+    val range = maxVal - minVal
+    val d = if (range > 0.0f) range / 511.0f else 1.0f
+    val dmin = minVal
+    
+    // Write super-block scales
+    dest.setShortLe(destOffset, floatToHalf(d))
+    dest.setShortLe(destOffset + 2, floatToHalf(dmin))
+    
+    // Process in 32-element sub-blocks
+    for (subBlock in 0 until 8) {
+        val subBlockStart = subBlock * 32
+        
+        // Find min/max for this sub-block
+        var subMin = Float.POSITIVE_INFINITY
+        var subMax = Float.NEGATIVE_INFINITY
+        for (i in 0 until 32) {
+            val idx = subBlockStart + i
+            if (idx < blockValues.size) {
+                subMin = minOf(subMin, blockValues[idx])
+                subMax = maxOf(subMax, blockValues[idx])
+            }
+        }
+        
+        val subRange = subMax - subMin
+        val scale = if (subRange > 0.0f) subRange / 31.0f else 1.0f
+        val quantizedScale = round((scale / d) * 63.0f).toInt().coerceIn(0, 63)
+        val quantizedMin = round((subMin - dmin) / d).toInt().coerceIn(0, 63)
+        
+        // Store scales (similar packing as Q4_K)
+        if (subBlock < K_SCALE_SIZE) {
+            dest[destOffset + 4 + subBlock] = ((quantizedScale and 0x3F) or ((quantizedMin and 0x03) shl 6)).toByte()
+        }
+        
+        // Quantize to 5 bits: 4 bits in qs, 1 bit in qh
+        val invScale = if (scale > 0.0f) 1.0f / scale else 0.0f
+        for (i in 0 until 32 step 2) {
+            val idx1 = subBlockStart + i
+            val idx2 = subBlockStart + i + 1
+            
+            val q1 = if (idx1 < blockValues.size && subRange > 0.0f) {
+                round((blockValues[idx1] - subMin) * invScale).toInt().coerceIn(0, 31)
+            } else 0
+            
+            val q2 = if (idx2 < blockValues.size && subRange > 0.0f) {
+                round((blockValues[idx2] - subMin) * invScale).toInt().coerceIn(0, 31)
+            } else 0
+            
+            // Store low 4 bits in qs
+            val qs1 = q1 and 0x0F
+            val qs2 = q2 and 0x0F
+            dest[destOffset + 4 + K_SCALE_SIZE + QK_K/8 + subBlock * 16 + i / 2] = (qs1 or (qs2 shl 4)).toByte()
+            
+            // Store high bits in qh
+            val qh1 = (q1 shr 4) and 0x01
+            val qh2 = (q2 shr 4) and 0x01
+            val qhByteIdx = destOffset + 4 + K_SCALE_SIZE + (idx1 / 8)
+            val qhBitPos = idx1 % 8
+            dest[qhByteIdx] = (dest[qhByteIdx].toInt() or (qh1 shl qhBitPos) or (qh2 shl (qhBitPos + 1))).toByte()
+        }
+    }
+}
+
+/**
+ * Quantizes a block of QK_K float values to Q6_K format.
+ * Q6_K structure: ql[QK_K/2], qh[QK_K/4], scales[QK_K/16], d (F16)
+ * Effectively 6.5625 bits per weight
+ */
+private fun quantizeQ6_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
+    require(blockValues.size == QK_K) { "Q6_K block must have $QK_K values" }
+    
+    // Find absolute maximum for the block
+    var amax = 0.0f
+    for (value in blockValues) {
+        amax = maxOf(amax, abs(value))
+    }
+    
+    val d = if (amax > 0.0f) amax / 127.0f else 1.0f
+    val invD = if (d > 0.0f) 1.0f / d else 0.0f
+    
+    // Write super-block scale at the end
+    val dOffset = destOffset + QK_K/2 + QK_K/4 + QK_K/16
+    dest.setShortLe(dOffset, floatToHalf(d))
+    
+    // Process in 16-element sub-blocks
+    for (subBlock in 0 until QK_K/16) {
+        val subBlockStart = subBlock * 16
+        
+        // Find max absolute value in sub-block
+        var subAmax = 0.0f
+        for (i in 0 until 16) {
+            val idx = subBlockStart + i
+            if (idx < blockValues.size) {
+                subAmax = maxOf(subAmax, abs(blockValues[idx]))
+            }
+        }
+        
+        // Calculate and store 8-bit scale for this sub-block
+        val scale = if (subAmax > 0.0f) subAmax / 63.0f else 1.0f
+        val quantizedScale = round((scale / d) * 127.0f).toInt().coerceIn(-128, 127)
+        dest[destOffset + QK_K/2 + QK_K/4 + subBlock] = quantizedScale.toByte()
+        
+        // Quantize values to 6 bits: 4 bits in ql, 2 bits in qh
+        val invScale = if (scale > 0.0f) 1.0f / scale else 0.0f
+        for (i in 0 until 16 step 2) {
+            val idx1 = subBlockStart + i
+            val idx2 = subBlockStart + i + 1
+            
+            val q1 = if (idx1 < blockValues.size) {
+                round(blockValues[idx1] * invScale + 32.0f).toInt().coerceIn(0, 63)
+            } else 32
+            
+            val q2 = if (idx2 < blockValues.size) {
+                round(blockValues[idx2] * invScale + 32.0f).toInt().coerceIn(0, 63)  
+            } else 32
+            
+            // Store low 4 bits in ql
+            val ql1 = q1 and 0x0F
+            val ql2 = q2 and 0x0F
+            dest[destOffset + subBlock * 8 + i / 2] = (ql1 or (ql2 shl 4)).toByte()
+            
+            // Store high 2 bits in qh
+            val qh1 = (q1 shr 4) and 0x03
+            val qh2 = (q2 shr 4) and 0x03
+            val qhByteIdx = destOffset + QK_K/2 + (subBlock * 4) + (i / 4)
+            val qhBitPos = (i % 4) * 2
+            dest[qhByteIdx] = (dest[qhByteIdx].toInt() or (qh1 shl qhBitPos) or (qh2 shl (qhBitPos + 2))).toByte()
+        }
+    }
+}
+
+/**
+ * Quantizes a block of QK_K float values to Q8_K format.
+ * Q8_K structure: d (F32), qs[QK_K], bsums[QK_K/16]
+ * This is used for intermediate quantization and dot products
+ */
+private fun quantizeQ8_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
+    require(blockValues.size == QK_K) { "Q8_K block must have $QK_K values" }
+    
+    // Find absolute maximum
+    var amax = 0.0f
+    for (value in blockValues) {
+        amax = maxOf(amax, abs(value))
+    }
+    
+    val d = if (amax > 0.0f) amax / 127.0f else 1.0f
+    val invD = if (d > 0.0f) 1.0f / d else 0.0f
+    
+    // Write scale as F32
+    dest.setFloatLe(destOffset, d)
+    
+    // Quantize all values to 8 bits
+    for (i in 0 until QK_K) {
+        val quantizedValue = round(blockValues[i] * invD).toInt().coerceIn(-128, 127)
+        dest[destOffset + 4 + i] = quantizedValue.toByte()
+    }
+    
+    // Calculate block sums for each group of 16
+    for (group in 0 until QK_K/16) {
+        var sum = 0
+        for (i in 0 until 16) {
+            val idx = group * 16 + i
+            sum += dest[destOffset + 4 + idx].toInt()
+        }
+        // Store sum as 16-bit integer
+        dest.setShortLe(destOffset + 4 + QK_K + group * 2, sum.toShort())
+    }
+}
+
+// K-Quant Block Dequantization Functions
+
+/**
+ * Dequantizes a Q2_K block to float values.
+ */
+private fun dequantizeQ2_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+    val d = tensor.getQ2_KBlockScale(graphAllocator, blockIndex)
+    val dmin = tensor.getQ2_KBlockScaleMin(graphAllocator, blockIndex)
+    
+    var elementIdx = destOffset
+    
+    // Process 16-element sub-blocks
+    for (subBlock in 0 until QK_K/16) {
+        // Get quantized scale and min for this sub-block
+        val scaleAndMin = tensor.getQ2_KScale(graphAllocator, blockIndex, subBlock)
+        val quantizedScale = scaleAndMin.toInt() and 0x0F
+        val quantizedMin = (scaleAndMin.toInt() shr 4) and 0x0F
+        
+        // Reconstruct scale and min
+        val scale = (quantizedScale.toFloat() / 15.0f) * d
+        val min = (quantizedMin.toFloat() * d) + dmin
+        
+        // Dequantize 16 values (4 values per byte, 2 bits each)
+        for (i in 0 until 16 step 4) {
+            val packedByte = tensor.getQ2_KQuant(graphAllocator, blockIndex, subBlock * 4 + i / 4)
+            
+            for (j in 0 until 4) {
+                if (elementIdx < dest.size) {
+                    val quantizedValue = (packedByte.toInt() shr (j * 2)) and 0x03
+                    val dequantizedValue = (quantizedValue.toFloat() / 3.0f) * scale + min
+                    dest[elementIdx++] = dequantizedValue
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dequantizes a Q3_K block to float values.
+ */
+private fun dequantizeQ3_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+    val d = tensor.getQ3_KBlockScale(graphAllocator, blockIndex)
+    
+    var elementIdx = destOffset
+    
+    // Process 16-element sub-blocks
+    for (subBlock in 0 until QK_K/16) {
+        // Get quantized scale for this sub-block (stored in scales array)
+        val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
+        val scaleOffset = blockByteOffset + QK_K/8 + QK_K/4 + subBlock
+        val buffer = graphAllocator.buffers[tensor.bufferId] ?: throw IllegalStateException("Tensor buffer not found")
+        val quantizedScale = buffer[(tensor.dataOffset + scaleOffset.toULong()).toInt()]
+        
+        // Reconstruct scale
+        val scale = ((quantizedScale.toInt() and 0x3F).toFloat() / 63.0f) * d
+        
+        // Dequantize 16 values
+        val subBlockStart = subBlock * 16
+        for (i in 0 until 16) {
+            if (elementIdx < dest.size) {
+                val globalIdx = subBlockStart + i
+                
+                // Get low 2 bits from qs
+                val qsByteIdx = globalIdx / 4
+                val qsBitPos = (globalIdx % 4) * 2
+                val qsOffset = blockByteOffset + QK_K/8 + qsByteIdx
+                val qsValue = (buffer[(tensor.dataOffset + qsOffset.toULong()).toInt()].toInt() shr qsBitPos) and 0x03
+                
+                // Get high bit from hmask
+                val hmaskByteIdx = globalIdx / 8
+                val hmaskBitPos = globalIdx % 8
+                val hmaskOffset = blockByteOffset + hmaskByteIdx
+                val hmaskValue = (buffer[(tensor.dataOffset + hmaskOffset.toULong()).toInt()].toInt() shr hmaskBitPos) and 0x01
+                
+                // Combine to get 3-bit value
+                val quantizedValue = qsValue or (hmaskValue shl 2)
+                val signedValue = if (quantizedValue > 3) quantizedValue - 8 else quantizedValue
+                
+                dest[elementIdx++] = signedValue.toFloat() * scale
+            }
+        }
+    }
+}
+
+/**
+ * Dequantizes a Q4_K block to float values.
+ */
+private fun dequantizeQ4_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+    val d = tensor.getQ4_KBlockScale(graphAllocator, blockIndex)
+    val dmin = tensor.getQ4_KBlockScaleMin(graphAllocator, blockIndex)
+    
+    var elementIdx = destOffset
+    
+    // Process 32-element sub-blocks
+    for (subBlock in 0 until 8) {
+        // Get quantized scale and min for this sub-block from the scales array
+        val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
+        val buffer = graphAllocator.buffers[tensor.bufferId] ?: throw IllegalStateException("Tensor buffer not found")
+        
+        // Read packed scale and min values
+        val scaleByteOffset = blockByteOffset + 4 + subBlock
+        val scaleByte = buffer[(tensor.dataOffset + scaleByteOffset.toULong()).toInt()]
+        val quantizedScale = scaleByte.toInt() and 0x3F
+        val quantizedMinLow = (scaleByte.toInt() shr 6) and 0x03
+        
+        val minByteOffset = blockByteOffset + 4 + subBlock * 2 + 1
+        val quantizedMinHigh = if (minByteOffset < blockByteOffset + 4 + K_SCALE_SIZE) {
+            buffer[(tensor.dataOffset + minByteOffset.toULong()).toInt()].toInt() and 0x0F
+        } else 0
+        val quantizedMin = quantizedMinLow or (quantizedMinHigh shl 2)
+        
+        // Reconstruct scale and min
+        val scale = (quantizedScale.toFloat() / 63.0f) * d
+        val min = (quantizedMin.toFloat() / 63.0f) * d + dmin
+        
+        // Dequantize 32 values (2 values per byte, 4 bits each)
+        val qsBaseOffset = blockByteOffset + 4 + K_SCALE_SIZE + subBlock * 16
+        for (i in 0 until 32 step 2) {
+            if (elementIdx < dest.size) {
+                val qsByte = buffer[(tensor.dataOffset + qsBaseOffset.toULong() + (i / 2).toULong()).toInt()]
+                
+                val q1 = qsByte.toInt() and 0x0F
+                val q2 = (qsByte.toInt() shr 4) and 0x0F
+                
+                dest[elementIdx++] = (q1.toFloat() / 15.0f) * scale + min
+                if (elementIdx < dest.size) {
+                    dest[elementIdx++] = (q2.toFloat() / 15.0f) * scale + min
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dequantizes a Q5_K block to float values.
+ */
+private fun dequantizeQ5_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+    val d = tensor.getQ5_KBlockScale(graphAllocator, blockIndex)
+    val buffer = graphAllocator.buffers[tensor.bufferId] ?: throw IllegalStateException("Tensor buffer not found")
+    val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
+    
+    var elementIdx = destOffset
+    
+    // Process 32-element sub-blocks  
+    for (subBlock in 0 until 8) {
+        // Get quantized scale and min for this sub-block
+        val scaleByteOffset = blockByteOffset + 4 + subBlock
+        val scaleByte = buffer[(tensor.dataOffset + scaleByteOffset.toULong()).toInt()]
+        val quantizedScale = scaleByte.toInt() and 0x3F
+        val quantizedMin = (scaleByte.toInt() shr 6) and 0x03
+        
+        val scale = (quantizedScale.toFloat() / 63.0f) * d
+        
+        // Dequantize 32 values (5-bit: 4 bits in qs, 1 bit in qh)
+        val qsBaseOffset = blockByteOffset + 4 + K_SCALE_SIZE + QK_K/8 + subBlock * 16
+        val qhBaseOffset = blockByteOffset + 4 + K_SCALE_SIZE
+        
+        for (i in 0 until 32 step 2) {
+            if (elementIdx < dest.size) {
+                // Get 4-bit values from qs
+                val qsByte = buffer[(tensor.dataOffset + qsBaseOffset.toULong() + (i / 2).toULong()).toInt()]
+                val qs1 = qsByte.toInt() and 0x0F
+                val qs2 = (qsByte.toInt() shr 4) and 0x0F
+                
+                // Get high bits from qh
+                val globalIdx1 = subBlock * 32 + i
+                val globalIdx2 = subBlock * 32 + i + 1
+                val qhByte1 = buffer[(tensor.dataOffset + qhBaseOffset.toULong() + (globalIdx1 / 8).toULong()).toInt()]
+                val qhByte2 = buffer[(tensor.dataOffset + qhBaseOffset.toULong() + (globalIdx2 / 8).toULong()).toInt()]
+                
+                val qh1 = (qhByte1.toInt() shr (globalIdx1 % 8)) and 0x01
+                val qh2 = (qhByte2.toInt() shr (globalIdx2 % 8)) and 0x01
+                
+                // Combine to get 5-bit values
+                val q1 = qs1 or (qh1 shl 4)
+                val q2 = qs2 or (qh2 shl 4)
+                
+                dest[elementIdx++] = (q1.toFloat() / 31.0f) * scale
+                if (elementIdx < dest.size) {
+                    dest[elementIdx++] = (q2.toFloat() / 31.0f) * scale
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dequantizes a Q6_K block to float values.
+ */
+private fun dequantizeQ6_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+    val d = tensor.getQ6_KBlockScale(graphAllocator, blockIndex)
+    val buffer = graphAllocator.buffers[tensor.bufferId] ?: throw IllegalStateException("Tensor buffer not found")
+    val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
+    
+    var elementIdx = destOffset
+    
+    // Process 16-element sub-blocks
+    for (subBlock in 0 until QK_K/16) {
+        // Get 8-bit scale for this sub-block
+        val scaleOffset = blockByteOffset + QK_K/2 + QK_K/4 + subBlock
+        val quantizedScale = buffer[(tensor.dataOffset + scaleOffset.toULong()).toInt()]
+        val scale = (quantizedScale.toFloat() / 127.0f) * d
+        
+        // Dequantize 16 values (6-bit: 4 bits in ql, 2 bits in qh)
+        val qlBaseOffset = blockByteOffset + subBlock * 8
+        val qhBaseOffset = blockByteOffset + QK_K/2 + subBlock * 4
+        
+        for (i in 0 until 16 step 2) {
+            if (elementIdx < dest.size) {
+                // Get 4-bit values from ql
+                val qlByte = buffer[(tensor.dataOffset + qlBaseOffset.toULong() + (i / 2).toULong()).toInt()]
+                val ql1 = qlByte.toInt() and 0x0F
+                val ql2 = (qlByte.toInt() shr 4) and 0x0F
+                
+                // Get 2-bit values from qh
+                val qhByte = buffer[(tensor.dataOffset + qhBaseOffset.toULong() + (i / 4).toULong()).toInt()]
+                val qhBitPos = (i % 4) * 2
+                val qh1 = (qhByte.toInt() shr qhBitPos) and 0x03
+                val qh2 = (qhByte.toInt() shr (qhBitPos + 2)) and 0x03
+                
+                // Combine to get 6-bit values
+                val q1 = ql1 or (qh1 shl 4)
+                val q2 = ql2 or (qh2 shl 4)
+                
+                dest[elementIdx++] = ((q1.toFloat() - 32.0f) / 63.0f) * scale
+                if (elementIdx < dest.size) {
+                    dest[elementIdx++] = ((q2.toFloat() - 32.0f) / 63.0f) * scale
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dequantizes a Q8_K block to float values.
+ */
+private fun dequantizeQ8_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+    val d = tensor.getQ8_KBlockScale(graphAllocator, blockIndex)
+    
+    var elementIdx = destOffset
+    
+    // Simple 8-bit dequantization
+    for (i in 0 until QK_K) {
+        if (elementIdx < dest.size) {
+            val quantizedValue = tensor.getQ8_KWeight(graphAllocator, blockIndex, i)
+            dest[elementIdx++] = quantizedValue.toFloat() * d
+        }
+    }
 }
 
 [end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
