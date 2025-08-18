@@ -317,3 +317,92 @@ fun div(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
         result
     }
 }
+
+/**
+ * Creates a new 3D tensor with the specified type and dimensions.
+ *
+ * @param context The GGML context
+ * @param type The tensor data type
+ * @param ne0 The number of elements in the first dimension
+ * @param ne1 The number of elements in the second dimension
+ * @param ne2 The number of elements in the third dimension
+ * @return The new tensor
+ */
+fun createTensor3D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int, ne2: Int): GGMLTensor {
+    // Create a new tensor with the specified type
+    val tensor = GGMLTensor(type = type)
+
+    // Set the dimensions
+    tensor.ne[0] = ne0.toLong()
+    tensor.ne[1] = ne1.toLong()
+    tensor.ne[2] = ne2.toLong()
+    for (i in 3 until GGML_MAX_DIMS) {
+        tensor.ne[i] = 1
+    }
+
+    // Set strides based on the data type
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
+
+    // Allocate memory for the tensor if context is provided
+    if (context.memBuffer != null && !context.noAlloc) {
+        // Calculate total size
+        val totalSize = ne0 * ne1 * ne2
+
+        // Allocate memory based on the tensor type
+        when (type) {
+            GGMLType.F32 -> tensor.data = FloatArray(totalSize) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(totalSize) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(totalSize) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(totalSize) { 0L }
+            else -> tensor.data = null // For quantized types, we'll implement later
+        }
+    }
+
+    return tensor
+}
+
+/**
+ * Creates a new 4D tensor with the specified type and dimensions.
+ *
+ * @param context The GGML context
+ * @param type The tensor data type
+ * @param ne0 The number of elements in the first dimension
+ * @param ne1 The number of elements in the second dimension
+ * @param ne2 The number of elements in the third dimension  
+ * @param ne3 The number of elements in the fourth dimension
+ * @return The new tensor
+ */
+fun createTensor4D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int, ne2: Int, ne3: Int): GGMLTensor {
+    // Create a new tensor with the specified type
+    val tensor = GGMLTensor(type = type)
+
+    // Set the dimensions
+    tensor.ne[0] = ne0.toLong()
+    tensor.ne[1] = ne1.toLong()
+    tensor.ne[2] = ne2.toLong()
+    tensor.ne[3] = ne3.toLong()
+
+    // Set strides based on the data type
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
+
+    // Allocate memory for the tensor if context is provided
+    if (context.memBuffer != null && !context.noAlloc) {
+        // Calculate total size
+        val totalSize = ne0 * ne1 * ne2 * ne3
+
+        // Allocate memory based on the tensor type
+        when (type) {
+            GGMLType.F32 -> tensor.data = FloatArray(totalSize) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(totalSize) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(totalSize) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(totalSize) { 0L }
+            else -> tensor.data = null // For quantized types, we'll implement later
+        }
+    }
+
+    return tensor
+}

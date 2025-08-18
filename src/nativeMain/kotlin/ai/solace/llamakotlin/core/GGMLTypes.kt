@@ -56,6 +56,13 @@ internal fun ByteArray.setLongLe(offset: Int, value: Long) {
     }
 }
 
+internal fun ByteArray.setLongLe(offset: Int, value: Long) {
+    require(offset + Long.SIZE_BYTES <= size) { "Offset $offset + ${Long.SIZE_BYTES} > size $size" }
+    for (i in 0 until Long.SIZE_BYTES) {
+        this[offset + i] = ((value shr (i * 8)) and 0xFF).toByte()
+    }
+}
+
 
 /**
  * Kotlin Native port of GGML tensor library core data types.
@@ -123,7 +130,43 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     I16("int16", 2uL),    // 16-bit integer
     I32("int32", 4uL),    // 32-bit integer
     I64("int64", 8uL),    // 64-bit integer
-    COUNT("count", 0uL)   // Number of types (not a real data type)
+    COUNT("count", 0uL);   // Number of types (not a real data type)
+
+    /**
+     * Get size in bytes as Int (convenience property)
+     */
+    val sizeBytes: Int
+        get() = byteSize.toInt()
+
+    companion object {
+        /**
+         * Create GGMLType from integer value based on C++ enum order
+         */
+        fun fromValue(value: Int): GGMLType? {
+            return when (value) {
+                0 -> F32
+                1 -> F16
+                2 -> Q4_0
+                3 -> Q4_1
+                4 -> Q5_0
+                5 -> Q5_1
+                6 -> Q8_0
+                7 -> Q8_1
+                8 -> Q2_K
+                9 -> Q3_K
+                10 -> Q4_K
+                11 -> Q5_K
+                12 -> Q6_K
+                13 -> Q8_K
+                14 -> Q1_5_K
+                15 -> I8
+                16 -> I16
+                17 -> I32
+                18 -> I64
+                else -> null
+            }
+        }
+    }
 }
 
 /**
