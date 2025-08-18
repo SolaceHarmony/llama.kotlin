@@ -151,6 +151,267 @@ internal fun computeDotProductQ40F32(
     return sumF32
 }
 
+/**
+ * Computes the symmetric dot product of a row from an F32 tensor and a column from a Q4_0 tensor.
+ * This is the symmetric case: F32 x Q4_0
+ */
+internal fun computeDotProductF32Q40(
+    graphAllocator: GGMLGraphAllocator,
+    tensorF32: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInF32: Int,
+    colIndexInQ40: Int,
+    commonDimK: Int
+): Float {
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductF32Q40: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ40.type == GGMLType.Q4_0) { "computeDotProductF32Q40: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
+    require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ40.ne[1].toInt() == commonDimK) { "tensorQ40 K dim (${tensorQ40.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
+        // Access tensorQ40[k, colIndexInQ40] - row k, column colIndexInQ40
+        val flatIndexInQ40 = k * tensorQ40.ne[0].toInt() + colIndexInQ40
+        val blockIndexQ40 = flatIndexInQ40 / QK4_0
+        val itemInBlockQ40 = flatIndexInQ40 % QK4_0
+        val scale = tensorQ40.getQ4_0BlockScale(graphAllocator, blockIndexQ40)
+        val qNibble = tensorQ40.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40, itemInBlockQ40)
+        val dequantizedQ40Value = scale * (qNibble.toFloat() - 8.0f)
+        sumF32 += f32Value * dequantizedQ40Value
+    }
+    return sumF32
+}
+
+/**
+ * Computes the symmetric dot product of a row from an F32 tensor and a column from a Q4_1 tensor.
+ * This is the symmetric case: F32 x Q4_1
+ */
+internal fun computeDotProductF32Q41(
+    graphAllocator: GGMLGraphAllocator,
+    tensorF32: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ41: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInF32: Int,
+    colIndexInQ41: Int,
+    commonDimK: Int
+): Float {
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductF32Q41: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ41.type == GGMLType.Q4_1) { "computeDotProductF32Q41: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
+    require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ41.ne[1].toInt() == commonDimK) { "tensorQ41 K dim (${tensorQ41.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
+        // Access tensorQ41[k, colIndexInQ41] - row k, column colIndexInQ41
+        val flatIndexInQ41 = k * tensorQ41.ne[0].toInt() + colIndexInQ41
+        val blockIndexQ41 = flatIndexInQ41 / QK4_1
+        val itemInBlockQ41 = flatIndexInQ41 % QK4_1
+        
+        val scaleD = tensorQ41.getQ4_1BlockScale(graphAllocator, blockIndexQ41)
+        val minM = tensorQ41.getQ4_1BlockMin(graphAllocator, blockIndexQ41)
+        val qNibble = tensorQ41.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41, itemInBlockQ41)
+        val dequantizedQ41Value = scaleD * qNibble.toFloat() + minM
+        
+        sumF32 += f32Value * dequantizedQ41Value
+    }
+    return sumF32
+}
+
+/**
+ * Computes the symmetric dot product of a row from an F32 tensor and a column from a Q8_0 tensor.
+ * This is the symmetric case: F32 x Q8_0
+ */
+internal fun computeDotProductF32Q80(
+    graphAllocator: GGMLGraphAllocator,
+    tensorF32: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ80: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInF32: Int,
+    colIndexInQ80: Int,
+    commonDimK: Int
+): Float {
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductF32Q80: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ80.type == GGMLType.Q8_0) { "computeDotProductF32Q80: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ80.ne[1].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
+        // Access tensorQ80[k, colIndexInQ80] - row k, column colIndexInQ80
+        val flatIndexInQ80 = k * tensorQ80.ne[0].toInt() + colIndexInQ80
+        val blockIndexQ80 = flatIndexInQ80 / QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % QK8_0
+        val scale = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
+        val qWeight = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
+        val dequantizedQ80Value = scale * qWeight.toFloat()
+        sumF32 += f32Value * dequantizedQ80Value
+    }
+    return sumF32
+}
+
+/**
+ * Computes the direct quantized dot product Q8_0 x Q8_0 -> F32.
+ * This avoids dequantization by computing the dot product directly on quantized values.
+ */
+internal fun computeDotProductQ80Q80(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ80A: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ80B: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ80A: Int,
+    colIndexInQ80B: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ80A.type == GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80A must be Q8_0. Got ${tensorQ80A.type}" }
+    require(tensorQ80B.type == GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80B must be Q8_0. Got ${tensorQ80B.type}" }
+    require(tensorQ80A.ne[0].toInt() == commonDimK) { "tensorQ80A K dim (${tensorQ80A.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ80B.ne[1].toInt() == commonDimK) { "tensorQ80B K dim (${tensorQ80B.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ80A[rowIndexInQ80A, k]
+        val flatIndexInQ80A = rowIndexInQ80A * commonDimK + k
+        val blockIndexQ80A = flatIndexInQ80A / QK8_0
+        val itemInBlockQ80A = flatIndexInQ80A % QK8_0
+        val scaleA = tensorQ80A.getQ8_0BlockScale(graphAllocator, blockIndexQ80A)
+        val qWeightA = tensorQ80A.getQ8_0Weight(graphAllocator, blockIndexQ80A, itemInBlockQ80A)
+
+        // Access tensorQ80B[k, colIndexInQ80B]
+        val flatIndexInQ80B = k * tensorQ80B.ne[0].toInt() + colIndexInQ80B
+        val blockIndexQ80B = flatIndexInQ80B / QK8_0
+        val itemInBlockQ80B = flatIndexInQ80B % QK8_0
+        val scaleB = tensorQ80B.getQ8_0BlockScale(graphAllocator, blockIndexQ80B)
+        val qWeightB = tensorQ80B.getQ8_0Weight(graphAllocator, blockIndexQ80B, itemInBlockQ80B)
+
+        // Direct quantized multiplication: (scaleA * qWeightA) * (scaleB * qWeightB) = (scaleA * scaleB) * (qWeightA * qWeightB)
+        sumF32 += scaleA * scaleB * (qWeightA.toFloat() * qWeightB.toFloat())
+    }
+    return sumF32
+}
+
+/**
+ * Computes the direct quantized dot product Q4_0 x Q4_0 -> F32.
+ */
+internal fun computeDotProductQ40Q40(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ40A: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40B: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ40A: Int,
+    colIndexInQ40B: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ40A.type == GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40A must be Q4_0. Got ${tensorQ40A.type}" }
+    require(tensorQ40B.type == GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40B must be Q4_0. Got ${tensorQ40B.type}" }
+    require(tensorQ40A.ne[0].toInt() == commonDimK) { "tensorQ40A K dim (${tensorQ40A.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ40B.ne[1].toInt() == commonDimK) { "tensorQ40B K dim (${tensorQ40B.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ40A[rowIndexInQ40A, k]
+        val flatIndexInQ40A = rowIndexInQ40A * commonDimK + k
+        val blockIndexQ40A = flatIndexInQ40A / QK4_0
+        val itemInBlockQ40A = flatIndexInQ40A % QK4_0
+        val scaleA = tensorQ40A.getQ4_0BlockScale(graphAllocator, blockIndexQ40A)
+        val qNibbleA = tensorQ40A.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40A, itemInBlockQ40A)
+
+        // Access tensorQ40B[k, colIndexInQ40B]
+        val flatIndexInQ40B = k * tensorQ40B.ne[0].toInt() + colIndexInQ40B
+        val blockIndexQ40B = flatIndexInQ40B / QK4_0
+        val itemInBlockQ40B = flatIndexInQ40B % QK4_0
+        val scaleB = tensorQ40B.getQ4_0BlockScale(graphAllocator, blockIndexQ40B)
+        val qNibbleB = tensorQ40B.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40B, itemInBlockQ40B)
+
+        // Direct quantized multiplication: Q4_0 values are centered at 8, so (qNibble - 8) * scale
+        // (scaleA * (qNibbleA - 8)) * (scaleB * (qNibbleB - 8))
+        val dequantA = scaleA * (qNibbleA.toFloat() - 8.0f)
+        val dequantB = scaleB * (qNibbleB.toFloat() - 8.0f)
+        sumF32 += dequantA * dequantB
+    }
+    return sumF32
+}
+
+/**
+ * Computes the direct quantized dot product Q4_1 x Q4_1 -> F32.
+ */
+internal fun computeDotProductQ41Q41(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ41A: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ41B: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ41A: Int,
+    colIndexInQ41B: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ41A.type == GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41A must be Q4_1. Got ${tensorQ41A.type}" }
+    require(tensorQ41B.type == GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41B must be Q4_1. Got ${tensorQ41B.type}" }
+    require(tensorQ41A.ne[0].toInt() == commonDimK) { "tensorQ41A K dim (${tensorQ41A.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ41B.ne[1].toInt() == commonDimK) { "tensorQ41B K dim (${tensorQ41B.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ41A[rowIndexInQ41A, k]
+        val flatIndexInQ41A = rowIndexInQ41A * commonDimK + k
+        val blockIndexQ41A = flatIndexInQ41A / QK4_1
+        val itemInBlockQ41A = flatIndexInQ41A % QK4_1
+        val scaleDA = tensorQ41A.getQ4_1BlockScale(graphAllocator, blockIndexQ41A)
+        val minMA = tensorQ41A.getQ4_1BlockMin(graphAllocator, blockIndexQ41A)
+        val qNibbleA = tensorQ41A.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41A, itemInBlockQ41A)
+
+        // Access tensorQ41B[k, colIndexInQ41B]
+        val flatIndexInQ41B = k * tensorQ41B.ne[0].toInt() + colIndexInQ41B
+        val blockIndexQ41B = flatIndexInQ41B / QK4_1
+        val itemInBlockQ41B = flatIndexInQ41B % QK4_1
+        val scaleDB = tensorQ41B.getQ4_1BlockScale(graphAllocator, blockIndexQ41B)
+        val minMB = tensorQ41B.getQ4_1BlockMin(graphAllocator, blockIndexQ41B)
+        val qNibbleB = tensorQ41B.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41B, itemInBlockQ41B)
+
+        // Direct quantized multiplication: Q4_1 values are dequantized as scale * nibble + min
+        val dequantA = scaleDA * qNibbleA.toFloat() + minMA
+        val dequantB = scaleDB * qNibbleB.toFloat() + minMB
+        sumF32 += dequantA * dequantB
+    }
+    return sumF32
+}
+
+/**
+ * Computes mixed quantized dot product Q8_0 x Q4_0 -> F32.
+ */
+internal fun computeDotProductQ80Q40(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ80: GGMLTensor,     // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40: GGMLTensor,     // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ80: Int,
+    colIndexInQ40: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ80.type == GGMLType.Q8_0) { "computeDotProductQ80Q40: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorQ40.type == GGMLType.Q4_0) { "computeDotProductQ80Q40: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
+    require(tensorQ80.ne[0].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ40.ne[1].toInt() == commonDimK) { "tensorQ40 K dim (${tensorQ40.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ80[rowIndexInQ80, k]
+        val flatIndexInQ80 = rowIndexInQ80 * commonDimK + k
+        val blockIndexQ80 = flatIndexInQ80 / QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % QK8_0
+        val scaleQ80 = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
+        val qWeightQ80 = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
+
+        // Access tensorQ40[k, colIndexInQ40]
+        val flatIndexInQ40 = k * tensorQ40.ne[0].toInt() + colIndexInQ40
+        val blockIndexQ40 = flatIndexInQ40 / QK4_0
+        val itemInBlockQ40 = flatIndexInQ40 % QK4_0
+        val scaleQ40 = tensorQ40.getQ4_0BlockScale(graphAllocator, blockIndexQ40)
+        val qNibbleQ40 = tensorQ40.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40, itemInBlockQ40)
+
+        // Direct quantized multiplication
+        val dequantQ80 = scaleQ80 * qWeightQ80.toFloat()
+        val dequantQ40 = scaleQ40 * (qNibbleQ40.toFloat() - 8.0f)
+        sumF32 += dequantQ80 * dequantQ40
+    }
+    return sumF32
+}
+
 // Helper to iterate N-dimensionally
 internal fun applyNDIter(tensor: GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
     val n0 = tensor.ne[0].toInt(); val n1 = tensor.ne[1].toInt()
@@ -659,6 +920,66 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
         result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
         val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
         for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ80F32(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+
+    // Symmetric optimizations: F32 x Q_type
+    if (a.type == GGMLType.F32 && b.type == GGMLType.Q4_0) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductF32Q40(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+    if (a.type == GGMLType.F32 && b.type == GGMLType.Q4_1) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductF32Q41(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+    if (a.type == GGMLType.F32 && b.type == GGMLType.Q8_0) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductF32Q80(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+
+    // Direct quantized-to-quantized optimizations: Q_type x Q_type -> F32
+    if (a.type == GGMLType.Q8_0 && b.type == GGMLType.Q8_0) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ80Q80(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+    if (a.type == GGMLType.Q4_0 && b.type == GGMLType.Q4_0) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ40Q40(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+    if (a.type == GGMLType.Q4_1 && b.type == GGMLType.Q4_1) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ41Q41(graphAllocator,a,b,i,j,K) } }
+        return result
+    }
+    if (a.type == GGMLType.Q8_0 && b.type == GGMLType.Q4_0) {
+        val result = GGMLTensor(GGMLType.F32); result.ne = longArrayOf(N.toLong(), M.toLong(), 1L, 1L)
+        for(i_dim in 2 until GGML_MAX_DIMS) { val neA=a.ne.getOrElse(i_dim){1L}; val neB=b.ne.getOrElse(i_dim){1L}; result.ne[i_dim]=maxOf(neA,neB); if(!(neA==neB || neA==1L || neB==1L)) throw IllegalArgumentException("Matmul broadcast fail dim $i_dim: ${a.ne[i_dim]} vs ${b.ne[i_dim]}") }
+        result.nb[0]=result.type.byteSize; for(d in 1 until GGML_MAX_DIMS){result.nb[d]=result.ne.getOrElse(d-1){1L}.toULong()*result.nb[d-1]}
+        val resArr=FloatArray(M*N); result.data=resArr; var flatIdx=0
+        for(i in 0 until M){ for(j in 0 until N){ resArr[flatIdx++]=computeDotProductQ80Q40(graphAllocator,a,b,i,j,K) } }
         return result
     }
 
