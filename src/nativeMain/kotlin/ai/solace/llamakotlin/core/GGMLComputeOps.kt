@@ -2003,6 +2003,229 @@ private fun dequantizeQ8_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGML
     }
 }
 
+/**
+ * Compute element-wise square (SQR) operation.
+ * For each element x in tensor a, compute x^2.
+ */
+fun computeSqr(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val res = GGMLTensor(a.type)
+    res.ne = a.ne.copyOf()
+    res.nb = a.nb.copyOf()
+    val ts = res.numElements().toInt()
+    
+    when (a.type) {
+        GGMLType.F32 -> {
+            val resultData = FloatArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, ind ->
+                val value = a.getFloat(graphAllocator, *ind)
+                resultData[flatIdx] = value * value
+            }
+        }
+        GGMLType.F16 -> {
+            val resultData = ShortArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, ind ->
+                val value = halfToFloat(a.getHalf(graphAllocator, *ind))
+                resultData[flatIdx] = floatToHalf(value * value)
+            }
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getInt(graphAllocator, *indices).toLong()
+                val squared = value * value
+                // Check for overflow
+                if (squared > Int.MAX_VALUE) {
+                    resultData[flatIdx] = Int.MAX_VALUE
+                } else if (squared < Int.MIN_VALUE) {
+                    resultData[flatIdx] = Int.MIN_VALUE
+                } else {
+                    resultData[flatIdx] = squared.toInt()
+                }
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getShort(graphAllocator, *indices).toInt()
+                val squared = value * value
+                resultData[flatIdx] = squared.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getLong(graphAllocator, *indices)
+                // Check for overflow by comparing to sqrt(Long.MAX_VALUE)
+                if (kotlin.math.abs(value) > 3037000499L) { // Approximate sqrt(Long.MAX_VALUE)
+                    resultData[flatIdx] = if (value >= 0) Long.MAX_VALUE else Long.MAX_VALUE
+                } else {
+                    resultData[flatIdx] = value * value
+                }
+            }
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            val af = dequantizeTensor(graphAllocator, a)
+            val rf = computeSqr(graphAllocator, context, af)
+            val qr = quantizeTensor(graphAllocator, rf, a.type)
+            res.data = qr.data
+        }
+        else -> throw NotImplementedError("computeSqr NI for type ${a.type}")
+    }
+    return res
+}
+/**
+ * Compute element-wise square (SQR) operation.
+ * For each element x in tensor a, compute x^2.
+ */
+fun computeSqr(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val res = GGMLTensor(a.type)
+    res.ne = a.ne.copyOf()
+    res.nb = a.nb.copyOf()
+    val ts = res.numElements().toInt()
+    
+    when (a.type) {
+        GGMLType.F32 -> {
+            val resultData = FloatArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, ind ->
+                val value = a.getFloat(graphAllocator, *ind)
+                resultData[flatIdx] = value * value
+            }
+        }
+        GGMLType.F16 -> {
+            val resultData = ShortArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, ind ->
+                val value = halfToFloat(a.getHalf(graphAllocator, *ind))
+                resultData[flatIdx] = floatToHalf(value * value)
+            }
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getInt(graphAllocator, *indices).toLong()
+                val squared = value * value
+                // Check for overflow
+                if (squared > Int.MAX_VALUE) {
+                    resultData[flatIdx] = Int.MAX_VALUE
+                } else if (squared < Int.MIN_VALUE) {
+                    resultData[flatIdx] = Int.MIN_VALUE
+                } else {
+                    resultData[flatIdx] = squared.toInt()
+                }
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getShort(graphAllocator, *indices).toInt()
+                val squared = value * value
+                resultData[flatIdx] = squared.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getLong(graphAllocator, *indices)
+                // Check for overflow by comparing to sqrt(Long.MAX_VALUE)
+                if (kotlin.math.abs(value) > 3037000499L) { // Approximate sqrt(Long.MAX_VALUE)
+                    resultData[flatIdx] = if (value >= 0) Long.MAX_VALUE else Long.MAX_VALUE
+                } else {
+                    resultData[flatIdx] = value * value
+                }
+            }
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            val af = dequantizeTensor(graphAllocator, a)
+            val rf = computeSqr(graphAllocator, context, af)
+            val qr = quantizeTensor(graphAllocator, rf, a.type)
+            res.data = qr.data
+        }
+        else -> throw NotImplementedError("computeSqr NI for type ${a.type}")
+    }
+    return res
+}
+
+/**
+ * Compute element-wise square root (SQRT) operation.
+ * For each element x in tensor a, compute sqrt(x).
+ */
+fun computeSqrt(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
+    val res = GGMLTensor(a.type)
+    res.ne = a.ne.copyOf()
+    res.nb = a.nb.copyOf()
+    val ts = res.numElements().toInt()
+    
+    when (a.type) {
+        GGMLType.F32 -> {
+            val resultData = FloatArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, ind ->
+                val value = a.getFloat(graphAllocator, *ind)
+                resultData[flatIdx] = if (value < 0.0f) Float.NaN else kotlin.math.sqrt(value)
+            }
+        }
+        GGMLType.F16 -> {
+            val resultData = ShortArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, ind ->
+                val value = halfToFloat(a.getHalf(graphAllocator, *ind))
+                val sqrtValue = if (value < 0.0f) Float.NaN else kotlin.math.sqrt(value)
+                resultData[flatIdx] = floatToHalf(sqrtValue)
+            }
+        }
+        GGMLType.I32 -> {
+            val resultData = IntArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getInt(graphAllocator, *indices)
+                if (value < 0) {
+                    throw IllegalArgumentException("Cannot compute square root of negative integer: $value")
+                }
+                resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toInt()
+            }
+        }
+        GGMLType.I16 -> {
+            val resultData = ShortArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getShort(graphAllocator, *indices).toInt()
+                if (value < 0) {
+                    throw IllegalArgumentException("Cannot compute square root of negative integer: $value")
+                }
+                resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        GGMLType.I64 -> {
+            val resultData = LongArray(ts)
+            res.data = resultData
+            applyNDIter(a, ts) { flatIdx, indices ->
+                val value = a.getLong(graphAllocator, *indices)
+                if (value < 0) {
+                    throw IllegalArgumentException("Cannot compute square root of negative long: $value")
+                }
+                resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toLong()
+            }
+        }
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1 -> {
+            val af = dequantizeTensor(graphAllocator, a)
+            val rf = computeSqrt(graphAllocator, context, af)
+            val qr = quantizeTensor(graphAllocator, rf, a.type)
+            res.data = qr.data
+        }
+        else -> throw NotImplementedError("computeSqrt NI for type ${a.type}")
+    }
+    return res
+}
+
 [end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
 
 [end of src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLComputeOps.kt]
