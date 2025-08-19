@@ -16,6 +16,8 @@ This document outlines the design for implementing the actual computation functi
 
 See `COMPUTE_OPERATIONS_REFACTOR_SUMMARY.md` for complete details of the implementation.
 
+**Note**: While some legacy function examples may remain in this document for reference, all current implementations follow the destination-based pattern shown in the examples above and detailed in the refactor summary.
+
 ## Purpose
 
 The GGMLComputeOps.kt file provides the actual computation functionality for tensor operations using a **destination-based architecture**. Operations write results directly into pre-allocated destination tensors rather than creating new tensors, enabling efficient memory management and graph optimization.
@@ -86,132 +88,57 @@ fun computeAdd(
         // Handle other types...
     }
 }
-/**
- * Adds two tensors element-wise.
- *
- * @param context The GGML context
- * @param a The first tensor
- * @param b The second tensor
- * @return The result tensor
- */
-fun computeAdd(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions
-    for (i in 0 until GGML_MAX_DIMS) {
-        if (a.ne[i] != b.ne[i]) {
-            throw IllegalArgumentException("Incompatible dimensions for addition")
-        }
-    }
-
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
-    val totalSize = calculateTotalSize(a.ne)
-
-    // Perform the addition based on the tensor type
-    when (a.type) {
-        GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = aData[i] + bData[i]
-            }
-
-            result.data = resultData
-        }
-        GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
-            for (i in 0 until totalSize) {
-                resultData[i] = aData[i] + bData[i]
-            }
-
-            result.data = resultData
-        }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
-    }
-
-    return result
-}
 ```
 
-#### computeMul
+#### computeMul (Updated)
 
 ```kotlin
 /**
- * Multiplies two tensors element-wise.
+ * Multiplies two tensors element-wise, writing results to destination tensor.
  *
- * @param context The GGML context
- * @param a The first tensor
- * @param b The second tensor
- * @return The result tensor
+ * @param graphAllocator The graph allocator managing tensor memory
+ * @param context The computation context
+ * @param a First input tensor
+ * @param b Second input tensor  
+ * @param dst Pre-allocated destination tensor for results
  */
-fun computeMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    // Check that the tensors have compatible dimensions
-    for (i in 0 until GGML_MAX_DIMS) {
-        if (a.ne[i] != b.ne[i]) {
-            throw IllegalArgumentException("Incompatible dimensions for multiplication")
-        }
-    }
+fun computeMul(
+    graphAllocator: GGMLGraphAllocator, 
+    context: GGMLContext, 
+    a: GGMLTensor, 
+    b: GGMLTensor, 
+    dst: GGMLTensor
+) {
+    // Validate destination tensor
+    require(dst.ne.contentEquals(a.ne)) { "Destination dimensions must match input" }
+    require(dst.type == a.type) { "Destination type must match input" }
 
-    // Create a new tensor for the result with the same dimensions as a
-    val result = GGMLTensor(type = a.type)
-    for (i in 0 until GGML_MAX_DIMS) {
-        result.ne[i] = a.ne[i]
-        result.nb[i] = a.nb[i]
-    }
-
-    // Calculate total size
     val totalSize = calculateTotalSize(a.ne)
-
-    // Perform the multiplication based on the tensor type
+    
+    // Perform multiplication based on tensor type
     when (a.type) {
         GGMLType.F32 -> {
-            val aData = a.data as FloatArray
-            val bData = b.data as FloatArray
-            val resultData = FloatArray(totalSize)
-
             for (i in 0 until totalSize) {
-                resultData[i] = aData[i] * bData[i]
+                val aVal = a.getFloat(graphAllocator, i)
+                val bVal = b.getFloat(graphAllocator, i) 
+                dst.setFloat(graphAllocator, aVal * bVal, i)
             }
-
-            result.data = resultData
         }
         GGMLType.I32 -> {
-            val aData = a.data as IntArray
-            val bData = b.data as IntArray
-            val resultData = IntArray(totalSize)
-
             for (i in 0 until totalSize) {
-                resultData[i] = aData[i] * bData[i]
+                val aVal = a.getInt(graphAllocator, i)
+                val bVal = b.getInt(graphAllocator, i)
+                dst.setInt(graphAllocator, aVal * bVal, i)
             }
-
-            result.data = resultData
         }
-        else -> {
-            // For other types, we'll implement later
-            result.data = null
-        }
+        // Handle other types...
     }
-
-    return result
 }
 ```
 
 ### Matrix Operations
 
-#### computeMatMul
+#### computeMatMul (Updated)
 
 ```kotlin
 /**
