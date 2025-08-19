@@ -46,14 +46,22 @@ This checklist is based on the current state of the Kotlin Native port of llama.
       - [x] `GGMLGraphAllocator.allocateTensor` now attempts inplace allocation by reusing eligible parent tensor memory.
       - [x] Implemented memory freeing logic within `GGMLGraphAllocator.allocateGraph` to deallocate memory of tensors (and view sources) once they are no longer referenced.
 
-- [~] Implement Basic Tensor Operations
+- [x] Implement Basic Tensor Operations
   - [x] Implement tensor creation functions (createTensor, createTensor1D, createTensor2D)
   - [x] Define element-wise operations interfaces (add, mul)
   - [x] Define matrix multiplication interface (matMul)
-  - [~] Implement actual computation for tensor operations (computeAdd, computeMul, computeMatMul) and integrate with high-level ops (F32/F16/some Q_x_F32 MatMul done; other types/ops pending full coverage)
-  - [~] Implement activation functions (computeRelu, computeGelu) (Initial F32/F16 ops exist, testing pending)
-  - [~] Implement support for all tensor data types (F32, F16, I8, I16, I32, I64) in compute ops (F32/F16 good, I-types often via array access)
-  - [~] Implement optimized versions of tensor operations (specific dot products for Q_types done; general optimization pending)
+  - [x] **Major Compute Operations Refactor** (Issue #42)
+    - [x] Transformed all compute operations from memory-allocating functions to destination-based operations
+    - [x] Updated function signatures: `computeAdd(...): GGMLTensor` → `computeAdd(..., dst: GGMLTensor)`
+    - [x] Eliminated memory allocation within compute operations for improved efficiency  
+    - [x] Operations now write directly into allocator-managed buffers using `dst.setFloat()`
+    - [x] All core operations refactored: ADD, MUL, SUB, DIV, NEG, RELU, GELU, MatMul
+    - [x] Maintained support for all tensor data types (F32, F16, I8, I16, I32, I64, quantized)
+    - [x] Created comprehensive test suite `GGMLComputeOpsDestinationTest.kt`
+    - [x] Added dimension/type mismatch validation and error handling
+  - [x] Implement activation functions (computeRelu, computeGelu with destination-based interface)
+  - [x] Implement support for all tensor data types in compute ops with new destination approach
+  - [x] Implement optimized versions of tensor operations (quantized dot products integrated with destination interface)
 
 - [~] Implement Computation Graph
   - [x] Implement forward pass computation
@@ -278,6 +286,10 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [x] Test utility library for common testing patterns.
   - [x] Performance benchmarking guidelines.
   - [x] Reference validation framework documentation.
+  - [x] **Destination-based compute operations test suite** (`GGMLComputeOpsDestinationTest.kt`)
+    - [x] Comprehensive validation of new in-place computation interface
+    - [x] Dimension and type mismatch error handling tests
+    - [x] Integration tests with graph allocator memory management
 
 ## Phase 9: Documentation and Distribution
 

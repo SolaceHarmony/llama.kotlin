@@ -32,6 +32,7 @@ The project is actively under development with significant progress in core area
 - **Memory Management**: Efficient tensor allocation with `GGMLGraphAllocator` and `GGMLDynTensorAllocator`
   - Primary ByteArray buffer with dynamic allocation within reserved space
   - Inplace tensor allocation and memory reuse logic for optimization
+  - Tensor usage tracking and automatic memory freeing
 - **Tensor Data Access**: Comprehensive accessor methods for all supported data types
   - F32, F16, I32, I16 data accessors with stride information
   - Efficient ByteArray-based data storage and retrieval
@@ -39,10 +40,15 @@ The project is actively under development with significant progress in core area
   - Q8_0: F16 scale + 32xI8 weights (34 bytes per block)
   - Q4_0: F16 scale + 32x4-bit packed weights (18 bytes per block)  
   - Q4_1: 2x F16 scale/min + 32x4-bit packed weights (20 bytes per block)
+  - Optimized dot product routines for quantized operations
 - **Core Tensor Operations**: Element-wise and matrix operations with multi-type support
-  - ADD, MUL, MatMul for F32/F16 and quantized types
+  - ADD, MUL, SUB, DIV, NEG, MatMul for F32/F16 and quantized types
   - Activation functions: RELU, GELU, SILU, RMSNorm
 - **Automatic Differentiation**: Backward pass implementation for core operations
+- **Compute Operations Architecture**: Refactored to destination-based operations
+  - All compute functions write directly into allocator-managed buffers
+  - Eliminated redundant memory allocations and improved efficiency
+  - Aligned with GGML architecture for memory reuse and graph optimization
 
 ### 🔄 In Progress  
 - **Computation Graph Optimization**: Graph optimization passes for redundant operation removal
@@ -53,12 +59,17 @@ The project is actively under development with significant progress in core area
 - Comprehensive unit tests for core operations under `src/nativeTest/kotlin`
 - Quantization accuracy tests with MSE and MAD validation
 - Memory allocator tests for graph-level memory planning
+- **Destination-based compute operations test suite** (`GGMLComputeOpsDestinationTest.kt`)
+  - Validates new in-place computation interface with pre-allocated destination tensors
+  - Tests dimension and type mismatch error handling
+  - Verifies direct integration with graph allocator memory management
 
 ## Project Documentation
 
 For detailed development information, see:
 - [**KOTLIN_PORT_CHECKLIST.md**](KOTLIN_PORT_CHECKLIST.md) - Detailed development roadmap with current progress
 - [**KOTLIN_PORT_STATUS.md**](KOTLIN_PORT_STATUS.md) - Overall project status and completion overview  
+- [**COMPUTE_OPERATIONS_REFACTOR_SUMMARY.md**](COMPUTE_OPERATIONS_REFACTOR_SUMMARY.md) - Major architectural refactor details
 - [**GGML_COMPUTE_OPS_DESIGN.md**](GGML_COMPUTE_OPS_DESIGN.md) - Technical design for computation operations
 - [**TENSOR_OPERATIONS_DESIGN.md**](TENSOR_OPERATIONS_DESIGN.md) - Design patterns for tensor operations
 - [**AGENTS.md**](AGENTS.md) - Project instructions for contributors and agents
@@ -176,10 +187,21 @@ val result = ggmlAdd(ctx, tensorA, tensorB)
 
 ### Memory Management
 ```kotlin
-// Efficient graph-level memory allocation
+// Use GGMLGraphAllocator for efficient memory planning
 val allocator = GGMLGraphAllocator()
 allocator.reserve(graph, bufferSize)
-val tensor = allocator.allocateTensor(type, dimensions)
+val tensor = allocator.allocateTensor(type, dimensions) // Automatically uses inplace when possible
+```
+
+### Compute Operations (New Destination-based Architecture)
+```kotlin
+// New efficient destination-based compute operations
+val src0 = allocator.allocateTensor(GGMLType.F32, longArrayOf(4, 4))
+val src1 = allocator.allocateTensor(GGMLType.F32, longArrayOf(4, 4))
+val dst = allocator.allocateTensor(GGMLType.F32, longArrayOf(4, 4))
+
+// Operations write directly into pre-allocated destination
+computeAdd(allocator, context, src0, src1, dst) // No return value - writes to dst
 ```
 
 ### Quantization

@@ -32,13 +32,18 @@ It summarizes the current project state and lists recommended next steps. Before
   - Q4_1: 2x F16 scale/min + 32x4-bit packed weights (20 bytes per block)
   - Optimized dot product routines for quantized operations
 - **Core Tensor Operations**: Element-wise and matrix operations with multi-type support
-  - ADD, MUL, MatMul for F32/F16 and quantized types
+  - ADD, MUL, SUB, DIV, NEG, MatMul for F32/F16 and quantized types
   - Activation functions: RELU, GELU, SILU, RMSNorm
 - **Automatic Differentiation**: Backward pass implementation for core operations
   - ADD, SUB, MUL, NEG, DIV, SQR, SQRT operations
   - RELU, GELU activation functions
   - MUL_MAT (matrix multiplication)
   - SUM, MEAN, REPEAT operations
+- **Compute Operations Architecture**: Major refactor to destination-based operations
+  - All compute functions now write directly into pre-allocated destination tensors
+  - Function signatures changed from `computeAdd(...): GGMLTensor` to `computeAdd(..., dst: GGMLTensor)`
+  - Eliminated memory allocation within compute operations for improved efficiency
+  - Aligned with GGML architecture patterns for memory reuse and graph optimization
 
 ### 🔄 In Progress  
 - **Computation Graph Optimization**: Graph optimization passes for redundant operation removal
@@ -49,6 +54,10 @@ It summarizes the current project state and lists recommended next steps. Before
 - Comprehensive unit tests for core operations under `src/nativeTest/kotlin`
 - Quantization accuracy tests with MSE and MAD validation
 - Memory allocator tests for graph-level memory planning
+- **Destination-based compute operations testing** with comprehensive validation
+  - `GGMLComputeOpsDestinationTest.kt`: Tests for new in-place computation interface
+  - Dimension and type mismatch validation
+  - Direct integration testing with graph allocator memory management
 - Tensor data accessor tests for all supported types
 
 ## Coding Guidelines
@@ -86,6 +95,7 @@ It summarizes the current project state and lists recommended next steps. Before
 
 ### Current Test Coverage
 - **GGMLComputeOpsTest.kt**: Core tensor operations (ADD, MUL, MatMul, activations)
+- **GGMLComputeOpsDestinationTest.kt**: New destination-based compute operations interface
 - **GGMLQuantizationAccuracyTest.kt**: Q8_0, Q4_0, Q4_1 quantization accuracy validation
 - **GGMLAllocTest.kt**: Memory allocation and graph planning functionality  
 - **GGMLTypesTest.kt**: Tensor data accessors and type handling
@@ -156,9 +166,14 @@ val tensor = allocator.allocateTensor(type, dimensions) // Automatically uses in
 ### Adding New Tensor Operations
 ```kotlin
 // 1. Add operation enum to GGMLOp
-// 2. Implement computation in GGMLComputeOps.kt
+// 2. Implement computation in GGMLComputeOps.kt using destination-based approach:
+fun computeNewOp(graphAllocator: GGMLGraphAllocator, context: GGMLContext, 
+                 a: GGMLTensor, b: GGMLTensor, dst: GGMLTensor) {
+    // Write directly to dst tensor using allocator-managed memory
+    dst.setFloat(graphAllocator, result, *indices)
+}
 // 3. Add high-level interface in GGMLOps.kt  
-// 4. Create unit tests in GGMLComputeOpsTest.kt
+// 4. Create unit tests in GGMLComputeOpsDestinationTest.kt
 // 5. Add backward pass for automatic differentiation
 ```
 
