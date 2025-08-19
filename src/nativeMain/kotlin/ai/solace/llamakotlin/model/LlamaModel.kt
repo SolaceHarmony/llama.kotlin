@@ -101,7 +101,7 @@ class RMSNorm(
         for (i in 1 until GGML_MAX_DIMS) scalarTensor.ne[i] = 1L
         scalarTensor.nb = calculateContiguousStrides(scalarTensor.ne, scalarTensor.type, GGML_MAX_DIMS)
         graphAllocator.allocateTensor(scalarTensor)
-        scalarTensor.setFloat(graphAllocator, 0, scalar)
+    scalarTensor.setFloat(graphAllocator, scalar, 0)
         
         val result = GGMLTensor(type = input.type)
         result.ne = input.ne.copyOf()
@@ -397,7 +397,7 @@ class LlamaModel(
             val tokenId = inputIds[seqIdx]
             for (hiddenIdx in 0 until config.hiddenSize) {
                 val embeddingValue = embedTokens.getFloat(graphAllocator, hiddenIdx, tokenId)
-                result.setFloat(graphAllocator, hiddenIdx, seqIdx, 0, embeddingValue)
+                result.setFloat(graphAllocator, embeddingValue, hiddenIdx, seqIdx, 0)
             }
         }
         

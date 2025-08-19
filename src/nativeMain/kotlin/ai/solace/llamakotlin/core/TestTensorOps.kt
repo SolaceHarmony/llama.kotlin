@@ -5,7 +5,8 @@ package ai.solace.llamakotlin.core
  * This file contains tests for the optimized tensor operations.
  */
 
-fun main() {
+@Suppress("unused")
+fun runTensorOpsSmokeTest() {
     println("Testing optimized tensor operations")
 
     val context = GGMLContext()

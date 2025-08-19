@@ -146,7 +146,7 @@ class LlamaInferencePipeline(
         val lastPos = seqLen - 1
         for (vocabIdx in 0 until vocabSize) {
             val value = logits.getFloat(graphAllocator, vocabIdx, lastPos, 0)
-            result.setFloat(graphAllocator, vocabIdx, value)
+            result.setFloat(graphAllocator, value, vocabIdx)
         }
         
         return result
@@ -196,9 +196,9 @@ class LlamaInferencePipeline(
                     val validTokenIds = filteredCandidates.map { it.id }.toSet()
                     for (i in 0 until vocabSize) {
                         if (i in validTokenIds) {
-                            filteredLogits.setFloat(graphAllocator, i, logits.getFloat(graphAllocator, i))
+                            filteredLogits.setFloat(graphAllocator, logits.getFloat(graphAllocator, i), i)
                         } else {
-                            filteredLogits.setFloat(graphAllocator, i, Float.NEGATIVE_INFINITY)
+                            filteredLogits.setFloat(graphAllocator, Float.NEGATIVE_INFINITY, i)
                         }
                     }
                     

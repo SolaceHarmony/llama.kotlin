@@ -13,21 +13,24 @@ class GGMLMatMulVerificationTest {
         try {
             // Mock tensors for compilation check
             val graphAllocator = GGMLGraphAllocator()
-            val buffer = ByteArray(1024 * 1024)
-            graphAllocator.buffers.add(buffer)
-            graphAllocator.tensorAllocators.add(GGMLDynTensorAllocator())
-            graphAllocator.tensorAllocators[0].reset(1024 * 1024uL)
+            graphAllocator.reserve(1024 * 1024)
             
             // Create minimal test tensors
             val f32Tensor = GGMLTensor(GGMLType.F32)
             f32Tensor.ne[0] = 32L; f32Tensor.ne[1] = 2L
-            f32Tensor.data = FloatArray(64) { it.toFloat() }
+            f32Tensor.nb = calculateContiguousStrides(f32Tensor.ne, f32Tensor.type, GGML_MAX_DIMS)
+            graphAllocator.allocateTensor(f32Tensor)
+            for (j in 0 until f32Tensor.ne[1].toInt()) {
+                for (i in 0 until f32Tensor.ne[0].toInt()) {
+                    f32Tensor.setFloat(graphAllocator, (j * f32Tensor.ne[0].toInt() + i).toFloat(), i, j)
+                }
+            }
             
             val q80Tensor = GGMLTensor(GGMLType.Q8_0) 
             q80Tensor.ne[0] = 2L; q80Tensor.ne[1] = 32L
-            // Create minimal Q8_0 data (2 blocks of 32 elements = 64 elements total)
-            val q80Data = ByteArray(2 * 34) // 2 blocks * 34 bytes per block
-            q80Tensor.data = q80Data
+            q80Tensor.nb = calculateContiguousStrides(q80Tensor.ne, q80Tensor.type, GGML_MAX_DIMS)
+            graphAllocator.allocateTensor(q80Tensor)
+            // Leave quantized buffer zero-initialized; presence is enough for compile-time check
             
             println("✓ New dot product functions are accessible")
             println("✓ MatMul optimization paths added successfully")
@@ -56,7 +59,8 @@ class GGMLMatMulVerificationTest {
     }
 }
 
-fun main() {
+@Suppress("unused")
+fun runMatMulVerification() {
     val verifier = GGMLMatMulVerificationTest()
     val success = verifier.runVerification()
     

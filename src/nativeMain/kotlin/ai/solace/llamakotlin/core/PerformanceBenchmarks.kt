@@ -3,6 +3,7 @@ package ai.solace.llamakotlin.core
 /**
  * Performance benchmarks for graph optimization and scheduling
  */
+import kotlin.time.TimeSource
 
 data class BenchmarkResult(
     val operationName: String,
@@ -76,7 +77,7 @@ private fun benchmarkRedundantOperations(): BenchmarkResult {
     
     // Benchmark unoptimized execution
     val unoptimizedGraph = duplicateGraph(graph)
-    val unoptimizedStart = getCurrentTimeMs()
+    val unoptimizedStart = TimeSource.Monotonic.markNow()
     
     // Create backend for execution
     val backendManager = GGMLBackendManager()
@@ -84,16 +85,16 @@ private fun benchmarkRedundantOperations(): BenchmarkResult {
     val scheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.SEQUENTIAL)
     scheduler.execute(unoptimizedGraph, context)
     
-    val unoptimizedTime = getCurrentTimeMs() - unoptimizedStart
+    val unoptimizedTime = unoptimizedStart.elapsedNow().inWholeMilliseconds
     
     // Benchmark optimized execution
     val optimizer = GGMLGraphOptimizer()
-    val optimizedStart = getCurrentTimeMs()
+    val optimizedStart = TimeSource.Monotonic.markNow()
     
     val optimizationResult = optimizer.optimize(graph, context)
     scheduler.execute(graph, context)
     
-    val optimizedTime = getCurrentTimeMs() - optimizedStart
+    val optimizedTime = optimizedStart.elapsedNow().inWholeMilliseconds
     
     val speedup = if (optimizedTime > 0) unoptimizedTime.toDouble() / optimizedTime.toDouble() else 1.0
     val memoryReduction = unoptimizedGraph.nNodes - graph.nNodes
@@ -154,16 +155,16 @@ private fun benchmarkDeadCodeElimination(): BenchmarkResult {
     
     // Benchmark unoptimized
     val unoptimizedGraph = duplicateGraph(graph)
-    val unoptimizedStart = getCurrentTimeMs()
+    val unoptimizedStart = TimeSource.Monotonic.markNow()
     scheduler.execute(unoptimizedGraph, context)
-    val unoptimizedTime = getCurrentTimeMs() - unoptimizedStart
+    val unoptimizedTime = unoptimizedStart.elapsedNow().inWholeMilliseconds
     
     // Benchmark optimized
     val optimizer = GGMLGraphOptimizer()
-    val optimizedStart = getCurrentTimeMs()
+    val optimizedStart = TimeSource.Monotonic.markNow()
     optimizer.optimize(graph, context)
     scheduler.execute(graph, context)
-    val optimizedTime = getCurrentTimeMs() - optimizedStart
+    val optimizedTime = optimizedStart.elapsedNow().inWholeMilliseconds
     
     val speedup = if (optimizedTime > 0) unoptimizedTime.toDouble() / optimizedTime.toDouble() else 1.0
     val memoryReduction = unoptimizedGraph.nNodes - graph.nNodes
@@ -208,19 +209,19 @@ private fun benchmarkConstantFolding(): BenchmarkResult {
     
     // Benchmark unoptimized
     val unoptimizedGraph = duplicateGraph(graph)
-    val unoptimizedStart = getCurrentTimeMs()
+    val unoptimizedStart = TimeSource.Monotonic.markNow()
     scheduler.execute(unoptimizedGraph, context)
-    val unoptimizedTime = getCurrentTimeMs() - unoptimizedStart
+    val unoptimizedTime = unoptimizedStart.elapsedNow().inWholeMilliseconds
     
     // Count operations that should be folded
     val originalOpCount = graph.nodes.take(graph.nNodes).count { it?.op != GGMLOp.NONE }
     
     // Benchmark optimized
     val optimizer = GGMLGraphOptimizer()
-    val optimizedStart = getCurrentTimeMs()
+    val optimizedStart = TimeSource.Monotonic.markNow()
     optimizer.optimize(graph, context)
     scheduler.execute(graph, context)
-    val optimizedTime = getCurrentTimeMs() - optimizedStart
+    val optimizedTime = optimizedStart.elapsedNow().inWholeMilliseconds
     
     val foldedOpCount = graph.nodes.take(graph.nNodes).count { it?.op != GGMLOp.NONE }
     val operationReduction = originalOpCount - foldedOpCount
@@ -269,17 +270,17 @@ private fun benchmarkParallelExecution(): BenchmarkResult {
     val sequentialScheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.SEQUENTIAL)
     val sequentialGraph = duplicateGraph(graph)
     
-    val sequentialStart = getCurrentTimeMs()
+    val sequentialStart = TimeSource.Monotonic.markNow()
     sequentialScheduler.execute(sequentialGraph, context)
-    val sequentialTime = getCurrentTimeMs() - sequentialStart
+    val sequentialTime = sequentialStart.elapsedNow().inWholeMilliseconds
     
     // Benchmark parallel execution
     val parallelScheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.PARALLEL)
     parallelScheduler.setMaxWorkers(4)
     
-    val parallelStart = getCurrentTimeMs()
+    val parallelStart = TimeSource.Monotonic.markNow()
     parallelScheduler.execute(graph, context)
-    val parallelTime = getCurrentTimeMs() - parallelStart
+    val parallelTime = parallelStart.elapsedNow().inWholeMilliseconds
     
     val speedup = if (parallelTime > 0) sequentialTime.toDouble() / parallelTime.toDouble() else 1.0
     
@@ -294,10 +295,7 @@ private fun benchmarkParallelExecution(): BenchmarkResult {
 
 // Helper functions
 
-@Suppress("DEPRECATION")
-private fun getCurrentTimeMs(): Long {
-    return kotlin.system.getTimeNanos() / 1_000_000
-}
+// Timing uses TimeSource.Monotonic; no deprecated APIs.
 
 private fun format2(x: Double): String {
     val v = kotlin.math.round(x * 100.0) / 100.0
