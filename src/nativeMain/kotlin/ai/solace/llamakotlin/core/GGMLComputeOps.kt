@@ -5,104 +5,6 @@ import kotlin.math.abs
 import kotlin.math.round
 import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
-// --- Legacy compatibility adapters (return-a-new-tensor wrappers) ---
-
-// For legacy adapters, derive a minimal allocator; callers should size/allocate as needed.
-private fun ensureAllocator(@Suppress("unused") graphAllocator: GGMLGraphAllocator? = null): GGMLGraphAllocator = GGMLGraphAllocator()
-
-private fun newLike(allocator: GGMLGraphAllocator, ref: GGMLTensor, type: GGMLType = ref.type): GGMLTensor {
-    val t = GGMLTensor(type = type)
-    t.ne = ref.ne.copyOf()
-    t.nb = calculateContiguousStrides(t.ne, t.type, t.ne.size)
-    // allocate space in allocator buffer if present
-    if (allocator.buffers.isEmpty()) {
-        allocator.buffers.add(ByteArray(0))
-        allocator.tensorAllocators.add(GGMLDynTensorAllocator())
-    }
-    // Register usage and allocate minimal space for simple F32/F16/I* types
-    t.bufferId = 0
-    t.dataOffset = 0u
-    return t
-}
-
-fun computeAdd(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeAdd(allocator, context, a, b, dst)
-    return dst
-}
-
-fun computeMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeMul(allocator, context, a, b, dst)
-    return dst
-}
-
-fun computeSub(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeSub(allocator, context, a, b, dst)
-    return dst
-}
-
-fun computeDiv(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeDiv(allocator, context, a, b, dst)
-    return dst
-}
-
-fun computeNeg(context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeNeg(allocator, context, a, dst)
-    return dst
-}
-
-fun computeRelu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeRelu(allocator, context, a, dst)
-    return dst
-}
-
-fun computeGelu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = newLike(allocator, a, a.type)
-    computeGelu(allocator, context, a, dst)
-    return dst
-}
-
-fun computeMatMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
-    val allocator = ensureAllocator(contextToAllocator(context))
-    val dst = GGMLTensor(type = a.type)
-    // infer result shape [N, M] where a is [K, M] and b is [N, K]
-    val M = a.ne[1].toInt()
-    val N = b.ne[0].toInt()
-    dst.ne[0] = N.toLong()
-    dst.ne[1] = M.toLong()
-    dst.nb = calculateContiguousStrides(dst.ne, if (a.type in arrayOf(GGMLType.F32, GGMLType.F16)) a.type else GGMLType.F32, dst.ne.size)
-    computeMatMul(allocator, context, a, b, dst)
-    return dst
-}
-
-// Sqr/Sqrt adapters already returning tensors exist below; add dst-arg variants used by graph executor
-private fun computeSqr(graphAllocator: GGMLGraphAllocator, context: GGMLContext, src: GGMLTensor, dst: GGMLTensor) {
-    val res = computeSqr(graphAllocator, context, src)
-    dst.data = res.data; dst.type = res.type; src.ne.copyInto(dst.ne); src.nb.copyInto(dst.nb)
-}
-
-private fun computeSqrt(graphAllocator: GGMLGraphAllocator, context: GGMLContext, src: GGMLTensor, dst: GGMLTensor) {
-    val res = computeSqrt(graphAllocator, context, src)
-    dst.data = res.data; dst.type = res.type; src.ne.copyInto(dst.ne); src.nb.copyInto(dst.nb)
-}
-
-// Bridge: derive a minimal allocator from context for legacy immediate paths
-private fun contextToAllocator(@Suppress("unused") context: GGMLContext): GGMLGraphAllocator {
-    return GGMLGraphAllocator()
-}
-
 /**
  * Kotlin Native port of GGML tensor computation operations.
  * This file contains the implementation of actual computation functionality for tensor operations.
@@ -439,6 +341,40 @@ internal fun computeDotProductQ4_KF32(
     
     return sumF32
 }
+    
+/**
+ * Computes the symmetric dot product of a row from an F32 tensor and a column from a Q4_1 tensor.
+ * This is the symmetric case: F32 x Q4_1
+ */
+internal fun computeDotProductF32Q41(
+    graphAllocator: GGMLGraphAllocator,
+    tensorF32: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ41: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInF32: Int,
+    colIndexInQ41: Int,
+    commonDimK: Int
+): Float {
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductF32Q41: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ41.type == GGMLType.Q4_1) { "computeDotProductF32Q41: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
+    require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ41.ne[1].toInt() == commonDimK) { "tensorQ41 K dim (${tensorQ41.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
+        // Access tensorQ41[k, colIndexInQ41] - row k, column colIndexInQ41
+        val flatIndexInQ41 = k * tensorQ41.ne[0].toInt() + colIndexInQ41
+        val blockIndexQ41 = flatIndexInQ41 / QK4_1
+        val itemInBlockQ41 = flatIndexInQ41 % QK4_1
+        
+        val scaleD = tensorQ41.getQ4_1BlockScale(graphAllocator, blockIndexQ41)
+        val minM = tensorQ41.getQ4_1BlockMin(graphAllocator, blockIndexQ41)
+        val qNibble = tensorQ41.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41, itemInBlockQ41)
+    val dequantizedQ41Value = scaleD * qNibble.toFloat() + minM
+    sumF32 += f32Value * dequantizedQ41Value
+    }
+    return sumF32
+}
 
 /**
  * Computes the dot product of a row from a Q8_K tensor and a column from an F32 tensor.
@@ -492,6 +428,203 @@ internal fun computeDotProductQ8_KF32(
         }
     }
     
+    return sumF32
+}
+    
+/**
+ * Computes the symmetric dot product of a row from an F32 tensor and a column from a Q8_0 tensor.
+ * This is the symmetric case: F32 x Q8_0
+ */
+/**
+ * Computes the symmetric dot product of a row from an F32 tensor and a column from a Q8_0 tensor.
+ * This is the symmetric case: F32 x Q8_0
+ */
+internal fun computeDotProductF32Q80(
+    graphAllocator: GGMLGraphAllocator,
+    tensorF32: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ80: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInF32: Int,
+    colIndexInQ80: Int,
+    commonDimK: Int
+): Float {
+    require(tensorF32.type == GGMLType.F32) { "computeDotProductF32Q80: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ80.type == GGMLType.Q8_0) { "computeDotProductF32Q80: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ80.ne[1].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
+        // Access tensorQ80[k, colIndexInQ80] - row k, column colIndexInQ80
+        val flatIndexInQ80 = k * tensorQ80.ne[0].toInt() + colIndexInQ80
+        val blockIndexQ80 = flatIndexInQ80 / QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % QK8_0
+        val scale = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
+        val qWeight = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
+        val dequantizedQ80Value = scale * qWeight.toFloat()
+        sumF32 += f32Value * dequantizedQ80Value
+    }
+    return sumF32
+}
+
+/**
+ * Computes the direct quantized dot product Q8_0 x Q8_0 -> F32.
+ * This avoids dequantization by computing the dot product directly on quantized values.
+ */
+internal fun computeDotProductQ80Q80(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ80A: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ80B: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ80A: Int,
+    colIndexInQ80B: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ80A.type == GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80A must be Q8_0. Got ${tensorQ80A.type}" }
+    require(tensorQ80B.type == GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80B must be Q8_0. Got ${tensorQ80B.type}" }
+    require(tensorQ80A.ne[0].toInt() == commonDimK) { "tensorQ80A K dim (${tensorQ80A.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ80B.ne[1].toInt() == commonDimK) { "tensorQ80B K dim (${tensorQ80B.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ80A[rowIndexInQ80A, k]
+        val flatIndexInQ80A = rowIndexInQ80A * commonDimK + k
+        val blockIndexQ80A = flatIndexInQ80A / QK8_0
+        val itemInBlockQ80A = flatIndexInQ80A % QK8_0
+        val scaleA = tensorQ80A.getQ8_0BlockScale(graphAllocator, blockIndexQ80A)
+        val qWeightA = tensorQ80A.getQ8_0Weight(graphAllocator, blockIndexQ80A, itemInBlockQ80A)
+
+        // Access tensorQ80B[k, colIndexInQ80B]
+        val flatIndexInQ80B = k * tensorQ80B.ne[0].toInt() + colIndexInQ80B
+        val blockIndexQ80B = flatIndexInQ80B / QK8_0
+        val itemInBlockQ80B = flatIndexInQ80B % QK8_0
+        val scaleB = tensorQ80B.getQ8_0BlockScale(graphAllocator, blockIndexQ80B)
+        val qWeightB = tensorQ80B.getQ8_0Weight(graphAllocator, blockIndexQ80B, itemInBlockQ80B)
+
+        // Direct quantized multiplication: (scaleA * qWeightA) * (scaleB * qWeightB) = (scaleA * scaleB) * (qWeightA * qWeightB)
+        sumF32 += scaleA * scaleB * (qWeightA.toFloat() * qWeightB.toFloat())
+    }
+    return sumF32
+}
+
+/**
+ * Computes the direct quantized dot product Q4_0 x Q4_0 -> F32.
+ */
+internal fun computeDotProductQ40Q40(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ40A: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40B: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ40A: Int,
+    colIndexInQ40B: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ40A.type == GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40A must be Q4_0. Got ${tensorQ40A.type}" }
+    require(tensorQ40B.type == GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40B must be Q4_0. Got ${tensorQ40B.type}" }
+    require(tensorQ40A.ne[0].toInt() == commonDimK) { "tensorQ40A K dim (${tensorQ40A.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ40B.ne[1].toInt() == commonDimK) { "tensorQ40B K dim (${tensorQ40B.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ40A[rowIndexInQ40A, k]
+        val flatIndexInQ40A = rowIndexInQ40A * commonDimK + k
+        val blockIndexQ40A = flatIndexInQ40A / QK4_0
+        val itemInBlockQ40A = flatIndexInQ40A % QK4_0
+        val scaleA = tensorQ40A.getQ4_0BlockScale(graphAllocator, blockIndexQ40A)
+        val qNibbleA = tensorQ40A.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40A, itemInBlockQ40A)
+
+        // Access tensorQ40B[k, colIndexInQ40B]
+        val flatIndexInQ40B = k * tensorQ40B.ne[0].toInt() + colIndexInQ40B
+        val blockIndexQ40B = flatIndexInQ40B / QK4_0
+        val itemInBlockQ40B = flatIndexInQ40B % QK4_0
+        val scaleB = tensorQ40B.getQ4_0BlockScale(graphAllocator, blockIndexQ40B)
+        val qNibbleB = tensorQ40B.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40B, itemInBlockQ40B)
+
+        // Direct quantized multiplication: Q4_0 values are centered at 8, so (qNibble - 8) * scale
+        // (scaleA * (qNibbleA - 8)) * (scaleB * (qNibbleB - 8))
+        val dequantA = scaleA * (qNibbleA.toFloat() - 8.0f)
+        val dequantB = scaleB * (qNibbleB.toFloat() - 8.0f)
+        sumF32 += dequantA * dequantB
+    }
+    return sumF32
+}
+/**
+ * Computes the direct quantized dot product Q4_1 x Q4_1 -> F32.
+ */
+internal fun computeDotProductQ41Q41(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ41A: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ41B: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ41A: Int,
+    colIndexInQ41B: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ41A.type == GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41A must be Q4_1. Got ${tensorQ41A.type}" }
+    require(tensorQ41B.type == GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41B must be Q4_1. Got ${tensorQ41B.type}" }
+    require(tensorQ41A.ne[0].toInt() == commonDimK) { "tensorQ41A K dim (${tensorQ41A.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ41B.ne[1].toInt() == commonDimK) { "tensorQ41B K dim (${tensorQ41B.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ41A[rowIndexInQ41A, k]
+        val flatIndexInQ41A = rowIndexInQ41A * commonDimK + k
+        val blockIndexQ41A = flatIndexInQ41A / QK4_1
+        val itemInBlockQ41A = flatIndexInQ41A % QK4_1
+        val scaleDA = tensorQ41A.getQ4_1BlockScale(graphAllocator, blockIndexQ41A)
+        val minMA = tensorQ41A.getQ4_1BlockMin(graphAllocator, blockIndexQ41A)
+        val qNibbleA = tensorQ41A.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41A, itemInBlockQ41A)
+
+        // Access tensorQ41B[k, colIndexInQ41B]
+        val flatIndexInQ41B = k * tensorQ41B.ne[0].toInt() + colIndexInQ41B
+        val blockIndexQ41B = flatIndexInQ41B / QK4_1
+        val itemInBlockQ41B = flatIndexInQ41B % QK4_1
+        val scaleDB = tensorQ41B.getQ4_1BlockScale(graphAllocator, blockIndexQ41B)
+        val minMB = tensorQ41B.getQ4_1BlockMin(graphAllocator, blockIndexQ41B)
+        val qNibbleB = tensorQ41B.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41B, itemInBlockQ41B)
+
+        // Direct quantized multiplication: Q4_1 values are dequantized as scale * nibble + min
+        val dequantA = scaleDA * qNibbleA.toFloat() + minMA
+        val dequantB = scaleDB * qNibbleB.toFloat() + minMB
+        sumF32 += dequantA * dequantB
+    }
+    return sumF32
+}
+
+/**
+ * Computes mixed quantized dot product Q8_0 x Q4_0 -> F32.
+ */
+internal fun computeDotProductQ80Q40(
+    graphAllocator: GGMLGraphAllocator,
+    tensorQ80: GGMLTensor,     // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40: GGMLTensor,     // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInQ80: Int,
+    colIndexInQ40: Int,
+    commonDimK: Int
+): Float {
+    require(tensorQ80.type == GGMLType.Q8_0) { "computeDotProductQ80Q40: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorQ40.type == GGMLType.Q4_0) { "computeDotProductQ80Q40: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
+    require(tensorQ80.ne[0].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[0]}) must match commonDimK ($commonDimK)"}
+    require(tensorQ40.ne[1].toInt() == commonDimK) { "tensorQ40 K dim (${tensorQ40.ne[1]}) must match commonDimK ($commonDimK)"}
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorQ80[rowIndexInQ80, k]
+        val flatIndexInQ80 = rowIndexInQ80 * commonDimK + k
+        val blockIndexQ80 = flatIndexInQ80 / QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % QK8_0
+        val scaleQ80 = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
+        val qWeightQ80 = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
+
+        // Access tensorQ40[k, colIndexInQ40]
+        val flatIndexInQ40 = k * tensorQ40.ne[0].toInt() + colIndexInQ40
+        val blockIndexQ40 = flatIndexInQ40 / QK4_0
+        val itemInBlockQ40 = flatIndexInQ40 % QK4_0
+        val scaleQ40 = tensorQ40.getQ4_0BlockScale(graphAllocator, blockIndexQ40)
+        val qNibbleQ40 = tensorQ40.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40, itemInBlockQ40)
+
+        // Direct quantized multiplication
+        val dequantQ80 = scaleQ80 * qWeightQ80.toFloat()
+        val dequantQ40 = scaleQ40 * (qNibbleQ40.toFloat() - 8.0f)
+        sumF32 += dequantQ80 * dequantQ40
+    }
     return sumF32
 }
 
@@ -676,6 +809,41 @@ fun computeMul(
         }
         else -> throw NotImplementedError("computeMul not implemented for type ${a.type}")
     }
+}
+
+// Temporary return-style wrappers to ease test migration
+fun computeAddRet(graphAllocator: GGMLGraphAllocator, context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    val dst = GGMLTensor(type = a.type)
+    dst.ne = a.ne.copyOf(); dst.nb = calculateContiguousStrides(dst.ne, dst.type, dst.rank())
+    // Ensure allocation for dst in same buffer as sources if possible
+    val alloc = graphAllocator
+    val tempGraph = GGMLCGraph(size = 1, nodes = arrayOf(dst), grads = arrayOfNulls(1), leafs = arrayOfNulls(1), allocator = alloc)
+    alloc.allocateGraph(tempGraph)
+    computeAdd(graphAllocator, context, a, b, dst)
+    return dst
+}
+
+fun computeMulRet(graphAllocator: GGMLGraphAllocator, context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    val dst = GGMLTensor(type = a.type)
+    dst.ne = a.ne.copyOf(); dst.nb = calculateContiguousStrides(dst.ne, dst.type, dst.rank())
+    val alloc = graphAllocator
+    val tempGraph = GGMLCGraph(size = 1, nodes = arrayOf(dst), grads = arrayOfNulls(1), leafs = arrayOfNulls(1), allocator = alloc)
+    alloc.allocateGraph(tempGraph)
+    computeMul(graphAllocator, context, a, b, dst)
+    return dst
+}
+
+fun computeMatMulRet(graphAllocator: GGMLGraphAllocator, context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
+    val dst = GGMLTensor(type = GGMLType.F32)
+    // infer output shape: (a.ne[1] rows, b.ne[0] cols) in our column-major convention (nb[0] stride by element)
+    dst.ne[0] = b.ne[0]
+    dst.ne[1] = a.ne[1]
+    for (i in 2 until GGML_MAX_DIMS) dst.ne[i] = 1
+    dst.nb = calculateContiguousStrides(dst.ne, dst.type, dst.rank())
+    val tempGraph = GGMLCGraph(size = 1, nodes = arrayOf(dst), grads = arrayOfNulls(1), leafs = arrayOfNulls(1), allocator = graphAllocator)
+    graphAllocator.allocateGraph(tempGraph)
+    computeMatMul(graphAllocator, context, a, b, dst)
+    return dst
 }
 
 private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor): GGMLTensor {
@@ -1209,9 +1377,8 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
         return
     }
 
-    // General matrix multiplication fallback
+    // General matrix multiplication fallback (dst-arg only)
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match first input type for general matmul")
-    
     when (a.type) {
         GGMLType.F32 -> {
             val effA=a; val effB=if(b.type==GGMLType.F32)b else dequantizeTensor(graphAllocator,b)
@@ -2052,19 +2219,16 @@ private fun dequantizeQ8_KBlock(graphAllocator: GGMLGraphAllocator, tensor: GGML
 }
 
 /**
- * Compute element-wise square (SQR) operation.
- * For each element x in tensor a, compute x^2.
+ * Compute element-wise square (SQR) into destination tensor (dst-arg only).
  */
-fun computeSqr(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    val res = GGMLTensor(a.type)
-    res.ne = a.ne.copyOf()
-    res.nb = a.nb.copyOf()
-    val ts = res.numElements().toInt()
-    
+private fun computeSqr(graphAllocator: GGMLGraphAllocator, context: GGMLContext, a: GGMLTensor, dst: GGMLTensor) {
+    dst.type = a.type
+    a.ne.copyInto(dst.ne); a.nb.copyInto(dst.nb)
+    val ts = a.numElements().toInt()
     when (a.type) {
         GGMLType.F32 -> {
             val resultData = FloatArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getFloat(graphAllocator, *ind)
                 resultData[flatIdx] = value * value
@@ -2072,7 +2236,7 @@ fun computeSqr(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
         }
         GGMLType.F16 -> {
             val resultData = ShortArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getHalf(graphAllocator, *ind)
                 resultData[flatIdx] = floatToHalf(value * value)
@@ -2080,23 +2244,20 @@ fun computeSqr(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
         }
         GGMLType.I32 -> {
             val resultData = IntArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getInt(graphAllocator, *indices).toLong()
                 val squared = value * value
-                // Check for overflow
-                if (squared > Int.MAX_VALUE) {
-                    resultData[flatIdx] = Int.MAX_VALUE
-                } else if (squared < Int.MIN_VALUE) {
-                    resultData[flatIdx] = Int.MIN_VALUE
-                } else {
-                    resultData[flatIdx] = squared.toInt()
+                resultData[flatIdx] = when {
+                    squared > Int.MAX_VALUE -> Int.MAX_VALUE
+                    squared < Int.MIN_VALUE -> Int.MIN_VALUE
+                    else -> squared.toInt()
                 }
             }
         }
         GGMLType.I16 -> {
             val resultData = ShortArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getShort(graphAllocator, *indices).toInt()
                 val squared = value * value
@@ -2105,43 +2266,41 @@ fun computeSqr(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: 
         }
         GGMLType.I64 -> {
             val resultData = LongArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getLong(graphAllocator, *indices)
-                // Check for overflow by comparing to sqrt(Long.MAX_VALUE)
-                if (kotlin.math.abs(value) > 3037000499L) { // Approximate sqrt(Long.MAX_VALUE)
-                    resultData[flatIdx] = if (value >= 0) Long.MAX_VALUE else Long.MAX_VALUE
+                // Avoid overflow for Long
+                dst.data as LongArray
+                if (kotlin.math.abs(value) > 3037000499L) {
+                    (dst.data as LongArray)[flatIdx] = if (value >= 0) Long.MAX_VALUE else Long.MAX_VALUE
                 } else {
-                    resultData[flatIdx] = value * value
+                    (dst.data as LongArray)[flatIdx] = value * value
                 }
             }
         }
-    GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1,
-    GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1,
+        GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
             val af = dequantizeTensor(graphAllocator, a)
-            val rf = computeSqr(graphAllocator, context, af)
-            val qr = quantizeTensor(graphAllocator, rf, a.type)
-            res.data = qr.data
+            val tmp = GGMLTensor(af.type).also { it.ne = a.ne.copyOf(); it.nb = a.nb.copyOf() }
+            computeSqr(graphAllocator, context, af, tmp)
+            val qr = quantizeTensor(graphAllocator, tmp, a.type)
+            dst.data = qr.data
         }
         else -> throw NotImplementedError("computeSqr NI for type ${a.type}")
     }
-    return res
 }
 
 /**
- * Compute element-wise square root (SQRT) operation.
- * For each element x in tensor a, compute sqrt(x).
+ * Compute element-wise square root (SQRT) into destination tensor (dst-arg only).
  */
-fun computeSqrt(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context: GGMLContext, a: GGMLTensor): GGMLTensor {
-    val res = GGMLTensor(a.type)
-    res.ne = a.ne.copyOf()
-    res.nb = a.nb.copyOf()
-    val ts = res.numElements().toInt()
-    
+private fun computeSqrt(graphAllocator: GGMLGraphAllocator, context: GGMLContext, a: GGMLTensor, dst: GGMLTensor) {
+    dst.type = a.type
+    a.ne.copyInto(dst.ne); a.nb.copyInto(dst.nb)
+    val ts = a.numElements().toInt()
     when (a.type) {
         GGMLType.F32 -> {
             val resultData = FloatArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getFloat(graphAllocator, *ind)
                 resultData[flatIdx] = if (value < 0.0f) Float.NaN else kotlin.math.sqrt(value)
@@ -2149,7 +2308,7 @@ fun computeSqrt(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context:
         }
         GGMLType.F16 -> {
             val resultData = ShortArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getHalf(graphAllocator, *ind)
                 val sqrtValue = if (value < 0.0f) Float.NaN else kotlin.math.sqrt(value)
@@ -2158,47 +2317,41 @@ fun computeSqrt(graphAllocator: GGMLGraphAllocator, @Suppress("unused") context:
         }
         GGMLType.I32 -> {
             val resultData = IntArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getInt(graphAllocator, *indices)
-                if (value < 0) {
-                    throw IllegalArgumentException("Cannot compute square root of negative integer: $value")
-                }
+                require(value >= 0) { "Cannot compute square root of negative integer: $value" }
                 resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toInt()
             }
         }
         GGMLType.I16 -> {
             val resultData = ShortArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getShort(graphAllocator, *indices).toInt()
-                if (value < 0) {
-                    throw IllegalArgumentException("Cannot compute square root of negative integer: $value")
-                }
+                require(value >= 0) { "Cannot compute square root of negative integer: $value" }
                 resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
             }
         }
         GGMLType.I64 -> {
             val resultData = LongArray(ts)
-            res.data = resultData
+            dst.data = resultData
             applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getLong(graphAllocator, *indices)
-                if (value < 0) {
-                    throw IllegalArgumentException("Cannot compute square root of negative long: $value")
-                }
+                require(value >= 0) { "Cannot compute square root of negative long: $value" }
                 resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toLong()
             }
         }
-    GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1,
-    GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1,
+        GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
             val af = dequantizeTensor(graphAllocator, a)
-            val rf = computeSqrt(graphAllocator, context, af)
-            val qr = quantizeTensor(graphAllocator, rf, a.type)
-            res.data = qr.data
+            val tmp = GGMLTensor(af.type).also { it.ne = a.ne.copyOf(); it.nb = a.nb.copyOf() }
+            computeSqrt(graphAllocator, context, af, tmp)
+            val qr = quantizeTensor(graphAllocator, tmp, a.type)
+            dst.data = qr.data
         }
         else -> throw NotImplementedError("computeSqrt NI for type ${a.type}")
     }
-    return res
 }
 
 /**

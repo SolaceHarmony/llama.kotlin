@@ -2529,11 +2529,24 @@ fun buildBackward(context: GGMLContext, gf: GGMLCGraph, gb: GGMLCGraph, keep: Bo
  * @param cgraph The computation graph to execute
  */
 fun executeGraph(context: GGMLContext, cgraph: GGMLCGraph) {
-    // Execute the graph based on the order
-    when (cgraph.order) {
-        GGMLCGraphEvalOrder.FORWARD -> executeForward(context, cgraph)
-        GGMLCGraphEvalOrder.BACKWARD -> executeBackward(context, cgraph)
-        else -> throw IllegalArgumentException("Invalid graph order")
+    // Unified execution path: ensure allocation, then compute via backend or CPU compute ops
+    val allocator = cgraph.allocator ?: GGMLGraphAllocator()
+    // Attach allocator if missing
+    if (cgraph.allocator == null) {
+        cgraph.allocator = allocator
+    }
+
+    // Allocate buffers for the graph
+    val allocated = allocator.allocateGraph(cgraph)
+    if (!allocated) throw IllegalStateException("Failed to allocate graph buffers")
+
+    // Prefer backend if available, otherwise use CPU compute ops
+    val backend = allocator.backend
+    if (backend != null) {
+        val status = backend.graphCompute(cgraph)
+        if (status != GGMLStatus.SUCCESS) throw IllegalStateException("Backend graph compute failed: $status")
+    } else {
+        GGMLComputeOps.computeGraph(cgraph)
     }
 }
 
@@ -2543,14 +2556,9 @@ fun executeGraph(context: GGMLContext, cgraph: GGMLCGraph) {
  * @param context The GGML context
  * @param cgraph The computation graph to execute
  */
-private fun executeBackward(context: GGMLContext, cgraph: GGMLCGraph) {
-    // Execute the nodes in order
-    // For backward pass, we execute the nodes in the same order as they were added to the graph
-    // This is because the backward graph is built by adding nodes in the correct order for backward execution
-    for (i in 0 until cgraph.nNodes) {
-        val node = cgraph.nodes[i] ?: continue
-        executeNode(context, node)
-    }
+private fun executeBackward(@Suppress("unused") context: GGMLContext, cgraph: GGMLCGraph) {
+    // Legacy path replaced: ensure allocation and compute via backend/CPU
+    computeGraphWithBackend(cgraph)
 }
 
 /**
@@ -2559,12 +2567,9 @@ private fun executeBackward(context: GGMLContext, cgraph: GGMLCGraph) {
  * @param context The GGML context
  * @param cgraph The computation graph to execute
  */
-private fun executeForward(context: GGMLContext, cgraph: GGMLCGraph) {
-    // Execute the nodes in order
-    for (i in 0 until cgraph.nNodes) {
-        val node = cgraph.nodes[i] ?: continue
-        executeNode(context, node)
-    }
+private fun executeForward(@Suppress("unused") context: GGMLContext, cgraph: GGMLCGraph) {
+    // Legacy path replaced: ensure allocation and compute via backend/CPU
+    computeGraphWithBackend(cgraph)
 }
 
 /**
@@ -2573,43 +2578,13 @@ private fun executeForward(context: GGMLContext, cgraph: GGMLCGraph) {
  * @param context The GGML context
  * @param node The node to execute
  */
-private fun executeNode(context: GGMLContext, node: GGMLTensor) {
-    // Execute the node based on its operation
-    when (node.op) {
-        GGMLOp.ADD -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("ADD operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("ADD operation requires two source tensors")
-            node.data = computeAdd(context, a, b).data
-        }
-        GGMLOp.SUB -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("SUB operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("SUB operation requires two source tensors")
-            node.data = computeSub(context, a, b).data
-        }
-        GGMLOp.MUL -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("MUL operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("MUL operation requires two source tensors")
-            node.data = computeMul(context, a, b).data
-        }
-        GGMLOp.MUL_MAT -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("MUL_MAT operation requires two source tensors")
-            val b = node.src[1] ?: throw IllegalArgumentException("MUL_MAT operation requires two source tensors")
-            node.data = computeMatMul(context, a, b).data
-        }
-        GGMLOp.NEG -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("NEG operation requires one source tensor")
-            node.data = computeNeg(context, a).data
-        }
-        GGMLOp.RELU -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("RELU operation requires one source tensor")
-            node.data = computeRelu(context, a).data
-        }
-        GGMLOp.GELU -> {
-            val a = node.src[0] ?: throw IllegalArgumentException("GELU operation requires one source tensor")
-            node.data = computeGelu(context, a).data
-        }
-        else -> throw NotImplementedError("Operation ${node.op} not implemented yet")
-    }
+private fun executeNode(@Suppress("unused") context: GGMLContext, node: GGMLTensor) {
+    // Legacy per-node execution replaced by backend/CPU graph compute.
+    // Build a temporary single-node graph and compute it via unified path.
+    val tempGraph = createGraph(1)
+    tempGraph.nodes[0] = node
+    tempGraph.nNodes = 1
+    computeGraphWithBackend(tempGraph)
 }
 
 /**
@@ -2647,21 +2622,22 @@ fun createGraph(size: Int, backend: GGMLBackend? = null): GGMLCGraph {
  * @return The computation status
  */
 fun computeGraphWithBackend(graph: GGMLCGraph, context: GGMLContext? = null): GGMLStatus {
-    val allocator = graph.allocator
-    val backend = allocator?.backend
-    
-    return if (backend != null) {
-        // Use backend computation
-        backend.graphCompute(graph)
-    } else {
-        // Fall back to legacy execution
-        val ctx = context ?: allocator?.context ?: GGMLContext()
-        return try {
-            executeGraph(ctx, graph)
+    val allocator = graph.allocator ?: GGMLGraphAllocator().also { graph.allocator = it }
+    val backend = allocator.backend
+
+    // Ensure graph is allocated before compute
+    return try {
+        val ok = allocator.allocateGraph(graph)
+        if (!ok) return GGMLStatus.FAILED
+
+        if (backend != null) {
+            backend.graphCompute(graph)
+        } else {
+            GGMLComputeOps.computeGraph(graph)
             GGMLStatus.SUCCESS
-        } catch (e: Exception) {
-            println("Graph computation failed: ${e.message}")
-            GGMLStatus.FAILED
         }
+    } catch (e: Exception) {
+        println("Graph computation failed: ${e.message}")
+        GGMLStatus.FAILED
     }
 }

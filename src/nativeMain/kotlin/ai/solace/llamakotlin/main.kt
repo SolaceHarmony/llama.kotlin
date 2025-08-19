@@ -15,6 +15,8 @@ fun main() {
     // Demonstrate the use of the optimized tensor operations
     demonstrateOptimizedTensorOps()
 
+    // Demonstrate the new graph optimization and scheduling features
+    demonstrateGraphOptimization()
 }
 
 /**
@@ -218,5 +220,29 @@ fun demonstrateMemoryAllocation() {
 
     kotlin.io.println("Graph allocation ${if (success) "succeeded" else "failed"}")
     kotlin.io.println("Buffer size: ${graphAllocator.getBufferSize(0)}")
+}
+
+/**
+ * Demonstrates the new graph optimization and scheduling functionality.
+ */
+fun demonstrateGraphOptimization() {
+    kotlin.io.println("\n=== Graph Optimization and Scheduling Demo ===")
+    
+    try {
+        // Run the optimization example
+        runOptimizationExample()
+        
+        kotlin.io.println("\n--- Individual Pass Demonstration ---")
+        demonstrateOptimizationPasses()
+        
+        kotlin.io.println("\n--- Performance Benchmarks ---")
+        runPerformanceBenchmarks()
+        
+        kotlin.io.println("\n✓ Graph optimization and scheduling demonstration completed successfully")
+        
+    } catch (e: Exception) {
+        kotlin.io.println("✗ Error during optimization demo: ${e.message}")
+        // Don't crash the main demo, just log the error
+    }
 }
 
