@@ -303,48 +303,81 @@ Optimizing memory access patterns can improve cache utilization and reduce memor
 
 ## Implementation Strategy
 
-To implement the tensor operations described in this document, we will create a new file called `GGMLComputeOps.kt` that will contain the actual computation functionality for tensor operations. This separation allows for cleaner code organization and easier maintenance.
+The tensor operations described in this document have been implemented using a **destination-based architecture** that aligns with GGML patterns and enables efficient memory management. The implementation resides in `GGMLComputeOps.kt` with a major architectural refactor completed.
 
-### GGMLComputeOps.kt
+### Destination-Based Architecture (Current Implementation)
 
-The `GGMLComputeOps.kt` file will contain the following functions:
+**Key Change**: All compute operations now use pre-allocated destination tensors instead of creating new result tensors, eliminating redundant memory allocations.
 
-1. Utility Functions:
-   - `calculateTotalSize`: Calculates the total size of a tensor based on its dimensions
-   - `allocateMemory`: Allocates memory for a tensor based on its type and size
+### GGMLComputeOps.kt (Current Implementation)
 
-2. Element-wise Operations:
-   - `computeAdd`: Adds two tensors element-wise
-   - `computeMul`: Multiplies two tensors element-wise
+The `GGMLComputeOps.kt` file contains the following functions with **destination-based signatures**:
 
-3. Matrix Operations:
-   - `computeMatMul`: Performs matrix multiplication of two tensors
+1. **Element-wise Operations**:
+   - `computeAdd(graphAllocator, context, a, b, dst)`: Adds two tensors element-wise into destination
+   - `computeMul(graphAllocator, context, a, b, dst)`: Multiplies two tensors element-wise into destination  
+   - `computeSub(graphAllocator, context, a, b, dst)`: Subtracts tensors element-wise into destination
+   - `computeDiv(graphAllocator, context, a, b, dst)`: Divides tensors element-wise into destination
+   - `computeNeg(graphAllocator, context, a, dst)`: Negates tensor into destination
 
-4. Activation Functions:
-   - `computeRelu`: Applies the ReLU activation function to a tensor
-   - `computeGelu`: Applies the GELU activation function to a tensor
+2. **Matrix Operations**:
+   - `computeMatMul(graphAllocator, context, a, b, dst)`: Performs matrix multiplication into destination
 
-### Integration with Existing Code
+3. **Activation Functions**:
+   - `computeRelu(graphAllocator, context, a, dst)`: Applies ReLU activation into destination
+   - `computeGelu(graphAllocator, context, a, dst)`: Applies GELU activation into destination
 
-The functions in `GGMLComputeOps.kt` will be called from the corresponding functions in `GGMLOps.kt`. For example, the `add` function in `GGMLOps.kt` will call `computeAdd` from `GGMLComputeOps.kt` to perform the actual computation.
+**Function Pattern:**
+```kotlin
+fun computeAdd(graphAllocator: GGMLGraphAllocator, context: GGMLContext, 
+               a: GGMLTensor, b: GGMLTensor, dst: GGMLTensor) {
+    // Validate destination tensor dimensions and type
+    require(dst.ne.contentEquals(expectedDimensions)) { "Dimension mismatch" }
+    require(dst.type == expectedType) { "Type mismatch" }
+    
+    // Write directly to destination using allocator-managed memory
+    when (a.type) {
+        GGMLType.F32 -> {
+            // Use tensor accessors to write to allocator-managed buffer
+            dst.setFloat(graphAllocator, computedValue, *indices)
+        }
+        // Handle other types...
+    }
+}
+```
+
+### Integration with Existing Code (Updated)
+
+The functions in `GGMLComputeOps.kt` are called from `GGMLOps.kt` with the destination tensor pre-allocated by the graph allocator:
 
 ```kotlin
-// In GGMLOps.kt
+// In GGMLOps.kt (Updated approach)
 fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     // Set up the operation in the computation graph
     val result = GGMLTensor(type = a.type)
     result.op = GGMLOp.ADD
     result.src[0] = a
     result.src[1] = b
+    
+    // Pre-allocate result tensor using graph allocator
+    val dst = context.graphAllocator.allocateTensor(a.type, a.ne)
 
     // If immediate computation is required, call the compute function
     if (context.computeImmediately) {
-        return computeAdd(context, a, b)
+        computeAdd(context.graphAllocator, context, a, b, dst)
+        return dst
     }
 
     return result
 }
 ```
+
+### Benefits of Destination-Based Architecture
+
+1. **Memory Efficiency**: Eliminates redundant array allocations in compute operations
+2. **Graph Optimization**: Enables memory reuse and inplace operations  
+3. **Backend Compatibility**: Aligns with GGML architecture for backend abstraction
+4. **Performance**: Reduces memory pressure and improves cache locality
 
 ## Conclusion
 

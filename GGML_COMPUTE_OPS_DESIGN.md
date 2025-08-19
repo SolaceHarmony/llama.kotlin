@@ -2,62 +2,90 @@
 
 ## Overview
 
-This document outlines the design for implementing the actual computation functionality for tensor operations in the Kotlin Native port of llama.cpp. It focuses on the implementation details for the GGMLComputeOps.kt file, which will contain the core computation functions for tensor operations.
+This document outlines the design for implementing the actual computation functionality for tensor operations in the Kotlin Native port of llama.cpp. It focuses on the implementation details for the GGMLComputeOps.kt file, which contains the core computation functions for tensor operations.
+
+## ⚠️ Major Architectural Update
+
+**This design document has been updated to reflect a major architectural refactor completed in the codebase.** All compute operations have been transformed from memory-allocating functions to destination-based operations that write directly into pre-allocated tensors managed by the graph allocator.
+
+### Key Changes:
+- **Function Signatures**: All functions now require a destination tensor parameter
+- **Memory Management**: Operations write directly to allocator-managed buffers
+- **Performance**: Eliminated redundant memory allocations
+- **Architecture**: Aligned with GGML patterns for memory reuse and optimization
+
+See `COMPUTE_OPERATIONS_REFACTOR_SUMMARY.md` for complete details of the implementation.
 
 ## Purpose
 
-The purpose of the GGMLComputeOps.kt file is to provide the actual computation functionality for tensor operations, separate from the tensor creation and management functions in GGMLOps.kt. This separation allows for cleaner code organization and easier maintenance.
+The GGMLComputeOps.kt file provides the actual computation functionality for tensor operations using a **destination-based architecture**. Operations write results directly into pre-allocated destination tensors rather than creating new tensors, enabling efficient memory management and graph optimization.
 
-## Function Specifications
+## Function Specifications (Updated Architecture)
 
-### Utility Functions
+### Destination-Based Operation Pattern
 
-#### calculateTotalSize
-
-```kotlin
-/**
- * Calculates the total size of a tensor based on its dimensions.
- *
- * @param ne The dimensions of the tensor
- * @return The total number of elements in the tensor
- */
-fun calculateTotalSize(ne: LongArray): Int {
-    var totalSize = 1
-    for (i in 0 until GGML_MAX_DIMS) {
-        totalSize *= ne[i].toInt()
-    }
-    return totalSize
-}
-```
-
-#### allocateMemory
+All compute operations now follow this pattern:
 
 ```kotlin
-/**
- * Allocates memory for a tensor based on its type and size.
- *
- * @param type The tensor data type
- * @param size The number of elements to allocate
- * @return The allocated memory as an appropriate array type
- */
-fun allocateMemory(type: GGMLType, size: Int): Any {
-    return when (type) {
-        GGMLType.F32 -> FloatArray(size) { 0.0f }
-        GGMLType.F16 -> ShortArray(size) { 0 }
-        GGMLType.I8 -> ByteArray(size) { 0 }
-        GGMLType.I16 -> ShortArray(size) { 0 }
-        GGMLType.I32 -> IntArray(size) { 0 }
-        GGMLType.I64 -> LongArray(size) { 0L }
-        else -> ByteArray(size) { 0 } // Default for quantized types
-    }
+fun computeOperation(
+    graphAllocator: GGMLGraphAllocator, 
+    context: GGMLContext, 
+    inputTensors: ..., 
+    dst: GGMLTensor
+) {
+    // 1. Validate destination tensor dimensions and type
+    // 2. Perform computation using input tensor accessors
+    // 3. Write results directly to destination using allocator-managed memory
 }
 ```
 
 ### Element-wise Operations
 
-#### computeAdd
+#### computeAdd (Updated)
 
 ```kotlin
+/**
+ * Adds two tensors element-wise, writing results to destination tensor.
+ *
+ * @param graphAllocator The graph allocator managing tensor memory
+ * @param context The computation context
+ * @param a First input tensor
+ * @param b Second input tensor  
+ * @param dst Pre-allocated destination tensor for results
+ */
+fun computeAdd(
+    graphAllocator: GGMLGraphAllocator, 
+    context: GGMLContext, 
+    a: GGMLTensor, 
+    b: GGMLTensor, 
+    dst: GGMLTensor
+) {
+    // Validate destination tensor
+    require(dst.ne.contentEquals(a.ne)) { "Destination dimensions must match input" }
+    require(dst.type == a.type) { "Destination type must match input" }
+
+    val totalSize = calculateTotalSize(a.ne)
+    
+    // Perform the addition based on the tensor type
+    when (a.type) {
+        GGMLType.F32 -> {
+            // Use tensor accessors to write to allocator-managed buffer
+            for (i in 0 until totalSize) {
+                val aVal = a.getFloat(graphAllocator, i)
+                val bVal = b.getFloat(graphAllocator, i) 
+                dst.setFloat(graphAllocator, aVal + bVal, i)
+            }
+        }
+        GGMLType.I32 -> {
+            for (i in 0 until totalSize) {
+                val aVal = a.getInt(graphAllocator, i)
+                val bVal = b.getInt(graphAllocator, i)
+                dst.setInt(graphAllocator, aVal + bVal, i) 
+            }
+        }
+        // Handle other types...
+    }
+}
 /**
  * Adds two tensors element-wise.
  *
@@ -352,27 +380,37 @@ fun computeGelu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
 }
 ```
 
-## Integration with Existing Code
+## Integration with Existing Code (Updated)
 
-The functions in GGMLComputeOps.kt will be called from the corresponding functions in GGMLOps.kt. For example, the `add` function in GGMLOps.kt will call `computeAdd` from GGMLComputeOps.kt to perform the actual computation.
+The functions in GGMLComputeOps.kt are called from the corresponding functions in GGMLOps.kt with the destination-based architecture. The calling functions must pre-allocate destination tensors using the graph allocator.
 
 ```kotlin
-// In GGMLOps.kt
+// In GGMLOps.kt (Updated approach)
 fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     // Set up the operation in the computation graph
     val result = GGMLTensor(type = a.type)
     result.op = GGMLOp.ADD
     result.src[0] = a
     result.src[1] = b
+    
+    // Pre-allocate destination tensor using graph allocator
+    val dst = context.graphAllocator.allocateTensor(a.type, a.ne)
 
     // If immediate computation is required, call the compute function
     if (context.computeImmediately) {
-        return computeAdd(context, a, b)
+        computeAdd(context.graphAllocator, context, a, b, dst)
+        return dst
     }
 
     return result
 }
 ```
+
+**Key Changes in Integration:**
+- Destination tensor must be pre-allocated using `context.graphAllocator.allocateTensor()`
+- Compute functions called with additional `graphAllocator` and `dst` parameters
+- No return value from compute functions - results written to destination
+- Graph allocator manages all memory allocation and reuse
 
 ## Optimization Strategies
 
