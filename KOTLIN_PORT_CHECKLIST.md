@@ -77,7 +77,13 @@ This checklist is based on the current state of the Kotlin Native port of llama.
   - [ ] Implement graph optimization
 
 - [~] Implement Quantization Support
-  - [ ] Implement 1.5-bit integer quantization
+  - [x] Implement 1.5-bit integer quantization (BitNet 1.58)
+    - [x] Defined BitNet 1.58 block structure (F16 scale + packed ternary values, type.byteSize = 10).
+    - [x] Implemented data accessors for BitNet 1.58 blocks (`getBitNet158BlockScale`, `getBitNet158TernaryWeight`, `setBitNet158TernaryWeight`).
+    - [x] Implemented ternary value quantization/dequantization with scale-based thresholds.
+    - [x] Implemented efficient base-3 packing (5 ternary values per byte).
+    - [x] Added dot product operations (`computeDotProductBitNet158F32`, `computeDotProductBitNet158BitNet158`).
+    - [x] Comprehensive test suite with accuracy validation and edge case testing.
   - [ ] Implement 2-bit integer quantization
   - [ ] Implement 3-bit integer quantization
   - [x] Implement 4-bit integer quantization (Q4_0 focused)
