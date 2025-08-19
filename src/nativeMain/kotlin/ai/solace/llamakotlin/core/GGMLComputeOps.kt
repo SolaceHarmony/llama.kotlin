@@ -628,6 +628,75 @@ internal fun computeDotProductQ80Q40(
     return sumF32
 }
 
+/**
+ * Computes the dot product of a row from a BitNet 1.58 tensor and a column from an F32 tensor.
+ * Used as a core part of BitNet 1.58 x F32 matrix multiplication.
+ */
+internal fun computeDotProductBitNet158F32(
+    graphAllocator: GGMLGraphAllocator,
+    tensorBitNet: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorF32: GGMLTensor,       // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInBitNet: Int,       // Row index for tensorBitNet (0 to M-1)
+    colIndexInF32: Int,          // Column index for tensorF32 (0 to N-1)
+    commonDimK: Int              // The shared dimension K
+): Float {
+    require(tensorBitNet.type == GGMLType.BITNET_1_58) { "tensorBitNet must be BITNET_1_58. Got ${tensorBitNet.type}" }
+    require(tensorF32.type == GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorBitNet.ne[0].toInt() == commonDimK) { "tensorBitNet K dim (${tensorBitNet.ne[0]}) must match commonDimK ($commonDimK)" }
+    require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        val flatIndexInBitNet = rowIndexInBitNet * commonDimK + k
+        val blockIndexBitNet = flatIndexInBitNet / QK_BITNET_1_58
+        val itemInBlockBitNet = flatIndexInBitNet % QK_BITNET_1_58
+        val scale = tensorBitNet.getBitNet158BlockScale(graphAllocator, blockIndexBitNet)
+        val ternaryWeight = tensorBitNet.getBitNet158TernaryWeight(graphAllocator, blockIndexBitNet, itemInBlockBitNet)
+        val dequantizedBitNetValue = scale * ternaryWeight.toFloat()
+        val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
+        sumF32 += dequantizedBitNetValue * f32Value
+    }
+    return sumF32
+}
+
+/**
+ * Computes the direct quantized dot product BitNet 1.58 x BitNet 1.58 -> F32.
+ */
+internal fun computeDotProductBitNet158BitNet158(
+    graphAllocator: GGMLGraphAllocator,
+    tensorBitNetA: GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorBitNetB: GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    rowIndexInBitNetA: Int,
+    colIndexInBitNetB: Int,
+    commonDimK: Int
+): Float {
+    require(tensorBitNetA.type == GGMLType.BITNET_1_58) { "tensorBitNetA must be BITNET_1_58. Got ${tensorBitNetA.type}" }
+    require(tensorBitNetB.type == GGMLType.BITNET_1_58) { "tensorBitNetB must be BITNET_1_58. Got ${tensorBitNetB.type}" }
+    require(tensorBitNetA.ne[0].toInt() == commonDimK) { "tensorBitNetA K dim (${tensorBitNetA.ne[0]}) must match commonDimK ($commonDimK)" }
+    require(tensorBitNetB.ne[1].toInt() == commonDimK) { "tensorBitNetB K dim (${tensorBitNetB.ne[1]}) must match commonDimK ($commonDimK)" }
+
+    var sumF32 = 0.0f
+    for (k in 0 until commonDimK) {
+        // Access tensorBitNetA[rowIndexInBitNetA, k]
+        val flatIndexInBitNetA = rowIndexInBitNetA * commonDimK + k
+        val blockIndexBitNetA = flatIndexInBitNetA / QK_BITNET_1_58
+        val itemInBlockBitNetA = flatIndexInBitNetA % QK_BITNET_1_58
+        val scaleA = tensorBitNetA.getBitNet158BlockScale(graphAllocator, blockIndexBitNetA)
+        val ternaryWeightA = tensorBitNetA.getBitNet158TernaryWeight(graphAllocator, blockIndexBitNetA, itemInBlockBitNetA)
+
+        // Access tensorBitNetB[k, colIndexInBitNetB]
+        val flatIndexInBitNetB = k * tensorBitNetB.ne[0].toInt() + colIndexInBitNetB
+        val blockIndexBitNetB = flatIndexInBitNetB / QK_BITNET_1_58
+        val itemInBlockBitNetB = flatIndexInBitNetB % QK_BITNET_1_58
+        val scaleB = tensorBitNetB.getBitNet158BlockScale(graphAllocator, blockIndexBitNetB)
+        val ternaryWeightB = tensorBitNetB.getBitNet158TernaryWeight(graphAllocator, blockIndexBitNetB, itemInBlockBitNetB)
+
+        // Direct ternary multiplication: (scaleA * ternaryA) * (scaleB * ternaryB)
+        sumF32 += scaleA * scaleB * (ternaryWeightA.toFloat() * ternaryWeightB.toFloat())
+    }
+    return sumF32
+}
+
 // Helper to iterate N-dimensionally
 internal fun applyNDIter(tensor: GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
     val n0 = tensor.ne[0].toInt(); val n1 = tensor.ne[1].toInt()
@@ -799,7 +868,7 @@ fun computeMul(
                 dst.setLong(graphAllocator, valA * valB, *indices)
             }
         }
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1, GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q5_0, GGMLType.Q5_1, GGMLType.Q8_0, GGMLType.Q8_1, GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K, GGMLType.BITNET_1_58 -> {
             val aF32 = dequantizeTensor(graphAllocator, a)
             val bF32 = dequantizeTensor(graphAllocator, b)
             val tempF32 = GGMLTensor(type = GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb = calculateContiguousStrides(tempF32.ne, GGMLType.F32, tempF32.ne.size)
@@ -846,7 +915,7 @@ fun computeMatMulRet(graphAllocator: GGMLGraphAllocator, context: GGMLContext, a
     return dst
 }
 
-private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor): GGMLTensor {
+fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTensor): GGMLTensor {
     val result = GGMLTensor(type = GGMLType.F32)
     result.ne = tensor.ne.copyOf()
     if (result.type.byteSize > 0uL) {
@@ -948,12 +1017,27 @@ private fun dequantizeTensor(graphAllocator: GGMLGraphAllocator, tensor: GGMLTen
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q8_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
+        // BitNet 1.58 dequantization
+        GGMLType.BITNET_1_58 -> {
+            val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
+            for (blockIdx in 0 until numBlocks) {
+                val scale = tensor.getBitNet158BlockScale(graphAllocator, blockIdx)
+                for (itemIdxInBlock in 0 until QK_BITNET_1_58) { 
+                    if (fidx < numElements) {
+                        val ternaryWeight = tensor.getBitNet158TernaryWeight(graphAllocator, blockIdx, itemIdxInBlock)
+                        resultDataArray[fidx++] = scale * ternaryWeight.toFloat()
+                    } else break 
+                }
+                if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: BitNet 1.58 dequant filled array early for ${tensor.name}"); break }
+            }
+            if (fidx != numElements && numElements > 0) println("Warn: BitNet 1.58 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
+        }
         else -> println("Warning: dequantizeTensor from ${tensor.type} to F32 not fully implemented. Result is zeroed for ${tensor.name}.")
     }
     result.data = resultDataArray; return result
 }
 
-private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTensor, targetType: GGMLType): GGMLTensor {
+fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTensor, targetType: GGMLType): GGMLTensor {
     if (tensorF32.type != GGMLType.F32) throw IllegalArgumentException("quantizeTensor expects F32 input, got ${tensorF32.type}")
     val result = GGMLTensor(type = targetType); result.ne = tensorF32.ne.copyOf()
     if (targetType.byteSize > 0uL) {
@@ -1277,6 +1361,71 @@ private fun quantizeTensor(graphAllocator: GGMLGraphAllocator, tensorF32: GGMLTe
                 quantizeQ8_KBlock(blockValues, resArr, blockNum * blockByteSize)
             }
         }
+        // BitNet 1.58 quantization
+        GGMLType.BITNET_1_58 -> {
+            require(numElements % QK_BITNET_1_58 == 0) { "BitNet 1.58 numElements $numElements not div by $QK_BITNET_1_58" }
+            val numBlocks = numElements / QK_BITNET_1_58
+            val blockByteSize = targetType.byteSize.toInt()
+            require(blockByteSize == Short.SIZE_BYTES + 8) { "BitNet 1.58 block size mismatch. Expected ${Short.SIZE_BYTES + 8}, got $blockByteSize" }
+            
+            val bitNet158DataArray = ByteArray(numBlocks * blockByteSize)
+            result.data = bitNet158DataArray
+            
+            val f32BlockValues = FloatArray(QK_BITNET_1_58)
+            var currentF32ElementIndex = 0
+            var blockByteWriteOffset = 0
+            
+            // Process each block
+            for (blockNum in 0 until numBlocks) {
+                // Fill f32BlockValues for this block
+                applyNDIter(tensorF32, QK_BITNET_1_58) { idx, ind ->
+                    if (currentF32ElementIndex < numElements && idx < QK_BITNET_1_58) {
+                        f32BlockValues[idx] = tensorF32.getFloat(graphAllocator, *ind)
+                        currentF32ElementIndex++
+                    }
+                }
+                
+                // Calculate scale as the maximum absolute value
+                var maxAbs = 0.0f
+                for (v in f32BlockValues) {
+                    maxAbs = maxOf(maxAbs, kotlin.math.abs(v))
+                }
+                val scale = if (maxAbs == 0.0f) 1.0f else maxAbs
+                val invScale = if (scale == 0.0f) 0.0f else 1.0f / scale
+                
+                // Store scale as F16
+                bitNet158DataArray.setShortLe(blockByteWriteOffset, floatToHalf(scale))
+                
+                // Quantize values to ternary (-1, 0, +1) and pack them
+                val ternaryValues = IntArray(QK_BITNET_1_58)
+                for (i in 0 until QK_BITNET_1_58) {
+                    val normalizedValue = f32BlockValues[i] * invScale
+                    ternaryValues[i] = when {
+                        normalizedValue > 0.5f -> 2  // +1 -> encoded as 2
+                        normalizedValue < -0.5f -> 0 // -1 -> encoded as 0  
+                        else -> 1                    //  0 -> encoded as 1
+                    }
+                }
+                
+                // Pack ternary values: 5 values per byte using base-3 encoding
+                val ternaryDataOffset = blockByteWriteOffset + Short.SIZE_BYTES
+                val powers = intArrayOf(1, 3, 9, 27, 81) // 3^0, 3^1, 3^2, 3^3, 3^4
+                
+                for (groupIdx in 0 until 7) { // 32 values / 5 per byte = 6.4, so 7 bytes (last byte partially used)
+                    var packedValue = 0
+                    for (posInGroup in 0 until 5) {
+                        val valueIdx = groupIdx * 5 + posInGroup
+                        if (valueIdx < QK_BITNET_1_58) {
+                            packedValue += ternaryValues[valueIdx] * powers[posInGroup]
+                        }
+                        // If valueIdx >= QK_BITNET_1_58, the value remains 0 (encoded as -1), which is fine
+                    }
+                    bitNet158DataArray[ternaryDataOffset + groupIdx] = packedValue.toByte()
+                }
+                
+                blockByteWriteOffset += blockByteSize
+            }
+        }
         GGMLType.Q5_0, GGMLType.Q5_1 -> { result.data = ByteArray((numElements * 5 + 7) / 8); println("Warn: Quant F32 to ${targetType.name} NI") }
         else -> { println("Error: Unsupp target quant type $targetType"); result.data = null }
     }
@@ -1405,7 +1554,7 @@ fun computeMatMul(graphAllocator: GGMLGraphAllocator, @Suppress("unused") contex
                 }
             }
         }
-        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1,GGMLType.Q2_K,GGMLType.Q3_K,GGMLType.Q4_K,GGMLType.Q5_K,GGMLType.Q6_K,GGMLType.Q8_K -> {
+        GGMLType.Q4_0,GGMLType.Q4_1,GGMLType.Q5_0,GGMLType.Q5_1,GGMLType.Q8_0,GGMLType.Q8_1,GGMLType.Q2_K,GGMLType.Q3_K,GGMLType.Q4_K,GGMLType.Q5_K,GGMLType.Q6_K,GGMLType.Q8_K,GGMLType.BITNET_1_58 -> {
             val aF32=dequantizeTensor(graphAllocator,a); val bF32=dequantizeTensor(graphAllocator,b)
             val tempF32 = GGMLTensor(type = GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb = calculateContiguousStrides(tempF32.ne, GGMLType.F32, tempF32.ne.size)
             computeMatMul(graphAllocator,context,aF32,bF32,tempF32)

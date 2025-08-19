@@ -85,6 +85,9 @@ internal const val QK8_0: Int = 32 // Block size for Q8_0 blocks
 internal const val QK4_0: Int = 32 // Block size for Q4_0 blocks
 internal const val QK4_1: Int = 32 // Block size for Q4_1 blocks (same number of elements as Q4_0)
 
+// BitNet 1.58 constants
+internal const val QK_BITNET_1_58: Int = 32 // Block size for BitNet 1.58 blocks (ternary values per block)
+
 // K-Quant constants
 internal const val QK_K: Int = 256 // Super-block size for K-quants
 internal const val K_SCALE_SIZE: Int = 12 // Number of scale bytes for Q4_K and Q5_K
@@ -117,6 +120,11 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     Q5_K("q5_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K / 8).toULong() + (QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/8 + QK_K/2 = 4 + 12 + 32 + 128 = 176 bytes  
     Q6_K("q6_k", Short.SIZE_BYTES.toULong() + (QK_K / 16).toULong() + ((3 * QK_K) / 4).toULong()),   // F16 + QK_K/16 + 3*QK_K/4 = 2 + 16 + 192 = 210 bytes
     Q8_K("q8_k", 4uL + QK_K.toULong() + ((QK_K / 16) * 2).toULong()),   // F32 + QK_K + QK_K/16*sizeof(int16_t) = 4 + 256 + 32 = 292 bytes
+    // BitNet 1.58 quantization (ternary values: -1, 0, +1)
+    // Block structure: F16 scale + packed ternary values
+    // 32 ternary values packed efficiently: log2(3^32) ≈ 50.6 bits, but we use a simpler packing
+    // We pack 5 ternary values into 1 byte (3^5 = 243 < 256), so 32/5 = 6.4 ≈ 7 bytes for values + padding
+    BITNET_1_58("bitnet_1_58", Short.SIZE_BYTES.toULong() + 8uL), // F16 scale + 8 bytes for packed ternary values (with padding)
     Q1_5_K("q1_5_k", 0uL), // 1.5-bit quantized for K-quants (ternary: -1, 0, 1) - size is complex - TODO
     I8("int8", 1uL),     // 8-bit integer
     I16("int16", 2uL),    // 16-bit integer
@@ -504,6 +512,8 @@ class GGMLTensor(
             GGMLType.Q8_0 -> QK8_0.toLong()
             GGMLType.Q4_0 -> QK4_0.toLong()
             GGMLType.Q4_1 -> QK4_1.toLong()
+            // BitNet 1.58 quantization
+            GGMLType.BITNET_1_58 -> QK_BITNET_1_58.toLong()
             // K-Quant types
             GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> QK_K.toLong()
             else -> {
@@ -905,6 +915,166 @@ class GGMLTensor(
         val buffer = graphAllocator.buffers[bufferId] ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
         return buffer[finalByteOffset.toInt()]
     }
+    
+    // --- BitNet 1.58 Accessor Methods ---
+    
+    /**
+     * Retrieves the F16 scale for a specific block in a BitNet 1.58 quantized tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @return The scale value as a Float.
+     */
+    fun getBitNet158BlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to get block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalScaleByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        // The scale is the first F16 (2 bytes) in the block
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read BitNet 1.58 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}).")
+        }
+
+        val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
+        return halfToFloat(scaleBits)
+    }
+
+    /**
+     * Retrieves a single ternary weight (-1, 0, +1) from a specific block in a BitNet 1.58 tensor.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK_BITNET_1_58 - 1).
+     * @return The ternary weight as a Byte (-1, 0, or +1).
+     */
+    fun getBitNet158TernaryWeight(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to get ternary weight." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK_BITNET_1_58) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${QK_BITNET_1_58 - 1}) for BitNet 1.58 block in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val ternaryDataBaseOffsetInBlock = Short.SIZE_BYTES.toULong() // The F16 scale takes the first 2 bytes
+        
+        // We pack 5 ternary values into 1 byte using a base-3 encoding
+        // 3^5 = 243 which fits in a byte (0-255)
+        val groupIndex = itemIndexInBlock / 5  // Which byte contains this ternary value
+        val positionInGroup = itemIndexInBlock % 5  // Position within the group of 5
+        
+        val finalByteToReadOffset = dataOffset + blockByteOffset + ternaryDataBaseOffsetInBlock + groupIndex.toULong()
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        if (finalByteToReadOffset.toInt() < 0 || finalByteToReadOffset.toInt() + 1 > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read BitNet 1.58 ternary weight byte at offset ${finalByteToReadOffset.toInt()} for block $blockIndex, item $itemIndexInBlock in tensor '$name' is out of buffer bounds.")
+        }
+        
+        val packedByte = buffer[finalByteToReadOffset.toInt()].toUByte().toInt()
+        
+        // Decode the ternary value from base-3 encoding
+        // Each byte stores 5 ternary values as: v4*3^4 + v3*3^3 + v2*3^2 + v1*3^1 + v0*3^0
+        val powers = intArrayOf(1, 3, 9, 27, 81) // 3^0, 3^1, 3^2, 3^3, 3^4
+        var remaining = packedByte
+        val ternaryValues = IntArray(5)
+        
+        // Extract ternary values in reverse order (from highest power to lowest)
+        for (i in 4 downTo 0) {
+            ternaryValues[i] = remaining / powers[i]
+            remaining %= powers[i]
+        }
+        
+        // Convert from {0, 1, 2} to {-1, 0, +1}
+        val ternaryValue = when (ternaryValues[positionInGroup]) {
+            0 -> -1
+            1 -> 0
+            2 -> +1
+            else -> throw IllegalStateException("Invalid ternary value decoded: ${ternaryValues[positionInGroup]}")
+        }
+        
+        return ternaryValue.toByte()
+    }
+    
+    /**
+     * Sets a ternary weight (-1, 0, +1) for a specific position in a BitNet 1.58 tensor block.
+     * This is used during quantization operations.
+     * @param graphAllocator The graph allocator holding the buffer.
+     * @param blockIndex The 0-based index of the block.
+     * @param itemIndexInBlock The 0-based index of the weight within the block.
+     * @param ternaryValue The ternary weight to set (-1, 0, or +1).
+     */
+    fun setBitNet158TernaryWeight(graphAllocator: GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int, ternaryValue: Byte) {
+        require(type == GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to set ternary weight." }
+        require(ternaryValue in -1..1) { "BitNet 1.58 ternary value must be -1, 0, or +1. Got $ternaryValue" }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < QK_BITNET_1_58) { "itemIndexInBlock $itemIndexInBlock out of bounds for BitNet 1.58 block in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val ternaryDataBaseOffsetInBlock = Short.SIZE_BYTES.toULong()
+        
+        val groupIndex = itemIndexInBlock / 5
+        val positionInGroup = itemIndexInBlock % 5
+        
+        val finalByteToWriteOffset = dataOffset + blockByteOffset + ternaryDataBaseOffsetInBlock + groupIndex.toULong()
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        // Read current packed byte
+        val currentPackedByte = buffer[finalByteToWriteOffset.toInt()].toUByte().toInt()
+        
+        // Convert ternary value from {-1, 0, +1} to {0, 1, 2}
+        val encodedValue = when (ternaryValue.toInt()) {
+            -1 -> 0
+            0 -> 1
+            1 -> 2
+            else -> throw IllegalArgumentException("Invalid ternary value: $ternaryValue")
+        }
+        
+        // Decode current values
+        val powers = intArrayOf(1, 3, 9, 27, 81)
+        var remaining = currentPackedByte
+        val ternaryValues = IntArray(5)
+        
+        for (i in 4 downTo 0) {
+            ternaryValues[i] = remaining / powers[i]
+            remaining %= powers[i]
+        }
+        
+        // Update the specific position
+        ternaryValues[positionInGroup] = encodedValue
+        
+        // Re-encode to packed byte
+        var newPackedValue = 0
+        for (i in 0 until 5) {
+            newPackedValue += ternaryValues[i] * powers[i]
+        }
+        
+        buffer[finalByteToWriteOffset.toInt()] = newPackedValue.toByte()
+    }
+    
+    /**
+     * Sets the F16 scale for a specific block in a BitNet 1.58 quantized tensor.
+     */
+    fun setBitNet158BlockScale(graphAllocator: GGMLGraphAllocator, blockIndex: Int, scale: Float) {
+        require(type == GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to set block scale." }
+        val numBlocks = getNumBlocks()
+        require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
+
+        val blockByteOffset = blockIndex.toULong() * type.byteSize
+        val finalScaleByteOffset = dataOffset + blockByteOffset
+
+        val buffer = graphAllocator.buffers[bufferId]
+            ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
+
+        val scaleBits = floatToHalf(scale)
+        buffer.setShortLe(finalScaleByteOffset.toInt(), scaleBits)
+    }
 }
 
 /**
@@ -982,13 +1152,14 @@ internal fun calculateTensorByteSize(tensor: GGMLTensor): ULong {
 
     return when (tensor.type) {
         // Explicitly list block-quantized types. Their type.byteSize is "bytes per block".
-        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0, 
+        GGMLType.Q4_0, GGMLType.Q4_1, GGMLType.Q8_0, GGMLType.BITNET_1_58,
         GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> {
             // These constants should be defined in GGMLTypes.kt or accessible.
             val elementsPerBlock = when(tensor.type) {
                 GGMLType.Q4_0 -> QK4_0.toULong()
                 GGMLType.Q4_1 -> QK4_1.toULong()
                 GGMLType.Q8_0 -> QK8_0.toULong()
+                GGMLType.BITNET_1_58 -> QK_BITNET_1_58.toULong()
                 // K-Quant types all use QK_K as block size
                 GGMLType.Q2_K, GGMLType.Q3_K, GGMLType.Q4_K, GGMLType.Q5_K, GGMLType.Q6_K, GGMLType.Q8_K -> QK_K.toULong()
                 else -> {
