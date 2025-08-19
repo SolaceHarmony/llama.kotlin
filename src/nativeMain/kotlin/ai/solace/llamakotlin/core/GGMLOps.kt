@@ -27,6 +27,33 @@ internal fun calculateContiguousStrides(ne: LongArray, type: GGMLType, rank: Int
     return nb
 }
 
+/** Lightweight view ops used by backward/graph code: reshape, permute, transpose. */
+fun reshape(context: GGMLContext, a: GGMLTensor, vararg newShape: Long): GGMLTensor {
+    val out = GGMLTensor(type = a.type)
+    val r = newShape.copyOf(GGML_MAX_DIMS)
+    for (i in 0 until GGML_MAX_DIMS) out.ne[i] = if (i < newShape.size) r[i] else 1L
+    out.nb = calculateContiguousStrides(out.ne, out.type, out.rank())
+    out.viewSrc = a
+    out.op = GGMLOp.RESHAPE
+    return if (context.computeImmediately) out else out
+}
+
+fun permute(context: GGMLContext, a: GGMLTensor, ax0: Int, ax1: Int, ax2: Int, ax3: Int): GGMLTensor {
+    val axes = intArrayOf(ax0, ax1, ax2, ax3)
+    val out = GGMLTensor(type = a.type)
+    for (i in 0 until GGML_MAX_DIMS) out.ne[i] = a.ne[axes.getOrElse(i) { i }]
+    out.nb = calculateContiguousStrides(out.ne, out.type, out.rank())
+    out.viewSrc = a
+    out.op = GGMLOp.PERMUTE
+    out.opParams = axes
+    return if (context.computeImmediately) out else out
+}
+
+fun transpose(context: GGMLContext, a: GGMLTensor, ax0: Int, ax1: Int): GGMLTensor {
+    val axes = intArrayOf(ax0, ax1, 2, 3)
+    return permute(context, a, axes[0], axes[1], axes[2], axes[3]).also { it.op = GGMLOp.TRANSPOSE }
+}
+
 /**
  * Kotlin Native port of GGML tensor operations.
  * This file contains the implementation of basic tensor operations.

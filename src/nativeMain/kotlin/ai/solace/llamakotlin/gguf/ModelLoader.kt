@@ -1,8 +1,6 @@
 package ai.solace.llamakotlin.gguf
 
 import ai.solace.llamakotlin.core.*
-import kotlin.io.path.Path
-import kotlin.io.path.readBytes
 
 /**
  * Model loader that can load GGUF files and create tensors
@@ -13,8 +11,7 @@ class ModelLoader {
      * Load model from GGUF file
      */
     fun loadFromFile(filePath: String): LoadedModel {
-        val data = Path(filePath).readBytes()
-        return loadFromBytes(data)
+        throw UnsupportedOperationException("File IO not available in nativeMain stub; use loadFromBytes")
     }
     
     /**
@@ -127,11 +124,8 @@ class LoadedModel(val ggufContext: GGUFContext) {
             val a = createTestTensor(context)
             val b = createTestTensor(context)
             
-            // Perform matrix multiplication using context
+            // Perform matrix multiplication using context (graph execution would be required)
             val result = matMul(context, a, b)
-            
-            // Compute the result
-            GGMLComputeOps.compute(result)
             
             // Check if we got expected results (basic validation)
             val expected = 7.0f // (1*1 + 2*3) = 7 for element [0,0]

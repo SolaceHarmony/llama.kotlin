@@ -94,7 +94,7 @@ class GGUFParser(private val data: ByteArray) {
         val type = GGMLType.fromValue(typeValue.toInt())
             ?: throw IllegalArgumentException("Unknown tensor type: $typeValue")
         
-        val offset = readUInt64()
+    val offset = readUInt64().toLong()
         
         return GGUFTensorInfo(name, dimensions, type, offset)
     }

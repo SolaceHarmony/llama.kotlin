@@ -14,7 +14,7 @@ package ai.solace.llamakotlin.core
 class GGMLMetalBufferType : GGMLBackendBufferType {
     companion object {
         private const val METAL_ALIGNMENT = 16u // Metal buffer alignment
-        private const val MAX_BUFFER_SIZE = 1024uL * 1024uL * 1024uL * 4uL // 4GB limit as example
+    private const val MAX_BUFFER_SIZE: ULong = 4294967296uL // 4GB limit as example
     }
     
     override fun getName(): String = "Metal"
@@ -94,6 +94,7 @@ class GGMLMetalBuffer(
  * This provides the interface for Metal GPU compute operations.
  * The actual Metal integration will require platform-specific implementations.
  */
+@OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 class GGMLMetalBackend : GGMLBackend {
     companion object {
         private const val BACKEND_GUID = "METAL-KOTLIN-NATIVE-STUB"
@@ -184,13 +185,11 @@ class GGMLMetalBackend : GGMLBackend {
     /**
      * Get Metal device info (stub)
      */
-    fun getDeviceInfo(): Map<String, Any> {
-        return mapOf(
-            "name" to "Metal Device (stub)",
-            "available" to isMetalAvailable(),
-            "initialized" to initialized,
-            "maxBufferLength" to bufferType.getMaxSize(),
-            "supportsFamily" to false // TODO: Implement family support checking
-        )
+    fun getDeviceInfo(): Map<String, Any> = buildMap {
+        put("name", "Metal Device (stub)")
+        put("available", isMetalAvailable())
+        put("initialized", initialized)
+        put("maxBufferLength", bufferType.getMaxSize())
+        put("supportsFamily", false)
     }
 }

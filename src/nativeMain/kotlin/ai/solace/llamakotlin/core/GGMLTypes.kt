@@ -1,6 +1,5 @@
 package ai.solace.llamakotlin.core
 
-import kotlin.native.concurrent.SharedImmutable
 import kotlin.Short.Companion.SIZE_BYTES
 
 // Numeric conversion functions (assuming they are in the same package or imported)
@@ -47,13 +46,6 @@ internal fun ByteArray.getLongLe(offset: Int): Long {
         result = result or ((this[offset + i].toLong() and 0xFF) shl (i * 8))
     }
     return result
-}
-
-internal fun ByteArray.setLongLe(offset: Int, value: Long) {
-    require(offset + Long.SIZE_BYTES <= size) { "Offset $offset + ${Long.SIZE_BYTES} > size $size" }
-    for (i in 0 until Long.SIZE_BYTES) {
-        this[offset + i] = ((value shr (i * 8)) and 0xFF).toByte()
-    }
 }
 
 internal fun ByteArray.setLongLe(offset: Int, value: Long) {
@@ -119,12 +111,12 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     Q8_0("q8_0", 2uL + QK8_0.toULong()),   // 8-bit quantized, 34 bytes per block (2 + 32*1)
     Q8_1("q8_1", 0uL),   // 8-bit quantized with different scaling
     // K-Quant types with correct block sizes (based on ggml-common.h)
-    Q2_K("q2_k", (2uL * Short.SIZE_BYTES.toULong()) + (QK_K/16).toULong() + (QK_K/4).toULong()),   // 2*F16 + QK_K/16 + QK_K/4 = 4 + 16 + 64 = 84 bytes
-    Q3_K("q3_k", Short.SIZE_BYTES.toULong() + (QK_K/4).toULong() + (QK_K/8).toULong() + 12uL),   // F16 + QK_K/4 + QK_K/8 + 12 = 2 + 64 + 32 + 12 = 110 bytes
-    Q4_K("q4_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K/2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/2 = 4 + 12 + 128 = 144 bytes
-    Q5_K("q5_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K/8).toULong() + (QK_K/2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/8 + QK_K/2 = 4 + 12 + 32 + 128 = 176 bytes  
-    Q6_K("q6_k", Short.SIZE_BYTES.toULong() + (QK_K/16).toULong() + (3uL*QK_K/4uL)),   // F16 + QK_K/16 + 3*QK_K/4 = 2 + 16 + 192 = 210 bytes
-    Q8_K("q8_k", 4uL + QK_K.toULong() + (QK_K/16uL*2uL)),   // F32 + QK_K + QK_K/16*sizeof(int16_t) = 4 + 256 + 32 = 292 bytes
+    Q2_K("q2_k", (2uL * Short.SIZE_BYTES.toULong()) + (QK_K / 16).toULong() + (QK_K / 4).toULong()),   // 2*F16 + QK_K/16 + QK_K/4 = 4 + 16 + 64 = 84 bytes
+    Q3_K("q3_k", Short.SIZE_BYTES.toULong() + (QK_K / 4).toULong() + (QK_K / 8).toULong() + 12uL),   // F16 + QK_K/4 + QK_K/8 + 12 = 2 + 64 + 32 + 12 = 110 bytes
+    Q4_K("q4_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/2 = 4 + 12 + 128 = 144 bytes
+    Q5_K("q5_k", (2uL * Short.SIZE_BYTES.toULong()) + K_SCALE_SIZE.toULong() + (QK_K / 8).toULong() + (QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/8 + QK_K/2 = 4 + 12 + 32 + 128 = 176 bytes  
+    Q6_K("q6_k", Short.SIZE_BYTES.toULong() + (QK_K / 16).toULong() + ((3 * QK_K) / 4).toULong()),   // F16 + QK_K/16 + 3*QK_K/4 = 2 + 16 + 192 = 210 bytes
+    Q8_K("q8_k", 4uL + QK_K.toULong() + ((QK_K / 16) * 2).toULong()),   // F32 + QK_K + QK_K/16*sizeof(int16_t) = 4 + 256 + 32 = 292 bytes
     Q1_5_K("q1_5_k", 0uL), // 1.5-bit quantized for K-quants (ternary: -1, 0, 1) - size is complex - TODO
     I8("int8", 1uL),     // 8-bit integer
     I16("int16", 2uL),    // 16-bit integer
@@ -176,6 +168,7 @@ enum class GGMLOp(val canBeInplace: Boolean = false) {
     NONE,
     DUP,
     ADD(true),
+    ADD1(true),
     SUB(true),
     MUL(true), // Element-wise multiplication
     DIV(true),
@@ -184,15 +177,20 @@ enum class GGMLOp(val canBeInplace: Boolean = false) {
     SUM, // Typically not inplace (reduces dimensions)
     MEAN, // Typically not inplace
     REPEAT,
+    REPEAT_BACK,
     ABS(true),
     SGN(true),
     NEG(true),
     STEP(true),
     RELU(true),
+    LOG(true),
     GELU(true),
+    GELU_QUICK(true),
     SILU(true),
+    SILU_BACK(true),
     NORM(true), // LayerNorm, can be inplace if shapes match and specific handling
     RMS_NORM(true),
+    RMS_NORM_BACK(true),
     MUL_MAT, // Matrix multiplication, typically not inplace
     SCALE(true),
     CPY, // Copy, not inplace by definition of creating a new tensor with copied data
@@ -204,6 +202,9 @@ enum class GGMLOp(val canBeInplace: Boolean = false) {
     DIAG_MASK_INF(true),
     SOFT_MAX(true), // Can be made inplace
     ROPE(true),
+    CONCAT,
+    SUM_ROWS,
+    ARGMAX,
     CONV_1D_1S,
     CONV_1D_2S,
     FLASH_ATTN,
@@ -542,8 +543,8 @@ class GGMLTensor(
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated for tensor '$name'.")
 
         // The scale is the first F16 (2 bytes) in the block
-        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + SHORT_SIZE_BYTES > buffer.size) {
-            throw IndexOutOfBoundsException("Attempt to read Q8_0 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - SHORT_SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset.")
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Q8_0 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset.")
         }
 
         val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
@@ -597,8 +598,8 @@ class GGMLTensor(
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
 
         // The scale is the first F16 (2 bytes) in the block
-        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + SHORT_SIZE_BYTES > buffer.size) {
-            throw IndexOutOfBoundsException("Attempt to read Q4_0 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - SHORT_SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset.")
+        if (finalScaleByteOffset.toInt() < 0 || finalScaleByteOffset.toInt() + Short.SIZE_BYTES > buffer.size) {
+            throw IndexOutOfBoundsException("Attempt to read Q4_0 scale at offset ${finalScaleByteOffset.toInt()} for block $blockIndex in tensor '$name' is out of buffer bounds (0-${buffer.size - Short.SIZE_BYTES}). DataOffset: $dataOffset, BlockByteOffset: $blockByteOffset.")
         }
 
         val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())

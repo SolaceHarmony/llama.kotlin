@@ -2,7 +2,8 @@ package ai.solace.llamakotlin.lnn
 
 import ai.solace.llamakotlin.core.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
 
 /**
  * Kotlin Native implementation of the actor-based computation model for LNN.
@@ -79,13 +80,19 @@ typealias ActorChannel = SendChannel<ActorMessage>
  * @param processor The function that processes messages
  * @return The actor channel
  */
-fun CoroutineScope.createActor(
-    capacity: Int = Channel.BUFFERED,
-    processor: suspend (ActorMessage) -> Unit
-): ActorChannel = actor(capacity = capacity) {
-    for (message in channel) {
-        processor(message)
+open class Actor(private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)) {
+    private val inbox = Channel<ActorMessage>(Channel.BUFFERED)
+    val channel: ActorChannel get() = inbox
+
+    init {
+        scope.launch {
+            for (msg in inbox) {
+                processMessage(msg)
+            }
+        }
     }
+
+    open suspend fun processMessage(message: ActorMessage): GGMLTensor? = null
 }
 
 /**
@@ -218,14 +225,14 @@ class CubeNetworkActor(
             is UpdateFromTransformer -> {
                 // Update all cubes from transformer output
                 for (cubeActor in cubeActors) {
-                    cubeActor.processMessage(message)
+                    cubeActor.processMessage(UpdateFromTransformer(message.transformerOutput))
                 }
                 null
             }
             is SaveState -> {
                 // Save state of all cubes
                 for (cubeActor in cubeActors) {
-                    cubeActor.processMessage(SaveState)
+                    cubeActor.processMessage(SaveState())
                 }
                 null
             }
@@ -240,7 +247,7 @@ class CubeNetworkActor(
             is ClearMemory -> {
                 // Clear memory of all cubes
                 for (cubeActor in cubeActors) {
-                    cubeActor.processMessage(ClearMemory)
+                    cubeActor.processMessage(ClearMemory())
                 }
                 null
             }
@@ -326,26 +333,26 @@ class LNNActor(
         return when (message) {
             is Process -> {
                 // Process through cube network
-                cubeNetworkActor.processMessage(message)
+                cubeNetworkActor.processMessage(Process(message.input))
             }
             is UpdateFromTransformer -> {
                 // Update cube network from transformer output
-                cubeNetworkActor.processMessage(message)
+                cubeNetworkActor.processMessage(UpdateFromTransformer(message.transformerOutput))
                 null
             }
             is SaveState -> {
                 // Save state of cube network
-                cubeNetworkActor.processMessage(SaveState)
+                cubeNetworkActor.processMessage(SaveState())
                 null
             }
             is LoadState -> {
                 // Load state of cube network
-                cubeNetworkActor.processMessage(message)
+                cubeNetworkActor.processMessage(LoadState(message.state))
                 null
             }
             is ClearMemory -> {
                 // Clear memory of cube network
-                cubeNetworkActor.processMessage(ClearMemory)
+                cubeNetworkActor.processMessage(ClearMemory())
                 null
             }
         }
@@ -470,8 +477,8 @@ class HybridLLM(
      * Clears the memory of all actors.
      */
     suspend fun clearMemory() {
-        kvCacheActor.processMessage(ClearMemory)
-        lnnActor.processMessage(ClearMemory)
+    kvCacheActor.processMessage(ClearMemory())
+    lnnActor.processMessage(ClearMemory())
     }
 
     /**
@@ -481,7 +488,7 @@ class HybridLLM(
      */
     suspend fun saveState(path: String) {
         // TODO: Implement saving state to a file
-        lnnActor.processMessage(SaveState)
+    lnnActor.processMessage(SaveState())
     }
 
     /**
@@ -491,6 +498,6 @@ class HybridLLM(
      */
     suspend fun loadState(path: String) {
         // TODO: Implement loading state from a file
-        lnnActor.processMessage(LoadState(Any()))
+    lnnActor.processMessage(LoadState(Any()))
     }
 }
