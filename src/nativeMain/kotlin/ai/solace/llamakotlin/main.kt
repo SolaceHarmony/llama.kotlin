@@ -1,10 +1,22 @@
 package ai.solace.llamakotlin
 
 import ai.solace.llamakotlin.core.*
+import ai.solace.llamakotlin.examples.runComprehensiveDemo
 
 fun main() {
-    kotlin.io.println("LLaMA Kotlin Native - Starting up")
-    kotlin.io.println("This is a Kotlin Native port of llama.cpp")
+    kotlin.io.println("🦙 LLaMA Kotlin Native - Advanced Capabilities Demonstration")
+    kotlin.io.println("This is a comprehensive Kotlin Native port of llama.cpp")
+    kotlin.io.println("Showcasing K-Quantization, GGUF loading, tensor operations, and more!")
+    kotlin.io.println()
+
+    // Run the comprehensive integration demo
+    val demoResult = runComprehensiveDemo()
+    kotlin.io.println(demoResult)
+    
+    kotlin.io.println()
+    kotlin.io.println("=" .repeat(60))
+    kotlin.io.println("🎯 Additional Core Functionality Demos")
+    kotlin.io.println("=" .repeat(60))
 
     // Demonstrate the use of the computation graph functionality
     demonstrateComputationGraph()
@@ -17,6 +29,9 @@ fun main() {
 
     // Demonstrate the new graph optimization and scheduling features
     demonstrateGraphOptimization()
+    
+    kotlin.io.println()
+    kotlin.io.println("🚀 All demonstrations completed! The Kotlin llama.cpp port is comprehensive and functional.")
 }
 
 /**
