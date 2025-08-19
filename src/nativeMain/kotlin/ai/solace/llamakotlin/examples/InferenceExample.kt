@@ -218,21 +218,21 @@ object LlamaInferenceExample {
         
         val modelInfo = pipeline.getModelInfo()
         
-        println("Model Configuration:")
-        println("  Vocabulary Size: ${modelInfo.config.vocabSize:,}")
-        println("  Hidden Size: ${modelInfo.config.hiddenSize:,}")
-        println("  Intermediate Size: ${modelInfo.config.intermediateSize:,}")
+    println("Model Configuration:")
+    println("  Vocabulary Size: ${modelInfo.config.vocabSize}")
+    println("  Hidden Size: ${modelInfo.config.hiddenSize}")
+    println("  Intermediate Size: ${modelInfo.config.intermediateSize}")
         println("  Number of Layers: ${modelInfo.config.numHiddenLayers}")
         println("  Number of Attention Heads: ${modelInfo.config.numAttentionHeads}")
         println("  Head Dimension: ${modelInfo.config.headDim}")
-        println("  Max Position Embeddings: ${modelInfo.config.maxPositionEmbeddings:,}")
+    println("  Max Position Embeddings: ${modelInfo.config.maxPositionEmbeddings}")
         println("  RoPE Theta: ${modelInfo.config.ropeTheta}")
         println()
         
-        println("Model Statistics:")
-        println("  Estimated Parameters: ${modelInfo.parameterCount:,}")
-        println("  Max Sequence Length: ${modelInfo.maxSequenceLength:,}")
-        println("  Tokenizer Vocab Size: ${modelInfo.vocabSize:,}")
+    println("Model Statistics:")
+    println("  Estimated Parameters: ${modelInfo.parameterCount}")
+    println("  Max Sequence Length: ${modelInfo.maxSequenceLength}")
+    println("  Tokenizer Vocab Size: ${modelInfo.vocabSize}")
         println()
     }
     

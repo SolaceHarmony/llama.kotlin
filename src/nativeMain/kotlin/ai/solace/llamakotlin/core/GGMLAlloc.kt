@@ -480,12 +480,32 @@ class GGMLGraphAllocator {
     }
 
     /**
+     * Public helper: allocate a new tensor with given type and shape, owned by this allocator.
+     * Useful for examples/tests to create leaf tensors without building a graph first.
+     */
+    fun allocateTensor(type: GGMLType, ne: LongArray): GGMLTensor {
+        val t = GGMLTensor(type = type)
+        // Pad/assign ne
+        val shape = LongArray(GGML_MAX_DIMS) { 1L }
+        val limit = if (ne.size < GGML_MAX_DIMS) ne.size else GGML_MAX_DIMS
+        for (i in 0 until limit) { shape[i] = ne[i] }
+        t.ne = shape
+        t.nb = calculateContiguousStrides(t.ne, t.type, t.rank())
+
+        // Register minimal usage info so internal allocateTensor() can work
+        tensorUsageMap[t] = TensorUsageInfo()
+        allocateTensor(t, 0)
+        return t
+    }
+
+    /**
      * Allocates memory for a tensor.
      *
      * @param tensor The tensor to allocate memory for
      * @param bufferId The ID of the buffer to allocate from (default or chosen by strategy)
      */
-    private fun allocateTensor(tensor: GGMLTensor, bufferId: Int) {
+    // Public overload to allocate an already-constructed tensor in the allocator's buffer
+    fun allocateTensor(tensor: GGMLTensor, bufferId: Int = 0) {
         val tensorUsage = tensorUsageMap[tensor]
             ?: throw IllegalStateException("TensorUsageInfo not found for tensor ${tensor.name}. analyzeTensorUsage must be called first.")
 
@@ -610,6 +630,13 @@ class GGMLGraphAllocator {
             tensorUsage.dataOffset = offset
             tensorUsage.calculatedSize = tensorCalculatedByteSize // Store the byte size
         }
+    }
+
+    /**
+     * Reserve at least the given number of bytes in the primary buffer.
+     */
+    fun reserve(bytes: Int) {
+        ensureBufferCapacity(0, bytes.toULong())
     }
 
     // calculateTensorSize was renamed to calculateTensorByteSize and modified.

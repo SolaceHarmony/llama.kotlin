@@ -142,7 +142,7 @@ class LiquidTimeConstant(
                 val linear = Linear(inputSize, hiddenSize)
                 linear.forward(context, input)
             },
-            { context, input -> computeRelu(context, input) }
+            { context, input -> relu(context, input) }
         ))
 
         // Initialize time-dependent networks
@@ -226,7 +226,7 @@ class MemoryCube(
                 val linear = Linear(hiddenSize, hiddenSize)
                 linear.forward(context, input)
             },
-            { context, input -> computeRelu(context, input) }
+            { context, input -> relu(context, input) }
         ))
 
         // Initialize output projection

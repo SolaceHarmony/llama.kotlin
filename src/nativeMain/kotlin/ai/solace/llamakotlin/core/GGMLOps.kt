@@ -196,12 +196,8 @@ fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    // If the context requests immediate computation, perform it now
-    return if (context.computeImmediately) {
-        computeAdd(context, a, b)
-    } else {
-        result
-    }
+    // Always return node; execution happens via executeGraph/computeGraphWithBackend
+    return result
 }
 
 /**
@@ -218,11 +214,7 @@ fun mul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeMul(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -239,11 +231,7 @@ fun matMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeMatMul(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -260,11 +248,7 @@ fun sub(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeSub(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -279,11 +263,7 @@ fun neg(context: GGMLContext, a: GGMLTensor): GGMLTensor {
     result.op = GGMLOp.NEG
     result.src[0] = a
 
-    return if (context.computeImmediately) {
-        computeNeg(context, a)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -298,11 +278,7 @@ fun relu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
     result.op = GGMLOp.RELU
     result.src[0] = a
 
-    return if (context.computeImmediately) {
-        computeRelu(context, a)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -317,11 +293,7 @@ fun gelu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
     result.op = GGMLOp.GELU
     result.src[0] = a
 
-    return if (context.computeImmediately) {
-        computeGelu(context, a)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -338,11 +310,7 @@ fun div(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeDiv(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**

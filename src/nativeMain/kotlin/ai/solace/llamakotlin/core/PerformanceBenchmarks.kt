@@ -80,8 +80,6 @@ private fun benchmarkRedundantOperations(): BenchmarkResult {
     
     // Create backend for execution
     val backendManager = GGMLBackendManager()
-    val cpuBackend = GGMLCpuBackend(threadCount = 1)
-    backendManager.registerBackend(cpuBackend)
     
     val scheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.SEQUENTIAL)
     scheduler.execute(unoptimizedGraph, context)
@@ -102,7 +100,7 @@ private fun benchmarkRedundantOperations(): BenchmarkResult {
     
     println("Unoptimized: ${unoptimizedTime}ms with ${unoptimizedGraph.nNodes} operations")
     println("Optimized: ${optimizedTime}ms with ${graph.nNodes} operations")
-    println("Speedup: ${String.format("%.2f", speedup)}x")
+    println("Speedup: ${format2(speedup)}x")
     println("Memory reduction: $memoryReduction operations")
     
     backendManager.cleanup()
@@ -152,8 +150,6 @@ private fun benchmarkDeadCodeElimination(): BenchmarkResult {
     
     // Create backend
     val backendManager = GGMLBackendManager()
-    val cpuBackend = GGMLCpuBackend(threadCount = 1)
-    backendManager.registerBackend(cpuBackend)
     val scheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.SEQUENTIAL)
     
     // Benchmark unoptimized
@@ -208,8 +204,6 @@ private fun benchmarkConstantFolding(): BenchmarkResult {
     
     // Create backend
     val backendManager = GGMLBackendManager()
-    val cpuBackend = GGMLCpuBackend(threadCount = 1)
-    backendManager.registerBackend(cpuBackend)
     val scheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.SEQUENTIAL)
     
     // Benchmark unoptimized
@@ -270,8 +264,6 @@ private fun benchmarkParallelExecution(): BenchmarkResult {
     graph.nLeafs = nodeCount
     
     val backendManager = GGMLBackendManager()
-    val cpuBackend = GGMLCpuBackend(threadCount = 4)
-    backendManager.registerBackend(cpuBackend)
     
     // Benchmark sequential execution
     val sequentialScheduler = GGMLScheduler(backendManager, GGMLSchedulingStrategy.SEQUENTIAL)
@@ -293,7 +285,7 @@ private fun benchmarkParallelExecution(): BenchmarkResult {
     
     println("Sequential: ${sequentialTime}ms")
     println("Parallel: ${parallelTime}ms")
-    println("Speedup: ${String.format("%.2f", speedup)}x")
+    println("Speedup: ${format2(speedup)}x")
     
     backendManager.cleanup()
     
@@ -302,8 +294,14 @@ private fun benchmarkParallelExecution(): BenchmarkResult {
 
 // Helper functions
 
+@Suppress("DEPRECATION")
 private fun getCurrentTimeMs(): Long {
     return kotlin.system.getTimeNanos() / 1_000_000
+}
+
+private fun format2(x: Double): String {
+    val v = kotlin.math.round(x * 100.0) / 100.0
+    return v.toString()
 }
 
 private fun duplicateGraph(original: GGMLCGraph): GGMLCGraph {
@@ -331,7 +329,7 @@ fun runPerformanceBenchmarks() {
     println("\n=== Performance Benchmark Summary ===")
     results.forEach { result ->
         println("${result.operationName}:")
-        println("  Speedup: ${String.format("%.2f", result.speedupRatio)}x")
+        println("  Speedup: ${format2(result.speedupRatio)}x")
         if (result.memoryReduction > 0) {
             println("  Memory reduction: ${result.memoryReduction} operations")
         }
@@ -339,5 +337,5 @@ fun runPerformanceBenchmarks() {
     }
     
     val avgSpeedup = results.map { it.speedupRatio }.average()
-    println("Average speedup: ${String.format("%.2f", avgSpeedup)}x")
+    println("Average speedup: ${format2(avgSpeedup)}x")
 }

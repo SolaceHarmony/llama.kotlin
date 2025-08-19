@@ -6,6 +6,16 @@ package ai.solace.llamakotlin.core
  */
 
 /**
+ * High-level backend status used by scheduler/examples
+ */
+enum class GGMLBackendStatus {
+    SUCCESS,
+    FAILED,
+    ALLOC_FAILED,
+    NOT_SUPPORTED
+}
+
+/**
  * Scheduling strategy enumeration
  */
 enum class GGMLSchedulingStrategy {
@@ -21,7 +31,7 @@ enum class GGMLSchedulingStrategy {
  * Graph split for backend execution
  */
 data class GGMLGraphSplit(
-    val backendType: GGMLBackendType,
+    val backendName: String,
     val startNode: Int,
     val endNode: Int,
     val nodes: List<GGMLTensor>,
@@ -138,11 +148,14 @@ class GGMLScheduler(
      */
     private fun executeSequential(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus {
         val backend = backendManager.getPrimaryBackend() ?: return GGMLBackendStatus.FAILED
-        
-        try {
-            return backend.compute(graph, context)
+        return try {
+            // Ensure allocation and compute via backend
+            val allocator = graph.allocator ?: GGMLGraphAllocator().also { graph.allocator = it }
+            if (!allocator.allocateGraph(graph)) return GGMLBackendStatus.ALLOC_FAILED
+            val status = backend.graphCompute(graph)
+            if (status == GGMLStatus.SUCCESS) GGMLBackendStatus.SUCCESS else GGMLBackendStatus.FAILED
         } catch (e: Exception) {
-            return GGMLBackendStatus.FAILED
+            GGMLBackendStatus.FAILED
         }
     }
     
@@ -173,7 +186,7 @@ class GGMLScheduler(
             
             for (node in readyNodes) {
                 try {
-                    val backend = backendManager.getBestBackend(node) ?: return GGMLBackendStatus.FAILED
+                    val backend = backendManager.selectBackend(node) ?: return GGMLBackendStatus.FAILED
                     executeNode(node, context, backend)
                     dependencyTracker.markCompleted(node)
                 } catch (e: Exception) {
@@ -189,7 +202,7 @@ class GGMLScheduler(
      * Execute graph with multiple backends
      */
     private fun executeMultiBackend(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus {
-        val splits = createGraphSplits(graph)
+    val splits = createGraphSplits(graph)
         
         if (splits.size == 1) {
             // Only one backend available, use sequential execution
@@ -198,8 +211,7 @@ class GGMLScheduler(
         
         // Execute splits sequentially for now (can be enhanced later with true parallelism)
         for (split in splits) {
-            val backend = backendManager.getBackends().find { it.type == split.backendType }
-                ?: continue
+            val backend = backendManager.getBackend(split.backendName) ?: continue
             
             val status = executeGraphSplit(split, context, backend)
             if (status != GGMLBackendStatus.SUCCESS) {
@@ -208,9 +220,8 @@ class GGMLScheduler(
         }
         
         // Synchronize all backends
-        for (backend in backendManager.getBackends()) {
-            backend.synchronize()
-        }
+    backendManager.getPrimaryBackend()?.synchronize()
+    backendManager.getFallbackBackend()?.synchronize()
         
         return GGMLBackendStatus.SUCCESS
     }
@@ -219,13 +230,13 @@ class GGMLScheduler(
      * Execute a single node
      */
     private fun executeNode(node: GGMLTensor, context: GGMLContext, backend: GGMLBackend) {
-        // Create a temporary graph with just this node
+        // Create a temporary single-node graph and compute via backend
         val tempGraph = createGraph(1)
         tempGraph.nodes[0] = node
         tempGraph.nNodes = 1
-        
-        // Execute the single-node graph
-        backend.compute(tempGraph, context)
+        val allocator = tempGraph.allocator ?: GGMLGraphAllocator().also { tempGraph.allocator = it }
+        allocator.allocateGraph(tempGraph)
+        backend.graphCompute(tempGraph)
     }
     
     /**
@@ -239,8 +250,12 @@ class GGMLScheduler(
             subGraph.nodes[i] = split.nodes[i]
         }
         subGraph.nNodes = split.nodes.size
-        
-        return backend.compute(subGraph, context)
+        // Allocate and compute via selected backend
+        val allocator = subGraph.allocator ?: GGMLGraphAllocator().also { subGraph.allocator = it }
+        val ok = allocator.allocateGraph(subGraph)
+        if (!ok) return GGMLBackendStatus.ALLOC_FAILED
+        val status = backend.graphCompute(subGraph)
+        return if (status == GGMLStatus.SUCCESS) GGMLBackendStatus.SUCCESS else GGMLBackendStatus.FAILED
     }
     
     /**
@@ -248,25 +263,24 @@ class GGMLScheduler(
      */
     private fun createGraphSplits(graph: GGMLCGraph): List<GGMLGraphSplit> {
         val splits = mutableListOf<GGMLGraphSplit>()
-        val backends = backendManager.getBackends()
+    val backends = backendManager.getAvailableBackends()
         
         if (backends.isEmpty()) {
             return splits
         }
         
-        var currentBackend = backends[0]
+    var currentBackend = backendManager.getPrimaryBackend() ?: return splits
         var splitStart = 0
         val currentSplitNodes = mutableListOf<GGMLTensor>()
         
         for (i in 0 until graph.nNodes) {
             val node = graph.nodes[i] ?: continue
             
-            val bestBackend = backendManager.getBestBackend(node) ?: currentBackend
-            
-            if (bestBackend != currentBackend && currentSplitNodes.isNotEmpty()) {
+            val bestBackend = backendManager.selectBackend(node) ?: currentBackend
+            if (bestBackend.getName() != currentBackend.getName() && currentSplitNodes.isNotEmpty()) {
                 // Create split for previous backend
                 splits.add(GGMLGraphSplit(
-                    backendType = currentBackend.type,
+                    backendName = currentBackend.getName(),
                     startNode = splitStart,
                     endNode = i - 1,
                     nodes = currentSplitNodes.toList()
@@ -283,7 +297,7 @@ class GGMLScheduler(
         // Add final split
         if (currentSplitNodes.isNotEmpty()) {
             splits.add(GGMLGraphSplit(
-                backendType = currentBackend.type,
+                backendName = currentBackend.getName(),
                 startNode = splitStart,
                 endNode = graph.nNodes - 1,
                 nodes = currentSplitNodes.toList()
@@ -300,7 +314,7 @@ class GGMLScheduler(
         return SchedulerStats(
             maxWorkers = maxWorkers,
             strategy = strategy,
-            availableBackends = backendManager.getBackends().map { it.name }
+            availableBackends = backendManager.getAvailableBackends()
         )
     }
 }

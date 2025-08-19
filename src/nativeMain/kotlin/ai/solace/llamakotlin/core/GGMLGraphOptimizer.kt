@@ -153,10 +153,10 @@ class RedundantOpRemovalPass : GGMLOptimizationPass {
         sb.append(":")
         sb.append(tensor.type.name)
         
-        // Add source tensor signatures
+    // Add source tensor signatures
         for (src in tensor.src) {
             if (src != null) {
-                sb.append(":").append(System.identityHashCode(src))
+        sb.append(":").append(identityKey(src))
             } else {
                 sb.append(":null")
             }
@@ -225,6 +225,9 @@ class RedundantOpRemovalPass : GGMLOptimizationPass {
     override fun getName(): String = "RedundantOpRemoval"
 }
 
+// Provide a simple identity key helper that works across targets
+private fun identityKey(obj: Any): Int = obj.hashCode()
+
 /**
  * Constant folding pass - pre-compute operations on constants
  */
@@ -281,21 +284,27 @@ class ConstantFoldingPass : GGMLOptimizationPass {
             GGMLOp.ADD -> {
                 val src0 = tensor.src[0] ?: return null
                 val src1 = tensor.src[1] ?: return null
-                computeAdd(allocator, context, src0, src1)
+                computeAddRet(allocator, context, src0, src1)
             }
             GGMLOp.MUL -> {
                 val src0 = tensor.src[0] ?: return null
                 val src1 = tensor.src[1] ?: return null
-                computeMul(allocator, context, src0, src1)
+                computeMulRet(allocator, context, src0, src1)
             }
             GGMLOp.SUB -> {
                 val src0 = tensor.src[0] ?: return null
                 val src1 = tensor.src[1] ?: return null
-                computeSub(allocator, context, src0, src1)
+                val dst = GGMLTensor(type = src0.type).apply { ne = src0.ne.copyOf(); nb = calculateContiguousStrides(ne, type, ne.size) }
+                allocator.allocateGraph(GGMLCGraph(size = 1, nodes = arrayOf(dst), grads = arrayOfNulls(1), leafs = arrayOfNulls(1), allocator = allocator))
+                computeSub(allocator, context, src0, src1, dst)
+                dst
             }
             GGMLOp.NEG -> {
                 val src0 = tensor.src[0] ?: return null
-                computeNeg(allocator, context, src0)
+                val dst = GGMLTensor(type = src0.type).apply { ne = src0.ne.copyOf(); nb = calculateContiguousStrides(ne, type, ne.size) }
+                allocator.allocateGraph(GGMLCGraph(size = 1, nodes = arrayOf(dst), grads = arrayOfNulls(1), leafs = arrayOfNulls(1), allocator = allocator))
+                computeNeg(allocator, context, src0, dst)
+                dst
             }
             else -> null
         }

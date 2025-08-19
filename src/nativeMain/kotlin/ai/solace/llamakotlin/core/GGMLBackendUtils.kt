@@ -83,6 +83,11 @@ class GGMLBackendManager {
      * Get the fallback backend (usually CPU)
      */
     fun getFallbackBackend(): GGMLBackend? = fallbackBackend
+
+    /**
+     * Simple list of backend instances (for compatibility)
+     */
+    fun getBackends(): List<GGMLBackend> = availableBackends.values.toList()
     
     /**
      * Set the backend selection strategy

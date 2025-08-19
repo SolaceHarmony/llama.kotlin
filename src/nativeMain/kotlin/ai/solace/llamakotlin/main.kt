@@ -25,44 +25,35 @@ fun main() {
 fun demonstrateOptimizedTensorOps() {
     kotlin.io.println("\nDemonstrating optimized tensor operations:")
 
-    // Create a context
-    val context = GGMLContext(
-        memSize = (16 * 1024 * 1024).toULong(), // 16 MB
-        memBuffer = null,
-        memBufferOwned = false,
-        noAlloc = false,
-        computeImmediately = true // Important: set to true to compute immediately
-    )
+    // Build via graph and run with allocator/backends to respect dst-arg API
+    val context = GGMLContext(computeImmediately = false)
+    val graph = createGraph(10)
+    val allocator = graph.allocator ?: GGMLGraphAllocator().also { graph.allocator = it }
 
-    // Create tensors
-    val a = createTensor2D(context, GGMLType.F32, 4, 4)
-    val b = createTensor2D(context, GGMLType.F32, 4, 4)
+    // Create tensors directly and mark as leafs
+    val a = GGMLTensor(type = GGMLType.F32).apply { ne[0] = 4; ne[1] = 4; data = FloatArray(16) { it.toFloat() } }
+    val b = GGMLTensor(type = GGMLType.F32).apply { ne[0] = 4; ne[1] = 4; data = FloatArray(16) { (it + 1).toFloat() } }
 
-    // Initialize tensor data
-    val aData = a.data as FloatArray
-    val bData = b.data as FloatArray
-    for (i in 0 until 16) {
-        aData[i] = i.toFloat()
-        bData[i] = (i + 1).toFloat()
-    }
+    graph.leafs[0] = a; graph.leafs[1] = b; graph.nLeafs = 2
 
-    kotlin.io.println("Tensor a: [${aData.take(16).joinToString()}]")
-    kotlin.io.println("Tensor b: [${bData.take(16).joinToString()}]")
+    val addNode = add(context, a, b)
+    val mulNode = mul(context, a, b)
+    val mmNode = matMul(context, a, b)
 
-    // Test optimized add operation
-    val c = computeAdd(context, a, b)
-    val cData = c.data as FloatArray
-    kotlin.io.println("a + b: [${cData.take(16).joinToString()}]")
+    graph.nodes[0] = addNode
+    graph.nodes[1] = mulNode
+    graph.nodes[2] = mmNode
+    graph.nNodes = 3
 
-    // Test optimized mul operation
-    val d = computeMul(context, a, b)
-    val dData = d.data as FloatArray
-    kotlin.io.println("a * b: [${dData.take(16).joinToString()}]")
+    // Allocate and execute
+    allocator.allocateGraph(graph)
+    computeGraphWithBackend(graph, context)
 
-    // Test optimized matMul operation
-    val e = computeMatMul(context, a, b)
-    val eData = e.data as FloatArray
-    kotlin.io.println("a @ b: [${eData.take(16).joinToString()}]")
+    kotlin.io.println("Tensor a: [${(a.data as FloatArray).take(16).joinToString()}]")
+    kotlin.io.println("Tensor b: [${(b.data as FloatArray).take(16).joinToString()}]")
+    kotlin.io.println("a + b: [${(addNode.data as FloatArray).take(16).joinToString()}]")
+    kotlin.io.println("a * b: [${(mulNode.data as FloatArray).take(16).joinToString()}]")
+    kotlin.io.println("a @ b: [${(mmNode.data as FloatArray).take(16).joinToString()}]")
 }
 
 /**
@@ -113,7 +104,7 @@ fun demonstrateComputationGraph() {
 
     kotlin.io.println("Graph built with ${graph.nNodes} nodes and ${graph.nLeafs} leaf nodes")
 
-    // Execute the graph
+    // Execute the graph (allocates internally and uses backend/CPU compute)
     executeGraph(context, graph)
 
     // Print the results
