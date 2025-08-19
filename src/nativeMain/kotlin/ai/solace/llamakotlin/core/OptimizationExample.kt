@@ -14,16 +14,10 @@ fun runOptimizationExample() {
     val context = GGMLContext()
     val allocator = GGMLGraphAllocator()
     
-    // Create backend manager with CPU backend
+    // Create backend manager (CPU available by default)
     val backendManager = GGMLBackendManager()
-    val cpuBackend = GGMLCpuBackend(threadCount = 2)
-    
-    if (backendManager.registerBackend(cpuBackend)) {
-        println("✓ CPU backend initialized with ${cpuBackend.getThreadCount()} threads")
-    } else {
-        println("✗ Failed to initialize CPU backend")
-        return
-    }
+    val cpuBackend = backendManager.getFallbackBackend()
+    println("✓ Backend initialized: primary=${backendManager.getPrimaryBackend()?.getName()} fallback=${cpuBackend?.getName()}")
     
     // Create graph with redundant operations for optimization demonstration
     val graph = createGraph(10)
@@ -230,4 +224,15 @@ private fun createTestGraphWithConstants(context: GGMLContext, allocator: GGMLGr
     graph.nNodes = 1
     
     return graph
+}
+
+// Helper to run optimization then schedule execution using unified APIs
+fun executeOptimizedGraph(
+    graph: GGMLCGraph,
+    context: GGMLContext,
+    optimizer: GGMLGraphOptimizer,
+    scheduler: GGMLScheduler
+): GGMLBackendStatus {
+    optimizer.optimize(graph, context)
+    return scheduler.execute(graph, context)
 }

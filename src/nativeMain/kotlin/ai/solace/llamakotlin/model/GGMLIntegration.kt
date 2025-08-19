@@ -54,7 +54,7 @@ private fun applyRope(
 ): GGMLTensor {
     val result = GGMLTensor(type = input.type)
     result.ne = input.ne.copyOf()
-    result.nb = calculateContiguousStrides(result.ne, result.type, GGML_MAX_DIMS)
+    result.nb = calculateContiguousStrides(result.ne, result.type, result.rank())
     result.op = GGMLOp.ROPE
     result.src[0] = input
     
@@ -83,7 +83,7 @@ private fun matMulOp(
     result.ne[2] = maxOf(a.ne[2], b.ne[2]) // Batch dimension
     result.ne[3] = maxOf(a.ne[3], b.ne[3]) // Batch dimension
     
-    result.nb = calculateContiguousStrides(result.ne, result.type, GGML_MAX_DIMS)
+    result.nb = calculateContiguousStrides(result.ne, result.type, result.rank())
     result.op = GGMLOp.MUL_MAT
     result.src[0] = a
     result.src[1] = b
@@ -105,7 +105,7 @@ private fun transposeOp(input: GGMLTensor): GGMLTensor {
     result.ne[result.ne.size - 1] = result.ne[result.ne.size - 2] 
     result.ne[result.ne.size - 2] = temp
     
-    result.nb = calculateContiguousStrides(result.ne, result.type, GGML_MAX_DIMS)
+    result.nb = calculateContiguousStrides(result.ne, result.type, result.rank())
     result.op = GGMLOp.TRANSPOSE
     result.src[0] = input
     
@@ -127,8 +127,8 @@ private fun scaleOp(
     result.op = GGMLOp.SCALE
     result.src[0] = input
     
-    // Store scale factor in op_params
-    result.op_params[0] = scale.toRawBits()
+    // Store scale factor in opParams
+    result.opParams[0] = scale.toRawBits()
     
     graphAllocator.allocateTensor(result)
     
@@ -146,7 +146,7 @@ private fun addOp(
 ): GGMLTensor {
     val result = GGMLTensor(type = a.type)
     result.ne = a.ne.copyOf()
-    result.nb = calculateContiguousStrides(result.ne, result.type, GGML_MAX_DIMS)
+    result.nb = calculateContiguousStrides(result.ne, result.type, result.rank())
     result.op = GGMLOp.ADD
     result.src[0] = a
     result.src[1] = b
@@ -166,7 +166,7 @@ private fun softMaxOp(
 ): GGMLTensor {
     val result = GGMLTensor(type = input.type)
     result.ne = input.ne.copyOf()
-    result.nb = calculateContiguousStrides(result.ne, result.type, GGML_MAX_DIMS)
+    result.nb = calculateContiguousStrides(result.ne, result.type, result.rank())
     result.op = GGMLOp.SOFT_MAX
     result.src[0] = input
     
@@ -192,8 +192,8 @@ fun rmsNormOp(
     result.src[0] = input
     result.src[1] = weight
     
-    // Store epsilon in op_params
-    result.op_params[0] = eps.toRawBits()
+    // Store epsilon in opParams
+    result.opParams[0] = eps.toRawBits()
     
     graphAllocator.allocateTensor(result)
     
@@ -286,7 +286,7 @@ class OptimizedRMSNorm(
     val weight: GGMLTensor = GGMLTensor(type = GGMLType.F32).apply {
         ne[0] = normalizedShape.toLong()
         for (i in 1 until GGML_MAX_DIMS) ne[i] = 1L
-        nb = calculateContiguousStrides(ne, type, GGML_MAX_DIMS)
+    nb = calculateContiguousStrides(ne, type, rank())
     }
     
     fun forward(

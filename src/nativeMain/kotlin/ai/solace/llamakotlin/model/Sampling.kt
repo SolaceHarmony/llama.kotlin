@@ -112,7 +112,7 @@ class SamplingContext(
         
         // Update token history
         tokenHistory.add(sampledId)
-        tokenCounts[sampledId] = tokenCounts.getOrDefault(sampledId, 0) + 1
+    tokenCounts[sampledId] = (tokenCounts[sampledId] ?: 0) + 1
         
         return sampledId
     }
@@ -138,7 +138,7 @@ class SamplingContext(
                 
                 // Frequency penalty
                 if (config.penaltyFreq != 0.0f) {
-                    val count = tokenCounts.getOrDefault(tokenId, 0)
+                    val count = tokenCounts[tokenId] ?: 0
                     candidate.logit -= config.penaltyFreq * count
                 }
                 

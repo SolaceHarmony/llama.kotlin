@@ -261,26 +261,65 @@ class GGMLDynTensorAllocator {
 
 /**
  * Graph allocator for managing memory allocation for computation graphs.
+ * Now supports backend-specific buffer allocation.
  */
 class GGMLGraphAllocator {
     // Tensor allocator for each buffer
     var tensorAllocators = mutableListOf<GGMLDynTensorAllocator>()
 
-    // Buffers
+    // Backend buffers
     var buffers = mutableListOf<ByteArray?>()
+    
+    // Backend buffer objects (new)
+    var backendBuffers = mutableListOf<GGMLBackendBuffer?>()
 
     // Map to store usage information for each tensor
     private val tensorUsageMap = mutableMapOf<GGMLTensor, TensorUsageInfo>()
+    
+    // Backend for this allocator
+    var backend: GGMLBackend? = null
+    
+    // Context associated with this allocator
+    var context: GGMLContext = GGMLContext()
 
     /**
-     * Creates a new graph allocator.
+     * Creates a new graph allocator with a specific backend.
      */
-    constructor() {
-        // Create a default tensor allocator
+    constructor(backend: GGMLBackend? = null) {
+        this.backend = backend
+        
+        // Create a default buffer
         val defaultBufferSize = 1024 * 1024
-        buffers.add(ByteArray(defaultBufferSize))
+        
+        if (backend != null) {
+            // Use backend buffer
+            val backendBuffer = backend.allocBuffer(defaultBufferSize.toULong())
+            if (backendBuffer != null) {
+                backendBuffers.add(backendBuffer)
+                // For CPU backend, we can still access the underlying ByteArray
+                if (backendBuffer is GGMLCpuBuffer) {
+                    buffers.add(backendBuffer.getBase() as ByteArray)
+                } else {
+                    buffers.add(null) // Non-CPU backends don't expose ByteArray
+                }
+            } else {
+                // Fallback to regular ByteArray
+                buffers.add(ByteArray(defaultBufferSize))
+                backendBuffers.add(null)
+            }
+        } else {
+            // Fallback to regular ByteArray
+            buffers.add(ByteArray(defaultBufferSize))
+            backendBuffers.add(null)
+        }
+        
         tensorAllocators.add(GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
+
+    /**
+     * Creates a new graph allocator (legacy constructor).
+     */
+    constructor() : this(null)
 
     /**
      * Analyzes the computation graph to understand tensor usage patterns.
@@ -441,12 +480,32 @@ class GGMLGraphAllocator {
     }
 
     /**
+     * Public helper: allocate a new tensor with given type and shape, owned by this allocator.
+     * Useful for examples/tests to create leaf tensors without building a graph first.
+     */
+    fun allocateTensor(type: GGMLType, ne: LongArray): GGMLTensor {
+        val t = GGMLTensor(type = type)
+        // Pad/assign ne
+        val shape = LongArray(GGML_MAX_DIMS) { 1L }
+        val limit = if (ne.size < GGML_MAX_DIMS) ne.size else GGML_MAX_DIMS
+        for (i in 0 until limit) { shape[i] = ne[i] }
+        t.ne = shape
+        t.nb = calculateContiguousStrides(t.ne, t.type, t.rank())
+
+        // Register minimal usage info so internal allocateTensor() can work
+        tensorUsageMap[t] = TensorUsageInfo()
+        allocateTensor(t, 0)
+        return t
+    }
+
+    /**
      * Allocates memory for a tensor.
      *
      * @param tensor The tensor to allocate memory for
      * @param bufferId The ID of the buffer to allocate from (default or chosen by strategy)
      */
-    private fun allocateTensor(tensor: GGMLTensor, bufferId: Int) {
+    // Public overload to allocate an already-constructed tensor in the allocator's buffer
+    fun allocateTensor(tensor: GGMLTensor, bufferId: Int = 0) {
         val tensorUsage = tensorUsageMap[tensor]
             ?: throw IllegalStateException("TensorUsageInfo not found for tensor ${tensor.name}. analyzeTensorUsage must be called first.")
 
@@ -571,6 +630,13 @@ class GGMLGraphAllocator {
             tensorUsage.dataOffset = offset
             tensorUsage.calculatedSize = tensorCalculatedByteSize // Store the byte size
         }
+    }
+
+    /**
+     * Reserve at least the given number of bytes in the primary buffer.
+     */
+    fun reserve(bytes: Int) {
+        ensureBufferCapacity(0, bytes.toULong())
     }
 
     // calculateTensorSize was renamed to calculateTensorByteSize and modified.

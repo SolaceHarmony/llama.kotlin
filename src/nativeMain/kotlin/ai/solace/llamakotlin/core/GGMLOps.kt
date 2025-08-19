@@ -27,6 +27,33 @@ internal fun calculateContiguousStrides(ne: LongArray, type: GGMLType, rank: Int
     return nb
 }
 
+/** Lightweight view ops used by backward/graph code: reshape, permute, transpose. */
+fun reshape(context: GGMLContext, a: GGMLTensor, vararg newShape: Long): GGMLTensor {
+    val out = GGMLTensor(type = a.type)
+    val r = newShape.copyOf(GGML_MAX_DIMS)
+    for (i in 0 until GGML_MAX_DIMS) out.ne[i] = if (i < newShape.size) r[i] else 1L
+    out.nb = calculateContiguousStrides(out.ne, out.type, out.rank())
+    out.viewSrc = a
+    out.op = GGMLOp.RESHAPE
+    return if (context.computeImmediately) out else out
+}
+
+fun permute(context: GGMLContext, a: GGMLTensor, ax0: Int, ax1: Int, ax2: Int, ax3: Int): GGMLTensor {
+    val axes = intArrayOf(ax0, ax1, ax2, ax3)
+    val out = GGMLTensor(type = a.type)
+    for (i in 0 until GGML_MAX_DIMS) out.ne[i] = a.ne[axes.getOrElse(i) { i }]
+    out.nb = calculateContiguousStrides(out.ne, out.type, out.rank())
+    out.viewSrc = a
+    out.op = GGMLOp.PERMUTE
+    out.opParams = axes
+    return if (context.computeImmediately) out else out
+}
+
+fun transpose(context: GGMLContext, a: GGMLTensor, ax0: Int, ax1: Int): GGMLTensor {
+    val axes = intArrayOf(ax0, ax1, 2, 3)
+    return permute(context, a, axes[0], axes[1], axes[2], axes[3]).also { it.op = GGMLOp.TRANSPOSE }
+}
+
 /**
  * Kotlin Native port of GGML tensor operations.
  * This file contains the implementation of basic tensor operations.
@@ -169,12 +196,8 @@ fun add(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    // If the context requests immediate computation, perform it now
-    return if (context.computeImmediately) {
-        computeAdd(context, a, b)
-    } else {
-        result
-    }
+    // Always return node; execution happens via executeGraph/computeGraphWithBackend
+    return result
 }
 
 /**
@@ -191,11 +214,7 @@ fun mul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeMul(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -212,11 +231,7 @@ fun matMul(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeMatMul(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -233,11 +248,7 @@ fun sub(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeSub(context, a, b)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -252,11 +263,7 @@ fun neg(context: GGMLContext, a: GGMLTensor): GGMLTensor {
     result.op = GGMLOp.NEG
     result.src[0] = a
 
-    return if (context.computeImmediately) {
-        computeNeg(context, a)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -271,11 +278,7 @@ fun relu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
     result.op = GGMLOp.RELU
     result.src[0] = a
 
-    return if (context.computeImmediately) {
-        computeRelu(context, a)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -290,11 +293,7 @@ fun gelu(context: GGMLContext, a: GGMLTensor): GGMLTensor {
     result.op = GGMLOp.GELU
     result.src[0] = a
 
-    return if (context.computeImmediately) {
-        computeGelu(context, a)
-    } else {
-        result
-    }
+    return result
 }
 
 /**
@@ -311,9 +310,94 @@ fun div(context: GGMLContext, a: GGMLTensor, b: GGMLTensor): GGMLTensor {
     result.src[0] = a
     result.src[1] = b
 
-    return if (context.computeImmediately) {
-        computeDiv(context, a, b)
-    } else {
-        result
+    return result
+}
+
+/**
+ * Creates a new 3D tensor with the specified type and dimensions.
+ *
+ * @param context The GGML context
+ * @param type The tensor data type
+ * @param ne0 The number of elements in the first dimension
+ * @param ne1 The number of elements in the second dimension
+ * @param ne2 The number of elements in the third dimension
+ * @return The new tensor
+ */
+fun createTensor3D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int, ne2: Int): GGMLTensor {
+    // Create a new tensor with the specified type
+    val tensor = GGMLTensor(type = type)
+
+    // Set the dimensions
+    tensor.ne[0] = ne0.toLong()
+    tensor.ne[1] = ne1.toLong()
+    tensor.ne[2] = ne2.toLong()
+    for (i in 3 until GGML_MAX_DIMS) {
+        tensor.ne[i] = 1
     }
+
+    // Set strides based on the data type
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
+
+    // Allocate memory for the tensor if context is provided
+    if (context.memBuffer != null && !context.noAlloc) {
+        // Calculate total size
+        val totalSize = ne0 * ne1 * ne2
+
+        // Allocate memory based on the tensor type
+        when (type) {
+            GGMLType.F32 -> tensor.data = FloatArray(totalSize) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(totalSize) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(totalSize) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(totalSize) { 0L }
+            else -> tensor.data = null // For quantized types, we'll implement later
+        }
+    }
+
+    return tensor
+}
+
+/**
+ * Creates a new 4D tensor with the specified type and dimensions.
+ *
+ * @param context The GGML context
+ * @param type The tensor data type
+ * @param ne0 The number of elements in the first dimension
+ * @param ne1 The number of elements in the second dimension
+ * @param ne2 The number of elements in the third dimension  
+ * @param ne3 The number of elements in the fourth dimension
+ * @return The new tensor
+ */
+fun createTensor4D(context: GGMLContext, type: GGMLType, ne0: Int, ne1: Int, ne2: Int, ne3: Int): GGMLTensor {
+    // Create a new tensor with the specified type
+    val tensor = GGMLTensor(type = type)
+
+    // Set the dimensions
+    tensor.ne[0] = ne0.toLong()
+    tensor.ne[1] = ne1.toLong()
+    tensor.ne[2] = ne2.toLong()
+    tensor.ne[3] = ne3.toLong()
+
+    // Set strides based on the data type
+    tensor.nb = calculateContiguousStrides(tensor.ne, tensor.type, tensor.rank())
+
+    // Allocate memory for the tensor if context is provided
+    if (context.memBuffer != null && !context.noAlloc) {
+        // Calculate total size
+        val totalSize = ne0 * ne1 * ne2 * ne3
+
+        // Allocate memory based on the tensor type
+        when (type) {
+            GGMLType.F32 -> tensor.data = FloatArray(totalSize) { 0.0f }
+            GGMLType.F16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I8 -> tensor.data = ByteArray(totalSize) { 0 }
+            GGMLType.I16 -> tensor.data = ShortArray(totalSize) { 0 }
+            GGMLType.I32 -> tensor.data = IntArray(totalSize) { 0 }
+            GGMLType.I64 -> tensor.data = LongArray(totalSize) { 0L }
+            else -> tensor.data = null // For quantized types, we'll implement later
+        }
+    }
+
+    return tensor
 }

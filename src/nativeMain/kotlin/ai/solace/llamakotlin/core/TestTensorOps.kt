@@ -5,26 +5,21 @@ package ai.solace.llamakotlin.core
  * This file contains tests for the optimized tensor operations.
  */
 
-fun main() {
+@Suppress("unused")
+fun runTensorOpsSmokeTest() {
     println("Testing optimized tensor operations")
 
-    // Create a context
-    val context = GGMLContext(
-        memSize = (16 * 1024 * 1024).toULong(), // 16 MB
-        memBuffer = null,
-        memBufferOwned = false,
-        noAlloc = false,
-        computeImmediately = true // Important: set to true to compute immediately
-    )
+    val context = GGMLContext()
+    val allocator = GGMLGraphAllocator()
 
     // Test add operation
-    testAdd(context)
+    testAdd(context, allocator)
 
     // Test mul operation
-    testMul(context)
+    testMul(context, allocator)
 
     // Test matMul operation
-    testMatMul(context)
+    testMatMul(context, allocator)
 
     println("All tests completed successfully")
 }
@@ -32,27 +27,29 @@ fun main() {
 /**
  * Tests the optimized add operation.
  */
-fun testAdd(context: GGMLContext) {
+fun testAdd(context: GGMLContext, graphAllocator: GGMLGraphAllocator) {
     println("\nTesting optimized add operation:")
 
     // Create tensors
-    val a = createTensor2D(context, GGMLType.F32, 4, 4)
-    val b = createTensor2D(context, GGMLType.F32, 4, 4)
+    val a = GGMLTensor(type = GGMLType.F32).also { it.ne[0]=4; it.ne[1]=4; it.nb = calculateContiguousStrides(it.ne, it.type, it.rank()) }
+    val b = GGMLTensor(type = GGMLType.F32).also { it.ne[0]=4; it.ne[1]=4; it.nb = calculateContiguousStrides(it.ne, it.type, it.rank()) }
+    val tmpGraph = createGraph(2).also { it.nodes[0]=a; it.nodes[1]=b; it.nNodes=2; it.allocator = graphAllocator }
+    graphAllocator.allocateGraph(tmpGraph)
 
     // Initialize tensor data
-    val aData = a.data as FloatArray
-    val bData = b.data as FloatArray
-    for (i in 0 until 16) {
-        aData[i] = i.toFloat()
-        bData[i] = (i + 1).toFloat()
+    for (i in 0 until 4) for (j in 0 until 4) {
+        a.setFloat(graphAllocator, (i*4 + j).toFloat(), j, i)
+        b.setFloat(graphAllocator, (i*4 + j + 1).toFloat(), j, i)
     }
 
-    println("Tensor a: [${aData.take(16).joinToString()}]")
-    println("Tensor b: [${bData.take(16).joinToString()}]")
+    val aData = FloatArray(16) { idx -> a.getFloat(graphAllocator, idx % 4, idx / 4) }
+    val bData = FloatArray(16) { idx -> b.getFloat(graphAllocator, idx % 4, idx / 4) }
+    println("Tensor a: [${aData.joinToString()}]")
+    println("Tensor b: [${bData.joinToString()}]")
 
     // Test optimized add operation
-    val c = computeAdd(context, a, b)
-    val cData = c.data as FloatArray
+    val c = computeAddRet(graphAllocator, context, a, b)
+    val cData = FloatArray(16) { idx -> c.getFloat(graphAllocator, idx % 4, idx / 4) }
     println("a + b: [${cData.take(16).joinToString()}]")
 
     // Verify results
@@ -76,27 +73,29 @@ fun testAdd(context: GGMLContext) {
 /**
  * Tests the optimized mul operation.
  */
-fun testMul(context: GGMLContext) {
+fun testMul(context: GGMLContext, graphAllocator: GGMLGraphAllocator) {
     println("\nTesting optimized mul operation:")
 
     // Create tensors
-    val a = createTensor2D(context, GGMLType.F32, 4, 4)
-    val b = createTensor2D(context, GGMLType.F32, 4, 4)
+    val a = GGMLTensor(type = GGMLType.F32).also { it.ne[0]=4; it.ne[1]=4; it.nb = calculateContiguousStrides(it.ne, it.type, it.rank()) }
+    val b = GGMLTensor(type = GGMLType.F32).also { it.ne[0]=4; it.ne[1]=4; it.nb = calculateContiguousStrides(it.ne, it.type, it.rank()) }
+    val tmpGraph = createGraph(2).also { it.nodes[0]=a; it.nodes[1]=b; it.nNodes=2; it.allocator = graphAllocator }
+    graphAllocator.allocateGraph(tmpGraph)
 
     // Initialize tensor data
-    val aData = a.data as FloatArray
-    val bData = b.data as FloatArray
-    for (i in 0 until 16) {
-        aData[i] = i.toFloat()
-        bData[i] = (i + 1).toFloat()
+    for (i in 0 until 4) for (j in 0 until 4) {
+        a.setFloat(graphAllocator, (i*4 + j).toFloat(), j, i)
+        b.setFloat(graphAllocator, (i*4 + j + 1).toFloat(), j, i)
     }
 
-    println("Tensor a: [${aData.take(16).joinToString()}]")
-    println("Tensor b: [${bData.take(16).joinToString()}]")
+    val aData = FloatArray(16) { idx -> a.getFloat(graphAllocator, idx % 4, idx / 4) }
+    val bData = FloatArray(16) { idx -> b.getFloat(graphAllocator, idx % 4, idx / 4) }
+    println("Tensor a: [${aData.joinToString()}]")
+    println("Tensor b: [${bData.joinToString()}]")
 
     // Test optimized mul operation
-    val c = computeMul(context, a, b)
-    val cData = c.data as FloatArray
+    val c = computeMulRet(graphAllocator, context, a, b)
+    val cData = FloatArray(16) { idx -> c.getFloat(graphAllocator, idx % 4, idx / 4) }
     println("a * b: [${cData.take(16).joinToString()}]")
 
     // Verify results
@@ -120,27 +119,29 @@ fun testMul(context: GGMLContext) {
 /**
  * Tests the optimized matMul operation.
  */
-fun testMatMul(context: GGMLContext) {
+fun testMatMul(context: GGMLContext, graphAllocator: GGMLGraphAllocator) {
     println("\nTesting optimized matMul operation:")
 
     // Create tensors
-    val a = createTensor2D(context, GGMLType.F32, 4, 4)
-    val b = createTensor2D(context, GGMLType.F32, 4, 4)
+    val a = GGMLTensor(type = GGMLType.F32).also { it.ne[0]=4; it.ne[1]=4; it.nb = calculateContiguousStrides(it.ne, it.type, it.rank()) }
+    val b = GGMLTensor(type = GGMLType.F32).also { it.ne[0]=4; it.ne[1]=4; it.nb = calculateContiguousStrides(it.ne, it.type, it.rank()) }
+    val tmpGraph = createGraph(2).also { it.nodes[0]=a; it.nodes[1]=b; it.nNodes=2; it.allocator = graphAllocator }
+    graphAllocator.allocateGraph(tmpGraph)
 
     // Initialize tensor data
-    val aData = a.data as FloatArray
-    val bData = b.data as FloatArray
-    for (i in 0 until 16) {
-        aData[i] = i.toFloat()
-        bData[i] = (i + 1).toFloat()
+    for (i in 0 until 4) for (j in 0 until 4) {
+        a.setFloat(graphAllocator, (i*4 + j).toFloat(), j, i)
+        b.setFloat(graphAllocator, (i*4 + j + 1).toFloat(), j, i)
     }
 
-    println("Tensor a: [${aData.take(16).joinToString()}]")
-    println("Tensor b: [${bData.take(16).joinToString()}]")
+    val aData = FloatArray(16) { idx -> a.getFloat(graphAllocator, idx % 4, idx / 4) }
+    val bData = FloatArray(16) { idx -> b.getFloat(graphAllocator, idx % 4, idx / 4) }
+    println("Tensor a: [${aData.joinToString()}]")
+    println("Tensor b: [${bData.joinToString()}]")
 
     // Test optimized matMul operation
-    val c = computeMatMul(context, a, b)
-    val cData = c.data as FloatArray
+    val c = computeMatMulRet(graphAllocator, context, a, b)
+    val cData = FloatArray(16) { idx -> c.getFloat(graphAllocator, idx % 4, idx / 4) }
     println("a @ b: [${cData.take(16).joinToString()}]")
 
     // Verify results by computing the matrix multiplication manually

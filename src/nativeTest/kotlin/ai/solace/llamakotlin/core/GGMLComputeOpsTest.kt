@@ -184,7 +184,7 @@ class GGMLComputeOpsTest {
         val dst_1D = createAndInitTensor("dst_1D", GGMLType.F32, dims1D, currentOffset)
         // currentOffset += size1D // Not strictly needed for dst if it's last for this sub-test
 
-        computeAdd(graphAllocator, context, src0_1D, src1_1D).let { result ->
+    computeAddRet(graphAllocator, context, src0_1D, src1_1D).let { result ->
             // The computeAdd currently returns a *new* tensor with its own data array.
             // For this test to work as intended (testing results in graphAllocator's buffer),
             // computeAdd should fill the data of a pre-allocated 'dst_1D' tensor.
@@ -216,7 +216,7 @@ class GGMLComputeOpsTest {
          // The compute ops create their own GGMLTensor instance for result.
          // This means we need to check the returned tensor.
 
-        val resultAdd1D = computeAdd(graphAllocator, context, src0_1D, src1_1D)
+    val resultAdd1D = computeAddRet(graphAllocator, context, src0_1D, src1_1D)
         for (i in 0 until dims1D[0].toInt()) {
             val expected = src0_1D.getFloat(graphAllocator, i) + src1_1D.getFloat(graphAllocator, i)
             assertEquals(expected, resultAdd1D.getFloat(graphAllocator, i), "1D F32 Add mismatch at index $i")
@@ -232,7 +232,7 @@ class GGMLComputeOpsTest {
         val src1_2D = createAndInitTensor("src1_2D", GGMLType.F32, dims2D, currentOffset, fillSequence = true, startValue = 10.0f, step = 2.0f)
         // currentOffset += size2D; // dst_2D not used in this test structure
 
-        val resultAdd2D = computeAdd(graphAllocator, context, src0_2D, src1_2D)
+    val resultAdd2D = computeAddRet(graphAllocator, context, src0_2D, src1_2D)
         for (r in 0 until dims2D[1].toInt()) { // rows
             for (c in 0 until dims2D[0].toInt()) { // cols
                 val expected = src0_2D.getFloat(graphAllocator, c, r) + src1_2D.getFloat(graphAllocator, c, r)
@@ -259,7 +259,7 @@ class GGMLComputeOpsTest {
         for(i in src0Vals.indices) src0_1D.setHalf(graphAllocator, src0Vals[i], i)
         for(i in src1Vals.indices) src1_1D.setHalf(graphAllocator, src1Vals[i], i)
 
-        val resultAdd1D = computeAdd(graphAllocator, context, src0_1D, src1_1D)
+    val resultAdd1D = computeAddRet(graphAllocator, context, src0_1D, src1_1D)
         for (i in 0 until dims1D[0].toInt()) {
             val expectedF32 = src0Vals[i] + src1Vals[i]
             val expectedF16AsF32 = halfToFloat(floatToHalf(expectedF32))
@@ -278,7 +278,7 @@ class GGMLComputeOpsTest {
         currentOffset += size1D
         val src1_1D = createAndInitTensor("src1_MulF32", GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 2.0f, step = 0.5f)
 
-        val resultMul1D = computeMul(graphAllocator, context, src0_1D, src1_1D)
+    val resultMul1D = computeMulRet(graphAllocator, context, src0_1D, src1_1D)
         for (i in 0 until dims1D[0].toInt()) {
             val expected = src0_1D.getFloat(graphAllocator, i) * src1_1D.getFloat(graphAllocator, i)
             assertEquals(expected, resultMul1D.getFloat(graphAllocator, i), "1D F32 Mul mismatch at index $i")
@@ -302,7 +302,7 @@ class GGMLComputeOpsTest {
         for(i in src0Vals.indices) src0_1D.setHalf(graphAllocator, src0Vals[i], i)
         for(i in src1Vals.indices) src1_1D.setHalf(graphAllocator, src1Vals[i], i)
 
-        val resultMul1D = computeMul(graphAllocator, context, src0_1D, src1_1D)
+    val resultMul1D = computeMulRet(graphAllocator, context, src0_1D, src1_1D)
         for (i in 0 until dims1D[0].toInt()) {
             val expectedF32 = src0Vals[i] * src1Vals[i]
             val expectedF16AsF32 = halfToFloat(floatToHalf(expectedF32))

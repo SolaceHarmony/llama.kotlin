@@ -1,241 +1,251 @@
 package ai.solace.llamakotlin.core
 
 /**
- * Kotlin Native port of GGML backend functionality.
- * This file contains the backend abstraction for different compute engines (CPU, Metal, etc.).
+ * Kotlin Native port of GGML backend abstraction.
+ * 
+ * This file defines the backend interfaces that abstract over different compute backends
+ * (CPU, Metal, etc.) similar to ggml_backend_t in the C++ implementation.
  */
 
 /**
- * Enumeration of available backend types
+ * Backend buffer usage enum - how the buffer will be used
  */
-enum class GGMLBackendType {
-    CPU,
-    METAL,
-    NONE
+enum class GGMLBackendBufferUsage {
+    /** Buffer will be allocated and written to on the backend */
+    COMPUTE,
+    /** Buffer will be uploaded from host */
+    HOST
 }
 
 /**
- * Backend execution status
+ * Interface for backend buffer types - defines properties of a buffer type
+ * Similar to ggml_backend_buffer_type in C++
  */
-enum class GGMLBackendStatus {
+interface GGMLBackendBufferType {
+    /** Get the name of this buffer type */
+    fun getName(): String
+    
+    /** Allocate a buffer of the specified size */
+    fun allocBuffer(size: ULong): GGMLBackendBuffer?
+    
+    /** Get the alignment requirements for this buffer type */
+    fun getAlignment(): UInt
+    
+    /** Get the maximum size that can be allocated */
+    fun getMaxSize(): ULong
+    
+    /** Check if this buffer type represents host-accessible memory */
+    fun isHost(): Boolean
+}
+
+/**
+ * Interface for backend buffers - represents allocated memory
+ * Similar to ggml_backend_buffer in C++
+ */
+interface GGMLBackendBuffer {
+    /** Get the buffer type that created this buffer */
+    fun getType(): GGMLBackendBufferType
+    
+    /** Get the name of this buffer */
+    fun getName(): String
+    
+    /** Get the base address/data of the buffer */
+    fun getBase(): Any?
+    
+    /** Get the size of the buffer */
+    fun getSize(): ULong
+    
+    /** Free the buffer */
+    fun free()
+    
+    /** Initialize a tensor with this buffer */
+    fun initTensor(tensor: GGMLTensor) {}
+    
+    /** Set tensor data from host memory */
+    fun setTensor(tensor: GGMLTensor, data: ByteArray, offset: ULong, size: ULong)
+    
+    /** Get tensor data to host memory */
+    fun getTensor(tensor: GGMLTensor, data: ByteArray, offset: ULong, size: ULong)
+    
+    /** Copy tensor data from another buffer */
+    fun copyTensor(src: GGMLTensor, dst: GGMLTensor): Boolean
+    
+    /** Clear buffer with specified value */
+    fun clear(value: UByte)
+}
+
+/**
+ * Backend computation status
+ */
+enum class GGMLStatus {
     SUCCESS,
     FAILED,
-    ALLOC_FAILED,
-    NOT_SUPPORTED
+    ABORTED
 }
 
 /**
- * Backend capability flags
+ * Main backend interface - represents a compute backend
+ * Similar to ggml_backend in C++
  */
-object GGMLBackendCapabilities {
-    const val NONE = 0
-    const val MULTI_THREADED = 1 shl 0
-    const val QUANTIZED_OPS = 1 shl 1
-    const val MEMORY_MAPPED = 1 shl 2
+interface GGMLBackend {
+    /** Get a unique identifier for this backend */
+    fun getGuid(): String
+    
+    /** Get the name of this backend */
+    fun getName(): String
+    
+    /** Free the backend */
+    fun free()
+    
+    /** Get the default buffer type for this backend */
+    fun getDefaultBufferType(): GGMLBackendBufferType
+    
+    /** Allocate a buffer using the default buffer type */
+    fun allocBuffer(size: ULong): GGMLBackendBuffer? {
+        return getDefaultBufferType().allocBuffer(size)
+    }
+    
+    /** Get alignment requirements */
+    fun getAlignment(): UInt {
+        return getDefaultBufferType().getAlignment()
+    }
+    
+    /** Get maximum buffer size */
+    fun getMaxSize(): ULong {
+        return getDefaultBufferType().getMaxSize()
+    }
+    
+    /** Set tensor data asynchronously (optional) */
+    fun setTensorAsync(tensor: GGMLTensor, data: ByteArray, offset: ULong, size: ULong) {
+        // Default implementation uses synchronous tensor set
+        val buffer = tensor.buffer
+        if (buffer != null) {
+            buffer.setTensor(tensor, data, offset, size)
+        }
+    }
+    
+    /** Get tensor data asynchronously (optional) */
+    fun getTensorAsync(tensor: GGMLTensor, data: ByteArray, offset: ULong, size: ULong) {
+        // Default implementation uses synchronous tensor get
+        val buffer = tensor.buffer
+        if (buffer != null) {
+            buffer.getTensor(tensor, data, offset, size)
+        }
+    }
+    
+    /** Copy tensor between backends (optional) */
+    fun copyTensorAsync(backendSrc: GGMLBackend, src: GGMLTensor, dst: GGMLTensor): Boolean {
+        return false // Default: not supported
+    }
+    
+    /** Synchronize all pending operations (optional) */
+    fun synchronize() {}
+    
+    /** Compute a graph on this backend */
+    fun graphCompute(graph: GGMLCGraph): GGMLStatus
+    
+    /** Check if this backend supports the specified operation */
+    fun supportsOp(tensor: GGMLTensor): Boolean
+    
+    /** Check if this backend supports the specified buffer type */
+    fun supportsBufferType(bufferType: GGMLBackendBufferType): Boolean
+    
+    /** Check if this backend wants to offload an operation */
+    fun offloadOp(tensor: GGMLTensor): Boolean {
+        return supportsOp(tensor)
+    }
 }
 
 /**
- * Abstract backend interface for different compute engines
+ * Backend registry entry
  */
-abstract class GGMLBackend(
-    val type: GGMLBackendType,
-    val name: String
-) {
-    protected var isInitialized: Boolean = false
-    
-    /**
-     * Initialize the backend
-     */
-    abstract fun initialize(): Boolean
-    
-    /**
-     * Clean up backend resources
-     */
-    abstract fun cleanup()
-    
-    /**
-     * Check if the backend supports a specific operation
-     */
-    abstract fun supportsOperation(tensor: GGMLTensor): Boolean
-    
-    /**
-     * Execute a computation graph on this backend
-     */
-    abstract fun compute(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus
-    
-    /**
-     * Synchronize backend operations (wait for completion)
-     */
-    abstract fun synchronize()
-    
-    /**
-     * Get backend capabilities
-     */
-    abstract fun getCapabilities(): Int
-    
-    /**
-     * Get number of threads this backend can use
-     */
-    abstract fun getThreadCount(): Int
-    
-    /**
-     * Set number of threads for this backend
-     */
-    abstract fun setThreadCount(threads: Int)
-    
-    /**
-     * Check if backend is initialized
-     */
-    fun isReady(): Boolean = isInitialized
-}
+data class GGMLBackendRegistration(
+    val name: String,
+    val initFunction: (String?) -> GGMLBackend?,
+    val defaultBufferType: GGMLBackendBufferType,
+    val userData: Any? = null
+)
 
 /**
- * CPU backend implementation
+ * Global backend registry for managing available backends
  */
-class GGMLCpuBackend(
-    private var threadCount: Int = 1
-) : GGMLBackend(GGMLBackendType.CPU, "CPU") {
+object GGMLBackendRegistry {
+    private val backends = mutableListOf<GGMLBackendRegistration>()
+    private var initialized = false
     
-    override fun initialize(): Boolean {
-        if (isInitialized) return true
+    /**
+     * Register a backend with the registry
+     */
+    fun register(registration: GGMLBackendRegistration) {
+        backends.add(registration)
+    }
+    
+    /**
+     * Initialize the registry with built-in backends
+     */
+    fun init() {
+        if (initialized) return
+        initialized = true
         
-        // Initialize CPU backend resources
-        // For CPU backend, this is mostly just validation
-        if (threadCount < 1) threadCount = 1
+        // Register CPU backend
+        register(GGMLBackendRegistration(
+            name = "CPU",
+            initFunction = { _ -> GGMLCpuBackend() },
+            defaultBufferType = GGMLCpuBufferType()
+        ))
         
-        isInitialized = true
-        return true
-    }
-    
-    override fun cleanup() {
-        isInitialized = false
-    }
-    
-    override fun supportsOperation(tensor: GGMLTensor): Boolean {
-        // CPU backend supports all operations currently implemented
-        return when (tensor.op) {
-            GGMLOp.ADD, GGMLOp.MUL, GGMLOp.MUL_MAT, GGMLOp.RELU, GGMLOp.GELU,
-            GGMLOp.SUB, GGMLOp.NEG, GGMLOp.DIV, GGMLOp.SQR, GGMLOp.SQRT,
-            GGMLOp.SUM, GGMLOp.MEAN, GGMLOp.REPEAT, GGMLOp.ABS, GGMLOp.SGN,
-            GGMLOp.STEP, GGMLOp.SILU, GGMLOp.RMS_NORM, GGMLOp.NORM -> true
-            else -> false
-        }
-    }
-    
-    override fun compute(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus {
-        if (!isInitialized) return GGMLBackendStatus.FAILED
-        
-        try {
-            // Execute the graph using existing compute functionality
-            computeGraph(context, graph)
-            return GGMLBackendStatus.SUCCESS
-        } catch (e: Exception) {
-            // Handle computation errors
-            return GGMLBackendStatus.FAILED
-        }
-    }
-    
-    override fun synchronize() {
-        // CPU operations are synchronous, so nothing to do here
-    }
-    
-    override fun getCapabilities(): Int {
-        return GGMLBackendCapabilities.MULTI_THREADED or GGMLBackendCapabilities.QUANTIZED_OPS
-    }
-    
-    override fun getThreadCount(): Int = threadCount
-    
-    override fun setThreadCount(threads: Int) {
-        if (threads > 0) {
-            threadCount = threads
-        }
-    }
-}
-
-/**
- * Metal backend placeholder (to be implemented later)
- */
-class GGMLMetalBackend : GGMLBackend(GGMLBackendType.METAL, "Metal") {
-    
-    override fun initialize(): Boolean {
-        // TODO: Implement Metal backend initialization
-        return false
-    }
-    
-    override fun cleanup() {
-        // TODO: Implement Metal cleanup
-    }
-    
-    override fun supportsOperation(tensor: GGMLTensor): Boolean {
-        // TODO: Define Metal-supported operations
-        return false
-    }
-    
-    override fun compute(graph: GGMLCGraph, context: GGMLContext): GGMLBackendStatus {
-        // TODO: Implement Metal graph computation
-        return GGMLBackendStatus.NOT_SUPPORTED
-    }
-    
-    override fun synchronize() {
-        // TODO: Implement Metal synchronization
-    }
-    
-    override fun getCapabilities(): Int {
-        return GGMLBackendCapabilities.NONE
-    }
-    
-    override fun getThreadCount(): Int = 1
-    
-    override fun setThreadCount(threads: Int) {
-        // Metal threading handled internally
-    }
-}
-
-/**
- * Backend manager for handling multiple backends
- */
-class GGMLBackendManager {
-    private val backends = mutableListOf<GGMLBackend>()
-    private var primaryBackend: GGMLBackend? = null
-    
-    /**
-     * Register a backend
-     */
-    fun registerBackend(backend: GGMLBackend): Boolean {
-        if (backend.initialize()) {
-            backends.add(backend)
-            if (primaryBackend == null) {
-                primaryBackend = backend
-            }
-            return true
-        }
-        return false
+        // Register Metal backend (stub for now)
+        register(GGMLBackendRegistration(
+            name = "Metal", 
+            initFunction = { _ -> GGMLMetalBackend() },
+            defaultBufferType = GGMLMetalBufferType()
+        ))
     }
     
     /**
-     * Get the best backend for a specific operation
+     * Get the number of registered backends
      */
-    fun getBestBackend(tensor: GGMLTensor): GGMLBackend? {
-        // Simple strategy: return first backend that supports the operation
-        return backends.find { it.supportsOperation(tensor) }
+    fun getCount(): Int {
+        init()
+        return backends.size
     }
     
     /**
-     * Get primary backend
+     * Find backend by name
      */
-    fun getPrimaryBackend(): GGMLBackend? = primaryBackend
+    fun findByName(name: String): Int? {
+        init()
+        return backends.indexOfFirst { it.name.equals(name, ignoreCase = true) }.takeIf { it >= 0 }
+    }
     
     /**
-     * Get all available backends
+     * Get backend name by index
      */
-    fun getBackends(): List<GGMLBackend> = backends.toList()
+    fun getName(index: Int): String? {
+        init()
+        return backends.getOrNull(index)?.name
+    }
     
     /**
-     * Cleanup all backends
+     * Initialize backend by index
      */
-    fun cleanup() {
-        backends.forEach { it.cleanup() }
-        backends.clear()
-        primaryBackend = null
+    fun initBackend(index: Int, params: String? = null): GGMLBackend? {
+        init()
+        return backends.getOrNull(index)?.initFunction?.invoke(params)
+    }
+    
+    /**
+     * Get default buffer type by index
+     */
+    fun getDefaultBufferType(index: Int): GGMLBackendBufferType? {
+        init()
+        return backends.getOrNull(index)?.defaultBufferType
+    }
+    
+    /**
+     * Allocate buffer by backend index
+     */
+    fun allocBuffer(index: Int, size: ULong): GGMLBackendBuffer? {
+        return getDefaultBufferType(index)?.allocBuffer(size)
     }
 }

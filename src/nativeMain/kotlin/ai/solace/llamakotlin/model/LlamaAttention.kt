@@ -52,7 +52,8 @@ class LlamaAttention(
                     // Apply rotation for each pair of dimensions in the head
                     for (i in 0 until headDim step 2) {
                         val pos = position + s
-                        val invFreq = 1.0 / pow(ropeTheta.toDouble(), (i / 2.0) / (headDim / 2.0))
+                        val exponent = (i.toDouble() / 2.0) / (headDim.toDouble() / 2.0)
+                        val invFreq = 1.0 / ropeTheta.toDouble().pow(exponent)
                         val angle = pos * invFreq
                         val cos = cos(angle).toFloat()
                         val sin = sin(angle).toFloat()
@@ -60,8 +61,8 @@ class LlamaAttention(
                         val x = tensor.getFloat(graphAllocator, headOffset + i, s, b)
                         val y = tensor.getFloat(graphAllocator, headOffset + i + 1, s, b)
                         
-                        result.setFloat(graphAllocator, headOffset + i, s, b, x * cos - y * sin)
-                        result.setFloat(graphAllocator, headOffset + i + 1, s, b, x * sin + y * cos)
+                        result.setFloat(graphAllocator, x * cos - y * sin, headOffset + i, s, b)
+                        result.setFloat(graphAllocator, x * sin + y * cos, headOffset + i + 1, s, b)
                     }
                 }
             }
@@ -88,13 +89,13 @@ class LlamaAttention(
         
         // If using KV cache, concatenate with cached keys/values
         val finalKey = if (kvCache != null) {
-            kvCache.updateKey(kRope)
+            kvCache.updateKey(graphAllocator, kRope)
         } else {
             kRope
         }
         
         val finalValue = if (kvCache != null) {
-            kvCache.updateValue(value)
+            kvCache.updateValue(graphAllocator, value)
         } else {
             value
         }
@@ -201,7 +202,7 @@ class LlamaAttention(
             }
             
             val value = tensor.getFloat(graphAllocator, *indices)
-            result.setFloat(graphAllocator, *indices, value * factor)
+            result.setFloat(graphAllocator, value * factor, *indices)
         }
         
         return result
@@ -277,7 +278,7 @@ class LlamaAttention(
                     
                     // Normalize
                     for (d in 0 until dim) {
-                        result.setFloat(graphAllocator, d, h, s, b, expValues[d] / sum)
+                        result.setFloat(graphAllocator, expValues[d] / sum, d, h, s, b)
                     }
                 }
             }

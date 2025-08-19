@@ -64,31 +64,31 @@ internal fun floatToHalf(f_val: Float): Short {
     val absF = f32bits and 0x7FFFFFFF // Absolute value of F32
 
     // Handle special cases
-    if (absF > 0x47FFEFFFU) { // F32 value is too large for F16 normal => F16 Inf or NaN
+    if (absF > 0x47FFEFFF) { // F32 value is too large for F16 normal => F16 Inf or NaN
         // NaN if F32 mantissa is non-zero, else Inf
-        val mantissaIsNonZero = (absF and 0x007FFFFFU) != 0
+    val mantissaIsNonZero = (absF and 0x007FFFFF) != 0
         // F16 Inf/NaN: exp all 1s (0x1F for 5 bits -> 0x7C00 when shifted)
         // For NaN, set MSB of mantissa (e.g., 0x0200 for F16) or any non-zero pattern
         return (fSign or 0x7C00 or if (mantissaIsNonZero) 0x0200 else 0).toShort()
     }
 
-    if (absF < 0x38800000U) { // F32 value is too small for F16 normal => F16 denormal or zero
+    if (absF < 0x38800000) { // F32 value is too small for F16 normal => F16 denormal or zero
         // Convert F32 to F16 denormal
         // Add implicit F32 '1' bit to mantissa
-        val fMant = (absF and 0x007FFFFFU) or 0x00800000U
+    val fMant = (absF and 0x007FFFFF) or 0x00800000
         // Calculate F16 denormal shift amount
         // F32 exp is (absF ushr 23). Denormal F16 exp is effectively -14.
         // Shift needed = 24 (F32 mant+implicit_1 bits) - (10 (F16 mant bits) + ( (absF ushr 23) - 127 (F32 bias) - (-14 (F16 denorm_exp)) ) )
         // shift = 24 - (10 + ( (absF ushr 23) - 113) ) = 24 - 10 - (absF ushr 23) + 113 = 127 - (absF ushr 23)
-        val shift = 127 - (absF ushr 23) // Number of positions to shift right to align for F16 denormal mantissa
+    val shift = 127 - (absF ushr 23) // Number of positions to shift right to align for F16 denormal mantissa
 
-        val hMant = if (shift < 24) (fMant ushr shift) else 0
+    val hMant = if (shift < 24) (fMant ushr shift) else 0
 
         // Rounding (RTNE for denormals requires checking bits shifted out)
-        val roundBits = fMant and ((1U shl shift) - 1U) // Bits lost
+    val roundBits = fMant and ((1 shl shift) - 1) // Bits lost
         // Tie-breaking: if exactly halfway, round to even (LSB of hMant is 0 after rounding)
         // Threshold for rounding up is halfway mark (1 << (shift - 1))
-        if (roundBits > (1U shl (shift - 1)) || (roundBits == (1U shl (shift - 1)) && (hMant and 1) != 0)) {
+    if (roundBits > (1 shl (shift - 1)) || (roundBits == (1 shl (shift - 1)) && (hMant and 1) != 0)) {
            var h_temp = hMant + 1
            // If rounding caused overflow into implicit leading bit of a normal number
            if(h_temp == 0x0400) { // 0x0400 is 1024, meaning it became 1.0 * 2^(exp_min_norm_f16)
@@ -105,16 +105,16 @@ internal fun floatToHalf(f_val: Float): Short {
     // F16 exp = (F32 exp - 112)
     // F32 mantissa has 23 bits, F16 has 10. Diff = 13.
     val hExp = ((absF ushr 23) - 112) shl 10 // Shifted F16 exponent
-    var hMant = (absF and 0x007FFFFFU) ushr 13 // Shifted F16 mantissa
+    var hMant = (absF and 0x007FFFFF) ushr 13 // Shifted F16 mantissa
 
     // Rounding for normalized numbers (RTNE)
     // Check the MSB of the bits that were shifted out (the rounding bit)
-    if ((absF and 0x00001000U) != 0U) { // If rounding bit is 1 (0x1000 is 2^12, MSB of 13 shifted bits)
+    if ((absF and 0x00001000) != 0) { // If rounding bit is 1 (0x1000 is 2^12, MSB of 13 shifted bits)
         // Check for tie-breaking (if remaining shifted bits are zero AND LSB of hMant is 1)
-        if ((absF and 0x00000FFFU) != 0U || (hMant and 1U) != 0U) {
+    if ((absF and 0x00000FFF) != 0 || (hMant and 1) != 0) {
             hMant++
-            if (hMant == 0x0400U) { // Mantissa overflowed to 1024
-                hMant = 0U // Reset mantissa
+            if (hMant == 0x0400) { // Mantissa overflowed to 1024
+                hMant = 0 // Reset mantissa
                 // Increment exponent (already shifted)
                 return (fSign or (hExp + (1 shl 10)) or hMant).toShort()
             }
