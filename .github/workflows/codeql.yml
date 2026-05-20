@@ -10,13 +10,10 @@ name: CodeQL
 # `javascript-typescript` covers any JS/TS in the repo.
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
   schedule:
     - cron: "27 4 * * 1"
 
+  workflow_dispatch:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
