@@ -1,4 +1,4 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
 /**
  * @native-bitshift-allowed This is a core BitShift implementation file.

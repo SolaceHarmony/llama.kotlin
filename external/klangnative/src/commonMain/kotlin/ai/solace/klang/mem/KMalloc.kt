@@ -1,4 +1,4 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
 /**
  * KMalloc: A production-grade memory allocator built on [GlobalHeap].

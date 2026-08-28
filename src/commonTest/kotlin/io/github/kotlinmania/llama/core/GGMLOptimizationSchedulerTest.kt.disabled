@@ -1,0 +1,343 @@
+package io.github.kotlinmania.llama.core
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
+
+/**
+ * Tests for graph optimization passes and scheduler functionality
+ */
+class GGMLOptimizationSchedulerTest {
+
+    private fun createVectorTensor(
+        allocator: GGMLGraphAllocator,
+        name: String,
+        values: FloatArray
+    ): GGMLTensor = GGMLTestUtils.createTensorWithData(
+        graphAllocator = allocator,
+        name = name,
+        type = GGMLType.F32,
+        ne = longArrayOf(values.size.toLong(), 1, 1, 1),
+        data = values
+    )
+    
+    @Test
+    fun testDeadCodeEliminationPass() {
+        val context = GGMLContext()
+        val graph = createGraph(10)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+        
+        // Create input tensors
+        val a = createVectorTensor(allocator, "a", floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f))
+        val b = createVectorTensor(allocator, "b", floatArrayOf(2.0f, 3.0f, 4.0f, 5.0f))
+
+        // Create operations
+        val add1 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val add2 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val result = mul(context, add1, a).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        
+        // Mark result as output
+        result.flags = result.flags or GGML_TENSOR_FLAG_OUTPUT
+        
+        // Add to graph
+        graph.nodes[0] = add1
+        graph.nodes[1] = add2  // This should be eliminated
+        graph.nodes[2] = result
+        graph.nNodes = 3
+        
+        graph.leafs[0] = result
+        graph.nLeafs = 1
+        
+        val pass = DeadCodeEliminationPass()
+        val wasModified = pass.apply(graph, context)
+        
+        assertTrue(wasModified, "Dead code elimination should modify the graph")
+        assertEquals(2, graph.nNodes, "Dead node should be removed")
+        
+        // Verify remaining nodes are the ones we expect
+        val remainingOps = mutableSetOf<GGMLOp>()
+        for (i in 0 until graph.nNodes) {
+            graph.nodes[i]?.let { remainingOps.add(it.op) }
+        }
+        assertTrue(remainingOps.contains(GGMLOp.ADD), "ADD operation should remain")
+        assertTrue(remainingOps.contains(GGMLOp.MUL), "MUL operation should remain")
+    }
+    
+    @Test
+    fun testRedundantOpRemovalPass() {
+        val context = GGMLContext()
+        val graph = createGraph(10)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+        
+        // Create input tensors
+        val a = createVectorTensor(allocator, "a", floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f))
+        val b = createVectorTensor(allocator, "b", floatArrayOf(2.0f, 3.0f, 4.0f, 5.0f))
+        
+        // Create identical operations
+        val add1 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val add2 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val result1 = mul(context, add1, a).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val result2 = mul(context, add2, a).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        
+        // Mark results as outputs
+        result1.flags = result1.flags or GGML_TENSOR_FLAG_OUTPUT
+        result2.flags = result2.flags or GGML_TENSOR_FLAG_OUTPUT
+        
+        // Add to graph
+        graph.nodes[0] = add1
+        graph.nodes[1] = add2
+        graph.nodes[2] = result1
+        graph.nodes[3] = result2
+        graph.nNodes = 4
+        
+        val pass = RedundantOpRemovalPass()
+        val wasModified = pass.apply(graph, context)
+        
+        assertTrue(wasModified, "Redundant operation removal should modify the graph")
+        assertTrue(graph.nNodes < 4, "Redundant operations should be removed")
+    }
+    
+    @Test
+    fun testConstantFoldingPass() {
+        val context = GGMLContext()
+        val graph = createGraph(5)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+        
+        // Create constant tensors (tensors with data but no operation)
+        val const1 = createVectorTensor(allocator, "const1", floatArrayOf(3.0f, 4.0f)).apply {
+            op = GGMLOp.NONE
+        }
+        val const2 = createVectorTensor(allocator, "const2", floatArrayOf(2.0f, 5.0f)).apply {
+            op = GGMLOp.NONE
+        }
+
+        // Create operation on constants
+        val addConst = add(context, const1, const2).apply {
+            ne = const1.ne.copyOf()
+            nb = const1.nb.copyOf()
+        }
+        
+        // Add to graph
+        graph.nodes[0] = addConst
+        graph.nNodes = 1
+        
+        val pass = ConstantFoldingPass()
+        val wasModified = pass.apply(graph, context)
+        
+        assertTrue(wasModified, "Constant folding should modify the graph")
+        assertEquals(GGMLOp.NONE, addConst.op, "Folded operation should become NONE")
+        assertNotNull(addConst.data, "Folded operation should have computed data")
+    }
+    
+    @Test
+    fun testGraphOptimizerIntegration() {
+        val context = GGMLContext()
+        val graph = createGraph(10)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+        
+        // Create a graph with multiple optimization opportunities
+        val a = createVectorTensor(allocator, "a", floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f))
+        val b = createVectorTensor(allocator, "b", floatArrayOf(2.0f, 3.0f, 4.0f, 5.0f))
+        
+        val add1 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val add2 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val deadOp = mul(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val result = mul(context, add1, a).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        
+        result.flags = result.flags or GGML_TENSOR_FLAG_OUTPUT
+        
+        graph.nodes[0] = add1
+        graph.nodes[1] = add2
+        graph.nodes[2] = deadOp
+        graph.nodes[3] = result
+        graph.nNodes = 4
+        
+        graph.leafs[0] = result
+        graph.nLeafs = 1
+        
+        val optimizer = GGMLGraphOptimizer()
+        val optimizationResult = optimizer.optimize(graph, context)
+        
+        assertTrue(optimizationResult.iterations > 0, "Optimizer should run at least one iteration")
+        assertTrue(graph.nNodes < 4, "Graph should be optimized")
+    }
+    
+    @Test
+    fun testCpuBackend() {
+        val backend = GGMLCpuBackend()
+        assertEquals("CPU", backend.getName(), "CPU backend should report correct name")
+        assertTrue(backend.getGuid().isNotEmpty(), "CPU backend should expose a GUID")
+
+        val buffer = backend.allocBuffer(1024uL)
+        assertNotNull(buffer, "CPU backend should allocate buffer")
+
+        val tensor = GGMLTensor(type = GGMLType.F32).apply { op = GGMLOp.ADD }
+        assertTrue(backend.supportsOp(tensor), "CPU backend should report support for ADD operations")
+
+        buffer?.free()
+        backend.free()
+    }
+
+    @Test
+    fun testBackendManager() {
+        val backend = GGMLCpuBackend()
+        assertEquals("CPU", backend.getName())
+        backend.free()
+    }
+
+    @Test
+    fun testSchedulerSequential() {
+        val backends = listOf<GGMLBackend>(GGMLCpuBackend())
+        val scheduler = GGMLScheduler(
+            backends, 
+            GGMLSchedulingStrategy.SEQUENTIAL
+        )
+
+        val context = GGMLContext()
+        val graph = createGraph(5)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+        
+        // Create simple computation
+        val a = createVectorTensor(allocator, "a", floatArrayOf(1.0f, 2.0f))
+        val b = createVectorTensor(allocator, "b", floatArrayOf(3.0f, 4.0f))
+        
+        val result = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+
+        graph.nodes[0] = result
+        graph.nNodes = 1
+
+        val status = scheduler.execute(graph, context)
+        assertEquals(GGMLBackendStatus.SUCCESS, status)
+    }
+    
+    @Test
+    fun testDependencyTracker() {
+        val context = GGMLContext()
+        val graph = createGraph(5)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+        
+        // Create computation with dependencies: c = (a + b) * a
+        val a = createVectorTensor(allocator, "a", floatArrayOf(1.0f, 2.0f))
+        val b = createVectorTensor(allocator, "b", floatArrayOf(3.0f, 4.0f))
+        
+        val add = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val result = mul(context, add, a).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        
+        graph.nodes[0] = add
+        graph.nodes[1] = result
+        graph.nNodes = 2
+        
+        val tracker = GGMLDependencyTracker()
+        tracker.buildDependencies(graph)
+        
+        // Initially, only 'add' should be ready (no dependencies)
+        var readyNodes = tracker.getReadyNodes()
+        assertEquals(1, readyNodes.size)
+        assertEquals(GGMLOp.ADD, readyNodes[0].op)
+        
+        // After marking 'add' complete, 'result' should be ready
+        tracker.markCompleted(add)
+        readyNodes = tracker.getReadyNodes()
+        assertEquals(1, readyNodes.size)
+        assertEquals(GGMLOp.MUL, readyNodes[0].op)
+        
+        // After marking 'result' complete, no nodes should be ready
+        tracker.markCompleted(result)
+        assertTrue(tracker.isComplete())
+        assertTrue(tracker.getReadyNodes().isEmpty())
+    }
+    
+    @Test
+    fun testOptimizedGraphExecution() {
+        val context = GGMLContext()
+        val graph = createGraph(5)
+        val allocator = graph.allocator ?: error("Graph allocator should be initialized")
+        resetAllocatorTracking(allocator)
+
+        // Set up backend manager
+        val backends = listOf<GGMLBackend>(GGMLCpuBackend())
+
+        // Create optimizer and scheduler
+        val optimizer = GGMLGraphOptimizer()
+        val scheduler = GGMLScheduler(backends, GGMLSchedulingStrategy.SEQUENTIAL)
+
+        val a = createVectorTensor(allocator, "a", floatArrayOf(1.0f, 2.0f, 3.0f))
+        val b = createVectorTensor(allocator, "b", floatArrayOf(4.0f, 5.0f, 6.0f))
+
+        val add1 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val add2 = add(context, a, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        val result = mul(context, add1, b).apply {
+            ne = a.ne.copyOf()
+            nb = a.nb.copyOf()
+        }
+        
+        result.flags = result.flags or GGML_TENSOR_FLAG_OUTPUT
+        
+        graph.nodes[0] = add1
+        graph.nodes[1] = add2
+        graph.nodes[2] = result
+        graph.nNodes = 3
+        
+        // Execute with optimization and scheduling
+        val status = executeOptimizedGraph(graph, context, optimizer, scheduler)
+        assertEquals(GGMLBackendStatus.SUCCESS, status)
+        
+        // Verify the result was computed correctly
+        assertNotNull(result.data)
+    }
+}

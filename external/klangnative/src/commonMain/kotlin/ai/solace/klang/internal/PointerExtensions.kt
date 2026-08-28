@@ -1,6 +1,6 @@
-package ai.solace.klangnative.internal
+package io.github.kotlinmania.llama.lang.internal
 
-import ai.solace.klangnative.internal.runtime.CPointer
+import io.github.kotlinmania.llama.lang.internal.runtime.CPointer
 
 /**
  * Typed pointer extensions for [CPointer].
@@ -62,84 +62,84 @@ inline fun CPointer<Double>.index(i: Int): CPointer<Double> = CPointer(this.ptr 
  * 
  * @return The byte value stored at this address.
  */
-fun CPointer<Byte>.load(): Byte = ai.solace.klang.mem.GlobalHeap.lb(ptr)
+fun CPointer<Byte>.load(): Byte = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lb(ptr)
 
 /**
  * Stores a byte value to memory at this pointer's address.
  * 
  * @param v The byte value to store.
  */
-fun CPointer<Byte>.store(v: Byte) = ai.solace.klang.mem.GlobalHeap.sb(ptr, v)
+fun CPointer<Byte>.store(v: Byte) = io.github.kotlinmania.llama.lang.mem.GlobalHeap.sb(ptr, v)
 
 /**
  * Loads a short value from memory at this pointer's address.
  * 
  * @return The short value stored at this address.
  */
-fun CPointer<Short>.load(): Short = ai.solace.klang.mem.GlobalHeap.lh(ptr)
+fun CPointer<Short>.load(): Short = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lh(ptr)
 
 /**
  * Stores a short value to memory at this pointer's address.
  * 
  * @param v The short value to store.
  */
-fun CPointer<Short>.store(v: Short) = ai.solace.klang.mem.GlobalHeap.sh(ptr, v)
+fun CPointer<Short>.store(v: Short) = io.github.kotlinmania.llama.lang.mem.GlobalHeap.sh(ptr, v)
 
 /**
  * Loads an int value from memory at this pointer's address.
  * 
  * @return The int value stored at this address.
  */
-fun CPointer<Int>.load(): Int = ai.solace.klang.mem.GlobalHeap.lw(ptr)
+fun CPointer<Int>.load(): Int = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lw(ptr)
 
 /**
  * Stores an int value to memory at this pointer's address.
  * 
  * @param v The int value to store.
  */
-fun CPointer<Int>.store(v: Int) = ai.solace.klang.mem.GlobalHeap.sw(ptr, v)
+fun CPointer<Int>.store(v: Int) = io.github.kotlinmania.llama.lang.mem.GlobalHeap.sw(ptr, v)
 
 /**
  * Loads a long value from memory at this pointer's address.
  * 
  * @return The long value stored at this address.
  */
-fun CPointer<Long>.load(): Long = ai.solace.klang.mem.GlobalHeap.ld(ptr)
+fun CPointer<Long>.load(): Long = io.github.kotlinmania.llama.lang.mem.GlobalHeap.ld(ptr)
 
 /**
  * Stores a long value to memory at this pointer's address.
  * 
  * @param v The long value to store.
  */
-fun CPointer<Long>.store(v: Long) = ai.solace.klang.mem.GlobalHeap.sd(ptr, v)
+fun CPointer<Long>.store(v: Long) = io.github.kotlinmania.llama.lang.mem.GlobalHeap.sd(ptr, v)
 
 /**
  * Loads a float value from memory at this pointer's address.
  * 
  * @return The float value stored at this address.
  */
-fun CPointer<Float>.load(): Float = ai.solace.klang.mem.GlobalHeap.lwf(ptr)
+fun CPointer<Float>.load(): Float = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lwf(ptr)
 
 /**
  * Stores a float value to memory at this pointer's address.
  * 
  * @param v The float value to store.
  */
-fun CPointer<Float>.store(v: Float) = ai.solace.klang.mem.GlobalHeap.swf(ptr, v)
+fun CPointer<Float>.store(v: Float) = io.github.kotlinmania.llama.lang.mem.GlobalHeap.swf(ptr, v)
 
 /**
  * Loads a double value from memory at this pointer's address.
  * 
  * @return The double value stored at this address.
  */
-fun CPointer<Double>.load(): Double = ai.solace.klang.mem.GlobalHeap.ldf(ptr)
+fun CPointer<Double>.load(): Double = io.github.kotlinmania.llama.lang.mem.GlobalHeap.ldf(ptr)
 
 /**
  * Stores a double value to memory at this pointer's address.
  * 
  * @param v The double value to store.
  */
-fun CPointer<Double>.store(v: Double) = ai.solace.klang.mem.GlobalHeap.sdf(ptr, v)
+fun CPointer<Double>.store(v: Double) = io.github.kotlinmania.llama.lang.mem.GlobalHeap.sdf(ptr, v)
 
 /**
  * Allocates [n] bytes of uninitialized memory.
@@ -147,7 +147,7 @@ fun CPointer<Double>.store(v: Double) = ai.solace.klang.mem.GlobalHeap.sdf(ptr, 
  * @param n The number of bytes to allocate.
  * @return A pointer to the allocated memory, or null on failure.
  */
-fun mallocBytes(n: Int): CPointer<Byte> = CPointer(ai.solace.klang.mem.GlobalHeap.malloc(n))
+fun mallocBytes(n: Int): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.GlobalHeap.malloc(n))
 
 /**
  * Allocates [n] bytes of zero-initialized memory.
@@ -155,5 +155,5 @@ fun mallocBytes(n: Int): CPointer<Byte> = CPointer(ai.solace.klang.mem.GlobalHea
  * @param n The number of bytes to allocate.
  * @return A pointer to the allocated memory, or null on failure.
  */
-fun callocBytes(n: Int): CPointer<Byte> = CPointer(ai.solace.klang.mem.GlobalHeap.calloc(n, 1))
+fun callocBytes(n: Int): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.GlobalHeap.calloc(n, 1))
 

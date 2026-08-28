@@ -1,10 +1,10 @@
-package ai.solace.ember.bench
+package io.github.kotlinmania.llama.mber.bench
 
-import ai.solace.ember.backend.klang.KlangHeapTensorStorage
-import ai.solace.ember.backend.klang.NativeHeapTensorStorage
-import ai.solace.klangnative.fp.CFloat32
-import ai.solace.klangnative.mem.GlobalHeap
-import ai.solace.klangnative.mem.KAligned
+import io.github.kotlinmania.llama.mber.backend.klang.KlangHeapTensorStorage
+import io.github.kotlinmania.llama.mber.backend.klang.NativeHeapTensorStorage
+import io.github.kotlinmania.llama.lang.fp.CFloat32
+import io.github.kotlinmania.llama.lang.mem.GlobalHeap
+import io.github.kotlinmania.llama.lang.mem.KAligned
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.reinterpret

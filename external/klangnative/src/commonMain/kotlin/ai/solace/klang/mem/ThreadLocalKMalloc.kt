@@ -1,6 +1,6 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
-import io.github.kotlinmania.threadlocal.ThreadLocal
+import io.github.kotlinmania.llama.hreadlocal.ThreadLocal
 
 /**
  * Thread-local memory allocator providing per-thread KMalloc arenas.
@@ -119,7 +119,7 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
  *
  * ## Implementation Notes
  *
- * This implementation uses threadlocal-kotlin (io.github.kotlinmania:threadlocal-kotlin:0.3.1)
+ * This implementation uses threadlocal-kotlin (io.github.kotlinmania.llama.hreadlocal-kotlin:0.3.1)
  * which provides true thread-local storage across all Kotlin Multiplatform targets including:
  * - JVM (uses java.lang.ThreadLocal)
  * - Native (uses pthread_key_t / Windows TLS)
@@ -127,7 +127,7 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
  * - Wasm (uses linear memory slots)
  *
  * @see KMalloc For the underlying allocator
- * @see io.github.kotlinmania.threadlocal.ThreadLocal For thread-local implementation
+ * @see io.github.kotlinmania.llama.hreadlocal.ThreadLocal For thread-local implementation
  * @since 0.3.1 (requires threadlocal-kotlin:0.3.1)
  */
 object ThreadLocalKMalloc {

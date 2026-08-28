@@ -12,9 +12,9 @@ Key Ideas
 ---------
 - Arithmetic-based bit operations: For 8/16-bit worlds (e.g., Mark Adler’s zlib internals), we
   avoid platform-dependent shifts by using purely arithmetic implementations. See:
-  - `ai.solace.klang.bitwise.ArithmeticBitwiseOps`
-  - `ai.solace.klang.bitwise.ArrayBitShifts`
-  - `ai.solace.klang.bitwise.BitwiseOps`
+  - `io.github.kotlinmania.llama.lang.bitwise.ArithmeticBitwiseOps`
+  - `io.github.kotlinmania.llama.lang.bitwise.ArrayBitShifts`
+  - `io.github.kotlinmania.llama.lang.bitwise.BitwiseOps`
 
 - Intent-driven floating semantics: C’s `long double` differs by platform (double64, x87 80-bit,
   IEEE-754 binary128). We expose an API that clearly expresses intent and selects the appropriate
@@ -42,7 +42,7 @@ Choosing a Long Double Flavor
 By default, `CLongDouble` uses `AUTO` which maps to the library default. You can override globally:
 
 ```kotlin
-import ai.solace.klang.fp.CLongDouble
+import io.github.kotlinmania.llama.lang.fp.CLongDouble
 
 CLongDouble.DefaultFlavorProvider.default = CLongDouble.Flavor.IEEE128
 ```
@@ -69,8 +69,8 @@ Validation Tools
 
 Notable Files
 -------------
-- Floating types: `ai/solace/klang/fp/CDouble.kt`, `ai/solace/klang/fp/CLongDouble.kt`, `ai/solace/klang/fp/CFloat128.kt`.
-- Bitwise/limb: `ai/solace/klang/bitwise/*`, `ai/solace/klang/buffer/*`.
+- Floating types: `io.github.kotlinmania.llama.lang/fp/CDouble.kt`, `io.github.kotlinmania.llama.lang/fp/CLongDouble.kt`, `io.github.kotlinmania.llama.lang/fp/CFloat128.kt`.
+- Bitwise/limb: `io.github.kotlinmania.llama.lang/bitwise/*`, `io.github.kotlinmania.llama.lang/buffer/*`.
 
 Heap Memory Model
 -----------------

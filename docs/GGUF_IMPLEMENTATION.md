@@ -121,14 +121,14 @@ val result = matMul(context, embeddings, attention)
 ## Files Structure
 
 ```
-src/nativeMain/kotlin/ai/solace/llamakotlin/gguf/
+src/nativeMain/kotlin/io.github.kotlinmania.llama.guf/
 ├── GGUFTypes.kt        # Data type definitions
 ├── GGUFParser.kt       # Binary file parser
 ├── GGUFContext.kt      # Parsed data container
 ├── ModelLoader.kt      # High-level loading interface
 └── GGUFExample.kt      # Usage example
 
-src/commonTest/kotlin/ai/solace/llamakotlin/gguf/
+src/commonTest/kotlin/io.github.kotlinmania.llama.guf/
 ├── TestGGUFGenerator.kt    # Test file generator
 ├── GGUFTest.kt            # Core functionality tests
 └── GGUFIntegrationTest.kt # Integration tests

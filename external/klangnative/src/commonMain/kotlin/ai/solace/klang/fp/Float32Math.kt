@@ -1,7 +1,7 @@
-package ai.solace.klangnative.fp
+package io.github.kotlinmania.llama.lang.fp
 
-import ai.solace.klangnative.bitwise.BitShiftEngine
-import ai.solace.klangnative.bitwise.BitShiftMode
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftEngine
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftMode
 import kotlin.math.abs
 import kotlin.math.floor
 

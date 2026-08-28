@@ -14,7 +14,7 @@
  * Usage: kotlin -cp build/classes/kotlin/linuxX64/main demo_bitnet158.kts
  */
 
-import ai.solace.llamakotlin.core.*
+import io.github.kotlinmania.llama.ore.*
 
 fun demonstrateBitNet158() {
     println("=== BitNet 1.58 Quantization Demonstration ===")

@@ -1,4 +1,4 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

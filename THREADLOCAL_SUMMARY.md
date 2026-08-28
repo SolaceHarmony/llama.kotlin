@@ -8,13 +8,13 @@ Successfully restored and enhanced ThreadLocal support in llama.kotlin using `th
 
 ### 1. Dependency Addition
 - **File**: `build.gradle.kts`
-- **Change**: Added `implementation("io.github.kotlinmania:threadlocal-kotlin:0.3.1")` to commonMain dependencies
+- **Change**: Added `implementation("io.github.kotlinmania.llama.hreadlocal-kotlin:0.3.1")` to commonMain dependencies
 - **Impact**: Enables multiplatform ThreadLocal across all targets (JVM, Native, JS, Wasm)
 
 ### 2. New Components Created
 
 #### GGMLThreadLocalContext
-- **Location**: `src/commonMain/kotlin/ai/solace/llamakotlin/core/GGMLThreadLocalContext.kt`
+- **Location**: `src/commonMain/kotlin/io.github.kotlinmania.llama.ore/GGMLThreadLocalContext.kt`
 - **Purpose**: Per-thread compute parameters for GGML operations
 - **Features**:
   - Thread-local storage for `GGMLComputeParams`
@@ -23,7 +23,7 @@ Successfully restored and enhanced ThreadLocal support in llama.kotlin using `th
   - ~330 lines of code with comprehensive documentation
 
 #### ThreadLocalCFloatTrace
-- **Location**: `external/klangnative/src/commonMain/kotlin/ai/solace/klang/bitwise/ThreadLocalCFloatTrace.kt`
+- **Location**: `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ThreadLocalCFloatTrace.kt`
 - **Purpose**: Per-thread floating-point operation tracing
 - **Features**:
   - Thread-safe trace buffer per thread
@@ -33,7 +33,7 @@ Successfully restored and enhanced ThreadLocal support in llama.kotlin using `th
   - ~280 lines of code with comprehensive documentation
 
 #### ThreadLocalKMalloc
-- **Location**: `external/klangnative/src/commonMain/kotlin/ai/solace/klang/mem/ThreadLocalKMalloc.kt`
+- **Location**: `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/mem/ThreadLocalKMalloc.kt`
 - **Purpose**: Per-thread memory allocation wrapper
 - **Features**:
   - Conceptual per-thread arena allocation
@@ -44,7 +44,7 @@ Successfully restored and enhanced ThreadLocal support in llama.kotlin using `th
 ### 3. Tests Added
 
 #### GGMLThreadLocalContextTest
-- **Location**: `src/commonTest/kotlin/ai/solace/llamakotlin/core/GGMLThreadLocalContextTest.kt`
+- **Location**: `src/commonTest/kotlin/io.github.kotlinmania.llama.ore/GGMLThreadLocalContextTest.kt`
 - **Coverage**:
   - Set/get/clear operations
   - Default parameter handling
@@ -55,7 +55,7 @@ Successfully restored and enhanced ThreadLocal support in llama.kotlin using `th
   - ~120 lines of comprehensive test cases
 
 #### ThreadLocalCFloatTraceTest
-- **Location**: `external/klangnative/src/commonTest/kotlin/ai/solace/klang/bitwise/ThreadLocalCFloatTraceTest.kt`
+- **Location**: `external/klangnative/src/commonTest/kotlin/io.github.kotlinmania.llama.lang/bitwise/ThreadLocalCFloatTraceTest.kt`
 - **Coverage**:
   - Enable/disable functionality
   - Operation logging
@@ -147,11 +147,11 @@ This allows:
 ## Files Changed
 
 1. `build.gradle.kts` - Dependency addition
-2. `src/commonMain/kotlin/ai/solace/llamakotlin/core/GGMLThreadLocalContext.kt` - New file
-3. `external/klangnative/src/commonMain/kotlin/ai/solace/klang/bitwise/ThreadLocalCFloatTrace.kt` - New file
-4. `external/klangnative/src/commonMain/kotlin/ai/solace/klang/mem/ThreadLocalKMalloc.kt` - New file
-5. `src/commonTest/kotlin/ai/solace/llamakotlin/core/GGMLThreadLocalContextTest.kt` - New file
-6. `external/klangnative/src/commonTest/kotlin/ai/solace/klang/bitwise/ThreadLocalCFloatTraceTest.kt` - New file
+2. `src/commonMain/kotlin/io.github.kotlinmania.llama.ore/GGMLThreadLocalContext.kt` - New file
+3. `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ThreadLocalCFloatTrace.kt` - New file
+4. `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/mem/ThreadLocalKMalloc.kt` - New file
+5. `src/commonTest/kotlin/io.github.kotlinmania.llama.ore/GGMLThreadLocalContextTest.kt` - New file
+6. `external/klangnative/src/commonTest/kotlin/io.github.kotlinmania.llama.lang/bitwise/ThreadLocalCFloatTraceTest.kt` - New file
 7. `docs/THREADLOCAL_INTEGRATION.md` - New file
 
 **Total**: 7 files created/modified, ~1,800 lines of code and documentation added
@@ -176,7 +176,7 @@ This allows:
 ## References
 
 - [threadlocal-kotlin GitHub](https://github.com/KotlinMania/threadlocal-kotlin)
-- [threadlocal-kotlin Maven Central](https://central.sonatype.com/artifact/io.github.kotlinmania/threadlocal-kotlin)
+- [threadlocal-kotlin Maven Central](https://central.sonatype.com/artifact/io.github.kotlinmania.llama.hreadlocal-kotlin)
 - Documentation: `docs/THREADLOCAL_INTEGRATION.md`
 
 ---

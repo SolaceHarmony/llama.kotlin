@@ -1,7 +1,7 @@
-package ai.solace.klangnative.int
+package io.github.kotlinmania.llama.lang.int
 
-import ai.solace.klangnative.bitwise.BitShiftEngine
-import ai.solace.klangnative.bitwise.BitShiftMode
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftEngine
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftMode
 
 /**
  * SWAR (SIMD Within A Register) helpers for per-lane unsigned averages.

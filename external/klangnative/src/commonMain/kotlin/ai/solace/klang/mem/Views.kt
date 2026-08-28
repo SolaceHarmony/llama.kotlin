@@ -1,7 +1,7 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
-import ai.solace.klangnative.bitwise.BitShiftEngine
-import ai.solace.klangnative.bitwise.BitShiftConfig
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftEngine
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftConfig
 
 /**
  * Typed views over [GlobalHeap] memory with little-endian semantics.

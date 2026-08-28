@@ -1,32 +1,24 @@
-# https://EditorConfig.org
-
-# Top-most EditorConfig file
 root = true
 
-# Unix-style newlines with a newline ending every file, utf-8 charset
 [*]
-end_of_line = lf
-insert_final_newline = true
-trim_trailing_whitespace = true
 charset = utf-8
-indent_style = space
+end_of_line = lf
 indent_size = 4
+indent_style = space
+insert_final_newline = true
+max_line_length = 120
 
-[Makefile]
-indent_style = tab
-
-[scripts/*.mk]
-indent_style = tab
-
-[prompts/*.txt]
-insert_final_newline = unset
-
-[examples/server/public/*]
-indent_size = 2
-
-[examples/llama.swiftui/llama.swiftui.xcodeproj/*]
-indent_style = tab
-
-[examples/cvector-generator/*.txt]
-trim_trailing_whitespace = unset
-insert_final_newline = unset
+[*.{kt,kts}]
+ktlint_code_style = ktlint_official
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ktlint_standard_class-naming = disabled
+ktlint_standard_comment-wrapping = disabled
+ktlint_standard_discouraged-comment-location = disabled
+ktlint_standard_filename = disabled
+ktlint_standard_function-naming = disabled
+ktlint_standard_function-signature = disabled
+ktlint_standard_kdoc = disabled
+ktlint_standard_max-line-length = disabled
+ktlint_standard_no-consecutive-comments = disabled
+ktlint_standard_property-naming = disabled

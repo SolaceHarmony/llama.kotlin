@@ -1,4 +1,4 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

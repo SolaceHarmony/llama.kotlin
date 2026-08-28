@@ -1,0 +1,322 @@
+package io.github.kotlinmania.llama.core
+
+import kotlin.math.abs
+import kotlin.test.*
+import kotlin.time.ExperimentalTime
+import kotlin.time.TimeSource
+
+/**
+ * Performance microbenchmarks for quantized matmul operations.
+ * Profiles all quantization combinations and measures performance improvements.
+ */
+@OptIn(ExperimentalTime::class)
+class GGMLMatMulBenchmarkTest {
+
+    private lateinit var graphAllocator: GGMLGraphAllocator
+    private val bufferSize = 4 * 1024 * 1024 // 4MB for larger test matrices
+
+    @BeforeTest
+    fun setup() {
+        val (allocator, _) = GGMLTestUtils.createTestAllocator(bufferSize)
+        graphAllocator = allocator
+    }
+
+    // Helper to create test matrices of various sizes
+    private fun createTestMatrix(
+        name: String,
+        type: GGMLType,
+        rows: Int,
+        cols: Int,
+        seed: Int = 42
+    ): GGMLTensor {
+        return when (type) {
+            GGMLType.F32 -> GGMLTestUtils.createF32Matrix(graphAllocator, name, rows, cols) { idx ->
+                val x = (seed + idx) % 127
+                (x - 63).toFloat() / 10.0f
+            }
+            GGMLType.Q8_0, GGMLType.Q4_0, GGMLType.Q4_1 -> GGMLTestUtils.createQuantizedMatrix(graphAllocator, name, type, rows, cols) { idx ->
+                val x = (seed + idx) % 127
+                (x - 63).toFloat() / 10.0f
+            }
+            else -> throw IllegalArgumentException("Unsupported type for benchmark: $type")
+        }
+    }
+
+    // Benchmarking helper
+    private fun benchmarkMatMul(
+        name: String,
+        tensorA: GGMLTensor,
+        tensorB: GGMLTensor,
+        warmupRuns: Int = 5,
+        benchmarkRuns: Int = 10
+    ): Long {
+        val context = GGMLContext()
+        val dst = GGMLTestUtils.allocateMatMulResult(
+            graphAllocator,
+            "${name}_dst",
+            rows = tensorA.ne[1].toInt(),
+            cols = tensorB.ne[0].toInt()
+        )
+
+        repeat(warmupRuns) {
+            computeMatMul(graphAllocator, tensorA, tensorB, dst)
+        }
+
+        val start = TimeSource.Monotonic.markNow()
+        repeat(benchmarkRuns) {
+            computeMatMul(graphAllocator, tensorA, tensorB, dst)
+        }
+        val totalTime = start.elapsedNow().inWholeNanoseconds
+        val avgTime = totalTime / benchmarkRuns
+
+        println("$name: ${avgTime / 1_000_000}ms avg (${benchmarkRuns} runs)")
+        return avgTime
+    }
+
+    /**
+     * Benchmark matrix sizes commonly used in LLM inference
+     */
+    @Test
+    fun benchmarkCommonMatrixSizes() {
+        println("\n=== Common Matrix Size Benchmarks ===")
+        
+        val testSizes = listOf(
+            Triple(128, 512, 256),  // Small attention head
+            Triple(256, 1024, 512), // Medium layer
+            Triple(512, 2048, 1024) // Large layer
+        )
+        
+        for ((M, K, N) in testSizes) {
+            println("\nMatrix size: ${M}x${K} × ${K}x${N} = ${M}x${N}")
+            
+            // F32 baseline
+            val f32A = createTestMatrix("f32_a", GGMLType.F32, M, K, 42)
+            val f32B = createTestMatrix("f32_b", GGMLType.F32, K, N, 84)
+            val baselineTime = benchmarkMatMul("F32×F32 (baseline)", f32A, f32B)
+            
+            // Q8_0 combinations
+            val q80A = createTestMatrix("q80_a", GGMLType.Q8_0, M, K, 42)
+            val q80B = createTestMatrix("q80_b", GGMLType.Q8_0, K, N, 84)
+            
+            val q80f32Time = benchmarkMatMul("Q8_0×F32 (optimized)", q80A, f32B)
+            val f32q80Time = benchmarkMatMul("F32×Q8_0 (optimized)", f32A, q80B)
+            val q80q80Time = benchmarkMatMul("Q8_0×Q8_0 (optimized)", q80A, q80B)
+            
+            // Q4_0 combinations
+            val q40A = createTestMatrix("q40_a", GGMLType.Q4_0, M, K, 42)
+            val q40B = createTestMatrix("q40_b", GGMLType.Q4_0, K, N, 84)
+            
+            val q40f32Time = benchmarkMatMul("Q4_0×F32 (optimized)", q40A, f32B)
+            val f32q40Time = benchmarkMatMul("F32×Q4_0 (optimized)", f32A, q40B)
+            val q40q40Time = benchmarkMatMul("Q4_0×Q4_0 (optimized)", q40A, q40B)
+            
+            // Print speedup analysis
+            println("\nSpeedup vs F32×F32 baseline:")
+            println("  Q8_0×F32: ${baselineTime.toFloat() / q80f32Time}x")
+            println("  F32×Q8_0: ${baselineTime.toFloat() / f32q80Time}x")
+            println("  Q8_0×Q8_0: ${baselineTime.toFloat() / q80q80Time}x")
+            println("  Q4_0×F32: ${baselineTime.toFloat() / q40f32Time}x")
+            println("  F32×Q4_0: ${baselineTime.toFloat() / f32q40Time}x")
+            println("  Q4_0×Q4_0: ${baselineTime.toFloat() / q40q40Time}x")
+        }
+    }
+
+    /**
+     * Benchmark all supported quantization combinations
+     */
+    @Test
+    fun benchmarkAllQuantCombinations() {
+        println("\n=== All Quantization Combinations Benchmark ===")
+        
+        val M = 64; val K = 256; val N = 128  // Medium-sized matrices
+        
+        val types = listOf(GGMLType.F32, GGMLType.Q8_0, GGMLType.Q4_0, GGMLType.Q4_1)
+        val results = mutableMapOf<String, Long>()
+        
+        for (typeA in types) {
+            for (typeB in types) {
+                try {
+                    val tensorA = createTestMatrix("tensor_a", typeA, M, K, 42)
+                    val tensorB = createTestMatrix("tensor_b", typeB, K, N, 84)
+                    
+                    val combName = "${typeA.name}×${typeB.name}"
+                    val time = benchmarkMatMul(combName, tensorA, tensorB, warmupRuns = 3, benchmarkRuns = 5)
+                    results[combName] = time
+                    
+                } catch (e: Exception) {
+                    println("${typeA.name}×${typeB.name}: FAILED (${e.message})")
+                }
+            }
+        }
+        
+        // Analysis
+        println("\nPerformance Analysis:")
+        val baselineTime = results["F32×F32"] ?: 0L
+        if (baselineTime > 0) {
+            results.entries.sortedBy { it.value }.forEach { (name, time) ->
+                val speedup = baselineTime.toFloat() / time
+                val efficiency = if (name.contains("Q")) "OPTIMIZED" else "BASELINE"
+                println("  $name: ${speedup}x ($efficiency)")
+            }
+        }
+    }
+
+    /**
+     * Stress test with large matrices to measure memory efficiency
+     */
+    @Test
+    fun stressTestLargeMatrices() {
+        println("\n=== Large Matrix Stress Test ===")
+        
+        // Test progressively larger matrices to find limits
+        val sizes = listOf(
+            Triple(32, 128, 64),
+            Triple(64, 256, 128),
+            Triple(128, 512, 256)
+        )
+        
+        for ((M, K, N) in sizes) {
+            println("\nTesting ${M}×${K} × ${K}×${N}")
+            
+            try {
+                val q80A = createTestMatrix("large_q80_a", GGMLType.Q8_0, M, K)
+                val q40B = createTestMatrix("large_q40_b", GGMLType.Q4_0, K, N)
+                
+                val mixedTime = benchmarkMatMul("Q8_0×Q4_0 (${M}×${K}×${N})", q80A, q40B, warmupRuns = 2, benchmarkRuns = 3)
+                
+                // Memory usage estimate
+                val memoryUsed = (M * K * 34/32 + K * N * 18/32 + M * N * 4) / 1024  // Rough estimate in KB
+                println("  Estimated memory: ${memoryUsed}KB")
+                
+            } catch (e: OutOfMemoryError) {
+                println("  OUT OF MEMORY at size ${M}×${K}×${N}")
+                break
+            } catch (e: Exception) {
+                println("  FAILED: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Accuracy validation for all optimized paths
+     */
+    @Test
+    fun validateOptimizedAccuracy() {
+        println("\n=== Accuracy Validation ===")
+        
+        val M = 16; val K = 64; val N = 32
+        val tolerance = 1e-2f  // Allow for quantization errors
+        
+        // Create reference F32 matrices
+        val f32A = createTestMatrix("ref_a", GGMLType.F32, M, K, 123)
+        val f32B = createTestMatrix("ref_b", GGMLType.F32, K, N, 456)
+        val reference = GGMLTestUtils.allocateMatMulResult(
+            graphAllocator,
+            "ref_result",
+            rows = f32A.ne[1].toInt(),
+            cols = f32B.ne[0].toInt()
+        )
+        computeMatMul(graphAllocator, GGMLContext(), f32A, f32B, reference)
+        val refData = GGMLTestUtils.extractFloatData(reference, graphAllocator)
+        
+        // Test quantized combinations
+        val testCases = listOf(
+            Pair("Q8_0×F32", Pair(GGMLType.Q8_0, GGMLType.F32)),
+            Pair("F32×Q8_0", Pair(GGMLType.F32, GGMLType.Q8_0)),
+            Pair("Q8_0×Q8_0", Pair(GGMLType.Q8_0, GGMLType.Q8_0)),
+            Pair("Q4_0×F32", Pair(GGMLType.Q4_0, GGMLType.F32)),
+            Pair("F32×Q4_0", Pair(GGMLType.F32, GGMLType.Q4_0)),
+            Pair("Q4_0×Q4_0", Pair(GGMLType.Q4_0, GGMLType.Q4_0))
+        )
+        
+        for ((name, types) in testCases) {
+            try {
+                val testA = if (types.first == GGMLType.F32) f32A 
+                          else createTestMatrix("test_a", types.first, M, K, 123)
+                val testB = if (types.second == GGMLType.F32) f32B 
+                          else createTestMatrix("test_b", types.second, K, N, 456)
+                
+                val result = GGMLTestUtils.allocateMatMulResult(
+                    graphAllocator,
+                    "${name}_result",
+                    rows = f32A.ne[1].toInt(),
+                    cols = f32B.ne[0].toInt()
+                )
+                computeMatMul(graphAllocator, GGMLContext(), testA, testB, result)
+                val resultData = GGMLTestUtils.extractFloatData(result, graphAllocator)
+                
+                var maxError = 0.0f
+                var avgError = 0.0f
+                for (i in refData.indices) {
+                    val error = abs(refData[i] - resultData[i])
+                    maxError = maxOf(maxError, error)
+                    avgError += error
+                }
+                avgError /= refData.size
+                
+                val passed = maxError <= tolerance
+                println("  $name: max_err=$maxError, avg_err=$avgError [${if (passed) "PASS" else "FAIL"}]")
+                
+                if (!passed) {
+                    println("    First few mismatches:")
+                    for (i in 0 until minOf(5, refData.size)) {
+                        if (abs(refData[i] - resultData[i]) > tolerance) {
+                            println("      [$i] ref=${refData[i]}, got=${resultData[i]}, diff=${abs(refData[i] - resultData[i])}")
+                        }
+                    }
+                }
+                
+            } catch (e: Exception) {
+                println("  $name: ERROR - ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Profile specific dot product kernels
+     */
+    @Test
+    fun profileDotProductKernels() {
+        println("\n=== Dot Product Kernel Profiling ===")
+        
+        val K = 1024  // Long vectors for dot product testing
+        val iterations = 1000
+        
+        // Create test vectors
+        val f32Vec = createTestMatrix("f32_vec", GGMLType.F32, 1, K, 42)
+        val q80Vec = createTestMatrix("q80_vec", GGMLType.Q8_0, 1, K, 42)
+        val q40Vec = createTestMatrix("q40_vec", GGMLType.Q4_0, 1, K, 42)
+        
+        // Profile individual dot product operations
+        println("Single dot product timing (${iterations} iterations):")
+        
+        // F32 × Q8_0
+        var startMark = TimeSource.Monotonic.markNow()
+        repeat(iterations) {
+            computeDotProductF32Q80(graphAllocator, f32Vec, q80Vec, 0, 0, K)
+        }
+        val f32q80Time = startMark.elapsedNow().inWholeNanoseconds / iterations
+        println("  F32×Q8_0: ${f32q80Time / 1000}µs per dot product")
+        
+        // Q8_0 × Q8_0
+        startMark = TimeSource.Monotonic.markNow()
+        repeat(iterations) {
+            computeDotProductQ80Q80(graphAllocator, q80Vec, q80Vec, 0, 0, K)
+        }
+        val q80q80Time = startMark.elapsedNow().inWholeNanoseconds / iterations
+        println("  Q8_0×Q8_0: ${q80q80Time / 1000}µs per dot product")
+        
+        // Q4_0 × Q4_0
+        startMark = TimeSource.Monotonic.markNow()
+        repeat(iterations) {
+            computeDotProductQ40Q40(graphAllocator, q40Vec, q40Vec, 0, 0, K)
+        }
+        val q40q40Time = startMark.elapsedNow().inWholeNanoseconds / iterations
+        println("  Q4_0×Q4_0: ${q40q40Time / 1000}µs per dot product")
+        
+        // Efficiency analysis
+        println("Dot product efficiency:")
+        println("  Q8_0×Q8_0 vs F32×Q8_0: ${f32q80Time.toFloat() / q80q80Time}x")
+        println("  Q4_0×Q4_0 vs F32×Q8_0: ${f32q80Time.toFloat() / q40q40Time}x")
+    }
+}

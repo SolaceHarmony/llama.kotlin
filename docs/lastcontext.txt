@@ -1,10 +1,10 @@
   High-level approach
 
-  - Goal: move both ZLib.kotlin and llama.kotlin away from Okio and onto kotlinx-io for
+  - Goal: move both ZLib.kotlin and llama.kotlin away from Okio and onto km-io for
   all file/streaming I/O (Native-first, MPP-capable), without breaking the arithmetic
   inflate core.
   - Strategy: introduce a small, internal I/O facade in ZLib.kotlin; implement it first
-  using kotlinx-io (Native default), keep an Okio adapter only if we need JVM/legacy
+  using km-io (Native default), keep an Okio adapter only if we need JVM/legacy
   during transition. Then port CLI + ZIP to that facade. Finally, update llama.kotlin to
   use the same facade for NPZ/NPY reading.
 
@@ -16,13 +16,13 @@
 
   Upstream (ZLib.kotlin) plan (feature/zip-reader)
 
-  1. Add kotlinx-io
+  1. Add km-io
 
-  - Add kotlinx-io core + files to commonMain (Native-first; leave JVM if needed later).
-  - Create ai.solace.zlib.io facade (expect/actual or pure common if APIs are uniform):
+  - Add km-io core + files to commonMain (Native-first; leave JVM if needed later).
+  - Create io.github.kotlinmania.llama.lib.io facade (expect/actual or pure common if APIs are uniform):
       - interfaces: ZSource, ZSink, ZFileSystem, ZPath with the minimal methods we use
   (readByte, readFully, write, skip, size, open).
-      - kotlinx-io impl in commonMain (SystemFileSystem, Path, buffered).
+      - km-io impl in commonMain (SystemFileSystem, Path, buffered).
 
   2. Port Inflate/Deflate to the facade
 
@@ -30,7 +30,7 @@
   - Keep all arithmetic/bit code intact (no logic changes).
   - Adapt StreamingBitReader/Writer to read/write from the new facade.
 
-  3. Rework ZIP reader + CLI onto kotlinx-io
+  3. Rework ZIP reader + CLI onto km-io
 
   - ZipReader: EOCD scan, central directory parse, local header seek, methods 0 and 8 (raw
   DEFLATE via InflateStream.inflateRaw).
@@ -49,7 +49,7 @@
   1. Remove Okio dep added earlier (we’ll use the upstream I/O facade via ZLib.kotlin).
   2. Add NPZ/NPY loaders (Native)
 
-  - ai.solace.embersimd.io:
+  - io.github.kotlinmania.llama.mbersimd.io:
       - Npz.list(), Npz.open(name) → ZSource
       - Npy.read(source) (header: magic/version/dtype/shape; payload as ZSource)
   - Feed 4×4/2×2 recipes from NPZ/NPY directly (no staging, no pre-decompress).
@@ -61,7 +61,7 @@
 
   Risks and mitigations
 
-  - kotlinx-io APIs differ from Okio; to minimize churn, we add the I/O facade layer first
+  - km-io APIs differ from Okio; to minimize churn, we add the I/O facade layer first
   and only re-plumb callers (InflateStream/ZipReader/CLI). Arithmetic inflate logic stays
   untouched.
   - CD/Data descriptor flag: add handling for GPBF bit 3 if we meet ZIPs using
@@ -72,7 +72,7 @@
 
   - Complete the refactor on feature/zip-reader:
       - Add the new I/O facade and convert InflateStream/StreamingBitReader to it.
-      - Replace ZipReader + CLI to use kotlinx-io (SystemFileSystem, Path, buffered).
+      - Replace ZipReader + CLI to use km-io (SystemFileSystem, Path, buffered).
       - Make tests green; keep pigz test working by ensuring the CLI builds.
   - Then I’ll submit the branch and a short upgrade note.
 
@@ -81,7 +81,7 @@
   - Switch llama.kotlin to the upstream I/O facade
   - Add the NPZ/NPY loader and a simple 4×4 EmberSIMD demonstration with a bench flag.
 
-  Confirm and I’ll start the kotlinx-io refactor work on the upstream branch now.
+  Confirm and I’ll start the km-io refactor work on the upstream branch now.
 
 ▌ No JVM has ever been supported on these since JVM already has all of these things -
 ▌ ZLib /ZIP/and pretty much the whole gambit exists there but not on native. I'm the first
@@ -95,9 +95,9 @@
 
 • We need to respond to the last two user messages about emphasizing that projects will
   focus on anti-JVM build targets and KMP native. The user wants confirmation on the plan
-  to refactor to kotlinx-io while ensuring no JVM target is added. They also want updates
+  to refactor to km-io while ensuring no JVM target is added. They also want updates
   on build scripts, packaging, and next steps in a checklist format. We should acknowledge
-  that we added Okio dependencies before but plan to replace them with kotlinx-io. Also,
+  that we added Okio dependencies before but plan to replace them with km-io. Also,
   they mentioned a pigz test upstream; let's commit to keeping JVM targets absent.
 
   Evaluating llama.kotlin build targets
@@ -106,15 +106,15 @@
   native. I see that the earlier build.gradle clearly indicates a JVM target exists.
   Since the user emphasizes an anti-JVM approach, I should propose disabling this target
   or keeping it while not prioritizing it. However, any changes should wait for approval.
-  We could also plan to switch from Okio to kotlinx-io and consider removing other
+  We could also plan to switch from Okio to km-io and consider removing other
   dependencies like Kermit, especially since we aim for minimalism in our library choices.
   Let's seek confirmation on these steps.
 
   Outlining the project direction
 
   I need to provide a clear response regarding our approach: we'll acknowledge the anti-
-  JVM stance by not adding any JVM target, shift to kotlinx-io in both repositories,
-  and remove Okio from llama.kotlin. I'll also replace Okio with kotlinx-io in the
+  JVM stance by not adding any JVM target, shift to km-io in both repositories,
+  and remove Okio from llama.kotlin. I'll also replace Okio with km-io in the
   CLI/ZipReader and preserve KMP, leaving JS/WASM to the community. I should create a
   checklist of steps, outline risk areas, and propose a refactor plan. Additionally,
   I must confirm we didn't decompress NPZ and ensure NPZ streaming is intact. Finally,
@@ -123,7 +123,7 @@
 
   Structuring the response
 
-  I’ve got proposed import names like kotlinx.io.files.FileSystem and Path to align with
+  I’ve got proposed import names like io.github.kotlinmania.io.files.FileSystem and Path to align with
   the user’s example. Next, I should propose removing the jvm() target from llama.kotlin
   and ask for confirmation on that.
 
@@ -133,22 +133,22 @@
   and organized. Let’s get this done!
 
 > Totally aligned. Here’s how I’ll proceed to keep both repos strictly KMP/Native and
-  JVM‑free, while moving all I/O to kotlinx‑io and keeping NPZ zipped/streamed.
+  JVM‑free, while moving all I/O to km-io and keeping NPZ zipped/streamed.
 
   What I will change (no JVM)
 
   - ZLib.kotlin (feature/zip-reader):
-      - Replace all Okio usage with kotlinx-io (kotlinx-io-core + kotlinx-io-files).
+      - Replace all Okio usage with km-io (km-io-core + km-io-files).
       - Keep only Native/WASM/JS‑friendly APIs; no JVM target, no java.io.
       - Keep DEFLATE/zlib arithmetic core untouched.
-      - ZIP reader + CLI “unzip” rebuilt on kotlinx‑io (EOCD scan, central dir, local
+      - ZIP reader + CLI “unzip” rebuilt on km-io (EOCD scan, central dir, local
   header; STORE=0 and raw DEFLATE=8).
-      - CLI keeps compress/decompress and gains unzip list/extract (kotlinx‑io
+      - CLI keeps compress/decompress and gains unzip list/extract (km-io
   SystemFileSystem).
       - Tests updated to run on Native; pigz bench stays (we just ensure the CLI builds so
   your harness runs).
   - llama.kotlin:
-      - Remove the Okio deps I added earlier; switch any file/stream code to kotlinx‑io.
+      - Remove the Okio deps I added earlier; switch any file/stream code to km-io.
       - Add a tiny NPZ/NPY loader built on ZLib’s new ZIP + our NPY parser (all KMP/
   Native).
       - EmberSIMD 4×4 loader demo reads recipes directly from NPZ streaming (no
@@ -165,14 +165,14 @@
 
   Concrete plan and order
 
-  1. ZLib.kotlin refactor to kotlinx‑io
-      - Add kotlinx‑io deps; introduce a minimalist internal I/O shim if needed.
+  1. ZLib.kotlin refactor to km-io
+      - Add km-io deps; introduce a minimalist internal I/O shim if needed.
       - Port InflateStream/StreamingBitReader to new Source/Sink abstractions.
-      - Port ZipReader + CLI to kotlinx‑io.
+      - Port ZipReader + CLI to km-io.
       - Make tests + CLI green; verify pigz harness compatibility (CLI buildable).
   2. llama.kotlin cleanup
       - Remove Okio deps from commonMain.
-      - Add NPZ/NPY loader (kotlinx‑io only).
+      - Add NPZ/NPY loader (km-io only).
       - Add a bench flag to run an EmberSIMD 4×4 kernel loaded from NPZ, streaming, with
   logical/effective GB/s.
   3. Optional
@@ -182,37 +182,37 @@
   Risks and mitigations
 
   - API differences: I’ll keep a very small I/O layer so only ZipReader/CLI/NPZ references
-  touch kotlinx‑io, and the arithmetic zlib core remains as-is.
+  touch km-io, and the arithmetic zlib core remains as-is.
   - ZIP data descriptor bit: will add (GPBF bit 3) handling if needed; we can start with
   CD sizes and expand.
 
   Ask/Confirm
 
   - Green light to:
-      - Replace Okio with kotlinx‑io across both repos (starting now).
+      - Replace Okio with km-io across both repos (starting now).
       - Leave JVM out entirely (and optionally remove jvm() from llama.kotlin—confirm).
       - Push the ZLib.kotlin changes on feature/zip-reader and then I’ll wire llama.kotlin
   to it.
 
-  Once you confirm, I’ll push the kotlinx‑io refactor upstream first, validate pigz/CLI,
+  Once you confirm, I’ll push the km-io refactor upstream first, validate pigz/CLI,
   then circle back to wire NPZ/NPY + EmberSIMD in llama.kotlin.
 
 ▌ Let's start there and I'll later push for us to bring our newest BitShiftEngine from
 ▌ llama.kotlin to ZLib.kotlin due to the innovations we've done. Keep that as a
 ▌ backburner.
 
-• I need to affirm our plan to start replacing Okio with kotlinx-io in both repositories,
+• I need to affirm our plan to start replacing Okio with km-io in both repositories,
   beginning with ZLib.kotlin. I should outline the next steps and mention that we won't be
   moving BitShiftEngine just yet. We’ll set small milestones along with deliverables and
   a timeline. I want to address reverting Okio usage in llama and removing any leftover
   NPZ files. It seems we need to prioritize committing to a feature branch for ZLib.kotlin
   first before anything else.
 
-  Refactoring to kotlinx-io
+  Refactoring to km-io
 
   I've created the feature branch for the zip reader and added code, but now we need to
-  shift our focus to replacing Okio with kotlinx-io across both projects. In ZLib.kotlin,
-  I should plan the refactor tasks, like adding the kotlinx-io dependency and updating
+  shift our focus to replacing Okio with km-io across both projects. In ZLib.kotlin,
+  I should plan the refactor tasks, like adding the km-io dependency and updating
   build.gradle.kts. We will keep Kermit for logging but remove Okio.
 
   Next, I’ll need to write an adapter for the buffered types, update specific signatures,
@@ -222,19 +222,19 @@
   merging upstream. Finally, I'll lay out a clear timeline and deliverables, saving
   BitShiftEngine for another time.
 
-> Perfect. We’ll start with the kotlinx-io refactor and keep the BitShiftEngine
+> Perfect. We’ll start with the km-io refactor and keep the BitShiftEngine
   unification on the backburner.
 
   Plan of record (Native-first, JVM-free)
 
   - ZLib.kotlin (branch: feature/zip-reader)
-      - Replace Okio with kotlinx-io across CLI, ZIP, and any file/streaming code.
+      - Replace Okio with km-io across CLI, ZIP, and any file/streaming code.
       - Keep the arithmetic inflate/deflate core untouched.
       - Keep NPZ zipped; stream via ZIP → raw DEFLATE → consumer.
       - Deliverables:
-          - I/O backbone: use kotlinx.io (core + files) only.
-          - InflateStream/StreamingBitReader use kotlinx-io Sources/Sinks.
-          - ZipReader (EOCD + Central Directory + Local Header) on kotlinx-io:
+          - I/O backbone: use io.github.kotlinmania.io (core + files) only.
+          - InflateStream/StreamingBitReader use km-io Sources/Sinks.
+          - ZipReader (EOCD + Central Directory + Local Header) on km-io:
               - STORE(0) copy-through; DEFLATE(8) via InflateStream.inflateRaw.
               - Handle common cases; add GPBF data-descriptor handling after baseline
   is green.
@@ -242,7 +242,7 @@
           - Tests: round-trip zlib; small ZIP list+extract; keep pigz bench compatibility
   (CLI builds).
   - llama.kotlin
-      - Remove Okio usage we introduced; switch any file/stream code to kotlinx-io once
+      - Remove Okio usage we introduced; switch any file/stream code to km-io once
   upstream is in place.
       - Add NPZ/NPY loaders on top of ZLib’s ZIP + raw DEFLATE (no pre-decompression).
       - Keep EmberSIMD work separate; first demo will read a 4×4 recipe via NPZ/NPY
@@ -255,7 +255,7 @@
 
   Next concrete steps
 
-  - Finish the kotlinx-io refactor in ZLib.kotlin and keep the current branch green with
+  - Finish the km-io refactor in ZLib.kotlin and keep the current branch green with
   tests and CLI.
   - Then update llama.kotlin to consume NPZ via the new ZIP API and drop any Okio
   remnants.
@@ -266,7 +266,7 @@
 
 ▌ Yes, approved.
 
-> Great. I’ll proceed with the upstream kotlinx-io refactor in ZLib.kotlin (feature/zip-
+> Great. I’ll proceed with the upstream km-io refactor in ZLib.kotlin (feature/zip-
   reader), keep the CLI + ZIP streaming fully Native/KMP, and make sure tests and the CLI
   are green. Once that’s done, I’ll update llama.kotlin to consume NPZ via the new ZIP API
   and start the EmberSIMD NPZ/NPY loader work.
@@ -289,7 +289,7 @@
 
   I’m proceeding with:
 
-  - ZLib.kotlin: finish the kotlinx-io refactor (ZIP + CLI + tests).
+  - ZLib.kotlin: finish the km-io refactor (ZIP + CLI + tests).
   - Then: wire llama.kotlin to stream NPZ via the new ZIP API and add the EmberSIMD loader
   demo.
 
@@ -311,7 +311,7 @@
 
   What (at a glance)
 
-  - Upstream ZLib.kotlin: replace Okio with kotlinx-io; add ZIP (STORE + raw DEFLATE) and
+  - Upstream ZLib.kotlin: replace Okio with km-io; add ZIP (STORE + raw DEFLATE) and
   CLI unzip; keep arithmetic inflate/deflate intact.
   - llama.kotlin: consume NPZ via ZLib ZIP; add an NPY parser; demo EmberSIMD 4×4 loader
   + benches.
@@ -325,25 +325,25 @@
 
   Deliverables (upstream ZLib.kotlin, branch: feature/zip-reader)
 
-  - I/O: switch to kotlinx-io (core + files) for Sources/Sinks/FileSystem.
+  - I/O: switch to km-io (core + files) for Sources/Sinks/FileSystem.
   - InflateStream.inflateRaw (already added): DEFLATE w/o zlib wrapper.
-  - ZipReader (kotlinx-io): EOCD scan, Central Directory parse, Local Header extract;
+  - ZipReader (km-io): EOCD scan, Central Directory parse, Local Header extract;
   methods 0 & 8.
-  - CLI (Native): compress|decompress (zlib), unzip list/extract (kotlinx-io
+  - CLI (Native): compress|decompress (zlib), unzip list/extract (km-io
   SystemFileSystem).
   - Tests: round-trip zlib; minimal ZIP list/extract; ensure CLI builds for pigz bench
   harness.
 
   Deliverables (llama.kotlin)
 
-  - Remove Okio usage; depend on ZLib.kotlin ZIP API (kotlinx-io only).
+  - Remove Okio usage; depend on ZLib.kotlin ZIP API (km-io only).
   - EmberSIMD I/O: Npz.list(), Npz.open(name); Npy.read() (header + payload).
   - Demo: load a 4×4 recipe from NPZ/NPY and run EmberSIMD kernel (SWAR + strict-arith),
   with serial/parallel benches (logical/effective GB/s).
 
   Sequencing
 
-  1. Finish ZLib.kotlin refactor to kotlinx-io; green build + tests + CLI.
+  1. Finish ZLib.kotlin refactor to km-io; green build + tests + CLI.
   2. Update llama.kotlin to use new ZIP API; add NPY reader; EmberSIMD 4×4 demo + bench.
   3. Optional follow-ups: ZIP data descriptor flag handling; chunk/size CLI options; JS/
   WASM adapters.
@@ -362,13 +362,13 @@
 
   Risks/Notes
 
-  - kotlinx-io API divergence from Okio mitigated by thin internal I/O layer; arithmetic
+  - km-io API divergence from Okio mitigated by thin internal I/O layer; arithmetic
   inflate untouched.
   - ZIP GPBF data descriptor (bit 3) may need follow-up; most NPZs work with CD sizes.
 
   Next Checkpoint
 
-  - I’ll push ZLib.kotlin feature/zip-reader with kotlinx-io ZIP/CLI/tests green, then
+  - I’ll push ZLib.kotlin feature/zip-reader with km-io ZIP/CLI/tests green, then
   wire llama.kotlin NPZ/NPY + EmberSIMD demo.
 
 ▌ And what folders are these all in?
@@ -388,7 +388,7 @@
   I've updated the BenchMain flags, focusing on ZLib.kotlin located at /Volumes/stuff/
   Projects/ZLib.kotlin, with the feature/zip-reader branch. I modified several files,
   including InflateStream.kt and ZipReader.kt, where we had previously added features and
-  then moved some functionality upstream for a rewrite using kotlinx-io.
+  then moved some functionality upstream for a rewrite using km-io.
 
   There were also changes to ZipReaderTest.kt, which I mistakenly attributed to upstream
   —it was actually added in the llama repository first before we focused on upstream
@@ -400,9 +400,9 @@
   Here's a compact summary of the components across projects:
 
   For llama.kotlin, we have core bitwise and SIMD benchmarks in src/commonMain/kotlin/ai/
-  solace/klang/bitwise, and benches in src/nativeMain/kotlin/ai/solace/bench. There's also
-  a Metal SWAR bench and vendored ZLib files in src/commonMain/kotlin/ai/solace/zlib. We
-  added the ZipReader test in src/commonTest/kotlin/ai/solace/zlib/zip, along with tools
+  solace/klang/bitwise, and benches in src/nativeMain/kotlin/io.github.kotlinmania.llama.ench. There's also
+  a Metal SWAR bench and vendored ZLib files in src/commonMain/kotlin/io.github.kotlinmania.llama.lib. We
+  added the ZipReader test in src/commonTest/kotlin/io.github.kotlinmania.llama.lib/zip, along with tools
   for alphatensor-codegen and alphatensor-scripts.
 
   In ZLib.kotlin, the files include InflateStream.kt, ZipReader.kt, and ZLibCli.kt.
@@ -417,25 +417,25 @@
   llama.kotlin (/Volumes/stuff/Projects/llama.kotlin)
 
   - Core bitwise + engine
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/BitShiftEngine.kt
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/BitShiftConfig.kt
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/ArrayBitShifts.kt
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/BitwiseOps.kt
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/ArithmeticBitwiseOps.kt
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/SwAR.kt
-      - src/commonMain/kotlin/ai/solace/klang/bitwise/ShiftTables.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/BitShiftEngine.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/BitShiftConfig.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ArrayBitShifts.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/BitwiseOps.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ArithmeticBitwiseOps.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/SwAR.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ShiftTables.kt
   - Benches (CPU)
-      - src/nativeMain/kotlin/ai/solace/bench/BenchMain.kt
-      - src/nativeMain/kotlin/ai/solace/bench/SwARBench.kt
-      - src/nativeMain/kotlin/ai/solace/bench/HexStringShiftBench.kt
-      - src/nativeMain/kotlin/ai/solace/bench/MaskKernelsBench.kt
+      - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/BenchMain.kt
+      - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/SwARBench.kt
+      - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/HexStringShiftBench.kt
+      - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/MaskKernelsBench.kt
   - Metal SWAR bench (Swift/Metal)
       - metal-swar-avg/ (Package.swift, Sources/main.swift)
   - Vendored ZLib.kotlin sources used by llama.kotlin (separate from upstream)
-      - src/commonMain/kotlin/ai/solace/zlib/** (inflate/deflate/common/bitwise/util)
-      - src/nativeMain/kotlin/ai/solace/zlib/cli/ZLibCli.kt (native CLI copy used by our
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/** (inflate/deflate/common/bitwise/util)
+      - src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/ZLibCli.kt (native CLI copy used by our
   benches)
-      - Tests we added locally: src/commonTest/kotlin/ai/solace/zlib/zip/ZipReaderTest.kt
+      - Tests we added locally: src/commonTest/kotlin/io.github.kotlinmania.llama.lib/zip/ZipReaderTest.kt
   - Tools (reference only; not built)
       - tools/alphatensor-codegen/ (Cargo.toml, README.md)
       - tools/alphatensor-scripts/ (print_equations_v2.py)
@@ -444,17 +444,17 @@
   /Volumes/stuff/Projects/ZLib.kotlin
 
   - Inflate/Deflate core (arithmetic)
-      - src/commonMain/kotlin/ai/solace/zlib/inflate/InflateStream.kt (includes
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/inflate/InflateStream.kt (includes
   inflateRaw)
-      - src/commonMain/kotlin/ai/solace/zlib/deflate/DeflateStream.kt
-      - src/commonMain/kotlin/ai/solace/zlib/inflate/{StreamingBitReader,
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/deflate/DeflateStream.kt
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/inflate/{StreamingBitReader,
   CanonicalHuffman}.kt
-  - ZIP reader (will be refactored to kotlinx-io; Native/KMP)
-      - src/commonMain/kotlin/ai/solace/zlib/zip/ZipReader.kt
+  - ZIP reader (will be refactored to km-io; Native/KMP)
+      - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/zip/ZipReader.kt
   - Native CLI (no JVM)
-      - src/nativeMain/kotlin/ai/solace/zlib/cli/ZLibCli.kt (compress|decompress|unzip)
+      - src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/ZLibCli.kt (compress|decompress|unzip)
   - Tests
-      - src/commonTest/kotlin/ai/solace/zlib/** (inflate/zip tests)
+      - src/commonTest/kotlin/io.github.kotlinmania.llama.lib/** (inflate/zip tests)
 
   simd-alphatensor-kotlin (reference only)
   /Volumes/stuff/Projects/simd-alphatensor-kotlin
@@ -473,7 +473,7 @@
 > Yes — I resurrected the CLI in ZLib.kotlin.
 
   - Branch: feature/zip-reader
-  - Path: /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/zlib/cli/
+  - Path: /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/
   ZLibCli.kt
   - Commands (Native target):
       - compress | deflate <in> <out.zz> [level]
@@ -484,7 +484,7 @@
   Status
 
   - The CLI file is back and wired to the new ZipReader + Inflate/Deflate.
-  - Build isn’t green yet because I’m mid‑swap from Okio to kotlinx‑io across ZIP + CLI
+  - Build isn’t green yet because I’m mid‑swap from Okio to km-io across ZIP + CLI
   (as we agreed, no JVM). I’ll finish that refactor so the Native CLI builds cleanly, then
   validate with:
       - zlib round‑trip (compress/decompress),
@@ -628,7 +628,7 @@
 ▌     git checkout -b feature/zip-reader
 ▌
 ▌
-▌ • Edited src/commonMain/kotlin/ai/solace/zlib/inflate/InflateStream.kt (+45 -0)
+▌ • Edited src/commonMain/kotlin/io.github.kotlinmania.llama.lib/inflate/InflateStream.kt (+45 -0)
 ▌     438        }
 ▌     439   +
 ▌     440   +    /**
@@ -685,10 +685,10 @@
 ▌     483   +    }
 ▌     484    }
 ▌
-▌ • Added src/commonMain/kotlin/ai/solace/zlib/zip/ZipReader.kt (+178 -0)
-▌     1     +package ai.solace.zlib.zip
+▌ • Added src/commonMain/kotlin/io.github.kotlinmania.llama.lib/zip/ZipReader.kt (+178 -0)
+▌     1     +package io.github.kotlinmania.llama.lib.zip
 ▌     2     +
-▌     3     +import ai.solace.zlib.inflate.InflateStream
+▌     3     +import io.github.kotlinmania.llama.lib.inflate.InflateStream
 ▌     4     +import okio.Buffer
 ▌     5     +import okio.BufferedSink
 ▌     6     +import okio.BufferedSource
@@ -881,8 +881,8 @@
 ▌     177   +}
 ▌     178   +
 ▌
-▌ • Added src/commonTest/kotlin/ai/solace/zlib/zip/ZipReaderTest.kt (+81 -0)
-▌     1     +package ai.solace.zlib.zip
+▌ • Added src/commonTest/kotlin/io.github.kotlinmania.llama.lib/zip/ZipReaderTest.kt (+81 -0)
+▌     1     +package io.github.kotlinmania.llama.lib.zip
 ▌     2     +
 ▌     3     +import kotlin.test.Test
 ▌     4     +import kotlin.test.assertEquals
@@ -978,7 +978,7 @@
 ▌
 ▌     BUILD FAILED in 1m 1s
 ▌
-▌ • Deleted /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/cli/
+▌ • Deleted /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/cli/
 ▌ ZLibCli.kt (+0 -0)
 ▌
 ▌ • Ran cd /Volumes/stuff/Projects/ZLib.kotlin && ./gradlew -q build -PwithTests=true
@@ -1014,19 +1014,19 @@
 ▌   └ Read ktlintCommonMainSourceSetCheck.txt, ktlintCommonTestSourceSetCheck.txt,
 ▌          ArithmeticBitwiseOps.kt
 ▌
-▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/
+▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌ bitwise/
 ▌ ArithmeticBitwiseOps.kt (+1 -0)
 ▌     1      @file:Suppress("unused", "UNUSED_PARAMETER")
 ▌     2     +
-▌     3      package ai.solace.zlib.bitwise
+▌     3      package io.github.kotlinmania.llama.lib.bitwise
 ▌
-▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/
+▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌ bitwise/
 ▌ BitShiftEngine.kt (+1 -0)
 ▌     1      @file:Suppress("unused", "UNUSED_PARAMETER")
 ▌     2     +
-▌     3      package ai.solace.zlib.bitwise
+▌     3      package io.github.kotlinmania.llama.lib.bitwise
 ▌
 ▌ • Explored
 ▌   └ Read DeflateStream.kt
@@ -1063,17 +1063,17 @@
 ▌ • Explored
 ▌   └ Read ktlintCommonMainSourceSetCheck.txt, ktlintCommonTestSourceSetCheck.txt
 ▌
-▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/
+▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌ deflate/
 ▌ DeflateStream.kt (+2 -2)
-▌     9      import ai.solace.zlib.common.TREE_EXTRA_LBITS
-▌     10    +import ai.solace.zlib.common.Z_OK
-▌     11    +import ai.solace.zlib.common.Z_STREAM_ERROR
-▌     12     import ai.solace.zlib.inflate.CanonicalHuffman
+▌     9      import io.github.kotlinmania.llama.lib.common.TREE_EXTRA_LBITS
+▌     10    +import io.github.kotlinmania.llama.lib.common.Z_OK
+▌     11    +import io.github.kotlinmania.llama.lib.common.Z_STREAM_ERROR
+▌     12     import io.github.kotlinmania.llama.lib.inflate.CanonicalHuffman
 ▌     ⋮
 ▌     15     import okio.BufferedSource
-▌     14    -import ai.solace.zlib.common.Z_OK
-▌     15    -import ai.solace.zlib.common.Z_STREAM_ERROR
+▌     14    -import io.github.kotlinmania.llama.lib.common.Z_OK
+▌     15    -import io.github.kotlinmania.llama.lib.common.Z_STREAM_ERROR
 ▌     16
 ▌
 ▌ • Ran cd /Volumes/stuff/Projects/ZLib.kotlin && ./gradlew -q build -PwithTests=true
@@ -1089,14 +1089,14 @@
 ▌
 ▌     BUILD FAILED in 54s
 ▌
-▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonTest/kotlin/ai/solace/zlib/
+▌ • Edited /Volumes/stuff/Projects/ZLib.kotlin/src/commonTest/kotlin/io.github.kotlinmania.llama.lib/
 ▌ inflate/
 ▌ test/InflateErrorCasesTest.kt (+1 -1)
-▌     3      import ai.solace.zlib.common.Z_DATA_ERROR
-▌     4     +import ai.solace.zlib.inflate.CanonicalHuffman
-▌     5      import ai.solace.zlib.inflate.InflateStream
-▌     6      import ai.solace.zlib.inflate.StreamingBitWriter
-▌     6     -import ai.solace.zlib.inflate.CanonicalHuffman
+▌     3      import io.github.kotlinmania.llama.lib.common.Z_DATA_ERROR
+▌     4     +import io.github.kotlinmania.llama.lib.inflate.CanonicalHuffman
+▌     5      import io.github.kotlinmania.llama.lib.inflate.InflateStream
+▌     6      import io.github.kotlinmania.llama.lib.inflate.StreamingBitWriter
+▌     6     -import io.github.kotlinmania.llama.lib.inflate.CanonicalHuffman
 ▌     7      import kotlin.test.Test
 ▌
 ▌ • Ran
@@ -1118,7 +1118,7 @@
 ▌   blocks directly.
 ▌       - Leaves Adler-32 unused for raw streams; returns (Z_STREAM_END, bytesOut).
 ▌   - Minimal ZIP reader (no bitwise; streaming)
-▌       - ai.solace.zlib.zip.ZipReader:
+▌       - io.github.kotlinmania.llama.lib.zip.ZipReader:
 ▌           - Lists entries by scanning EOCD + Central Directory
 ▌           - Extracts entries by seeking to Local Header and streaming the data
 ▌           - Supports methods: STORE (0) and DEFLATE raw (8) via InflateStream.inflateRaw
@@ -1131,8 +1131,8 @@
 ▌   Important checks and clarifications
 ▌
 ▌   - Namespaces
-▌       - Your llama.kotlin bitwise lives at ai.solace.klang.bitwise
-▌       - Upstream ZLib stays at ai.solace.zlib.*; unchanged semantics unless you opt into
+▌       - Your llama.kotlin bitwise lives at io.github.kotlinmania.llama.lang.bitwise
+▌       - Upstream ZLib stays at io.github.kotlinmania.llama.lib.*; unchanged semantics unless you opt into
 ▌   delegates later
 ▌   - We did not pre‑decompress NPZ; I removed the staged copies I had placed in
 ▌   llama.kotlin so we can load them streaming via ZIP+raw DEFLATE using ZLib.
@@ -1149,7 +1149,7 @@
 ▌       - (Optional) method-8 data descriptor handling (GPBF bit 3) for completeness;
 ▌   current flow uses central directory sizes and finishes fine without it.
 ▌   - llama.kotlin
-▌       - Add ai.solace.embersimd.io Npz/Npy loaders that wrap ZipReader + a tiny NPY
+▌       - Add io.github.kotlinmania.llama.mbersimd.io Npz/Npy loaders that wrap ZipReader + a tiny NPY
 ▌ parser
 ▌   (no bitwise needed):
 ▌           - Npz.list(), Npz.openEntry(name): BufferedSource
@@ -1179,7 +1179,7 @@
 ▌   definition in the nativeMain path, which I want to inspect.
 ▌
 ▌ • Ran
-▌   └ sed -n '1,240p' /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/
+▌   └ sed -n '1,240p' /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.
 ▌         zlib/cli/ZLibCli.kt || echo 'no nativeMain CLI'
 ▌
 ▌ • I'm considering writing a small harness script or documenting a command to test
@@ -1221,7 +1221,7 @@
 ▌   Integrating CLI with zip functionality
 ▌
 ▌   I’m ready to integrate the CLI into the upstream project after adding the zip classes
-▌   and tests earlier. The plan is to create the file src/nativeMain/kotlin/ai/solace/
+▌   and tests earlier. The plan is to create the file src/nativeMain/kotlin/io.github.kotlinmania.llama.
 ▌ zlib/
 ▌   cli/ZLibCli.kt with code that supports compressing, decompressing, and listing
 ▌ entries.
@@ -1230,15 +1230,15 @@
 ▌ entries.
 ▌   Finally, I’ll commit these changes to the upstream.
 ▌
-▌ • Added /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/zlib/cli/
+▌ • Added /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/
 ▌ ZLibCli.kt (+109 -0)
-▌     1     +package ai.solace.zlib.cli
+▌     1     +package io.github.kotlinmania.llama.lib.cli
 ▌     2     +
-▌     3     +import ai.solace.zlib.common.Z_STREAM_END
-▌     4     +import ai.solace.zlib.common.ZlibLogger
-▌     5     +import ai.solace.zlib.deflate.DeflateStream
-▌     6     +import ai.solace.zlib.inflate.InflateStream
-▌     7     +import ai.solace.zlib.zip.ZipReader
+▌     3     +import io.github.kotlinmania.llama.lib.common.Z_STREAM_END
+▌     4     +import io.github.kotlinmania.llama.lib.common.ZlibLogger
+▌     5     +import io.github.kotlinmania.llama.lib.deflate.DeflateStream
+▌     6     +import io.github.kotlinmania.llama.lib.inflate.InflateStream
+▌     7     +import io.github.kotlinmania.llama.lib.zip.ZipReader
 ▌     8     +import okio.FileSystem
 ▌     9     +import okio.Path
 ▌     10    +import okio.Path.Companion.toPath
@@ -1362,18 +1362,18 @@
 ▌   └ cd /Volumes/stuff/Projects/ZLib.kotlin && ./gradlew -q build -PwithTests=true &&
 ▌         git add -A && git commit -m "feat(cli): add unzip list/extract commands; wire to
 ▌         ZipReader; keep compress/decompress" && git status -sb
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/zlib/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌     cli/ZLibCli.kt:7:23 Unresolved reference 'zip'.
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/zlib/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌     cli/ZLibCli.kt:27:35 Argument type mismatch: actual type is 'Unit', but 'K (of fun
 ▌ <K>
 ▌     WHEN_CALL)' was expected.
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.
 ▌     zlib/cli/ZLibCli.kt:37:13 Argument type mismatch: actual type is 'R (of fun <T :
 ▌     AutoCloseable?, R> T.use)', but 'K (of fun <K> WHEN_CALL)' was expected.
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/zlib/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌     cli/ZLibCli.kt:37:40 Cannot infer type for this parameter. Specify it explicitly.
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.
 ▌     zlib/cli/ZLibCli.kt:37:40 Unresolved reference. None of the following candidates is
 ▌     applicable because of a receiver type mismatch:
 ▌     … +62 lines
@@ -1420,11 +1420,11 @@
 ▌ Let’s
 ▌   get started!
 ▌
-▌ • Added /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/zip/
+▌ • Added /Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/zip/
 ▌ ZipReader.kt (+147 -0)
-▌     1     +package ai.solace.zlib.zip
+▌     1     +package io.github.kotlinmania.llama.lib.zip
 ▌     2     +
-▌     3     +import ai.solace.zlib.inflate.InflateStream
+▌     3     +import io.github.kotlinmania.llama.lib.inflate.InflateStream
 ▌     4     +import okio.Buffer
 ▌     5     +import okio.BufferedSink
 ▌     6     +import okio.FileSystem
@@ -1577,9 +1577,9 @@
 ▌   └ cd /Volumes/stuff/Projects/ZLib.kotlin && ./gradlew -q build -PwithTests=true && git
 ▌         add -A && git commit -m "feat(zip): add ZipReader (STORE, DEFLATE raw) and CLI
 ▌         unzip commands" && git status -sb
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌     zip/ZipReader.kt:35:25 Cannot infer type for this parameter. Specify it explicitly.
-▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/ai/solace/zlib/
+▌     e: file:///Volumes/stuff/Projects/ZLib.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lib/
 ▌     zip/ZipReader.kt:35:25 Unresolved reference. None of the following candidates is
 ▌     applicable because of a receiver type mismatch:
 ▌     fun <T : AutoCloseable?, R> T.use(block: (T) -> R): R
@@ -1597,17 +1597,17 @@
 ▌ ▌ Recommendation - known to work with Kotlin native: Kotlin Native, unlike its JVM
 ▌ ▌ counterpart, does not directly use java.io for file operations. Instead, it relies on
 ▌ ▌ platform-specific APIs for file I/O.
-▌ ▌ 1. kotlinx-io Library:
+▌ ▌ 1. km-io Library:
 ▌ ▌ The recommended approach for multiplatform file I/O in Kotlin Native is to use the
-▌ ▌ kotlinx-io library. This library provides a multiplatform FileSystem interface and its
+▌ ▌ km-io library. This library provides a multiplatform FileSystem interface and its
 ▌ ▌ default implementation, SystemFileSystem, which allows you to perform basic file
 ▌ ▌ operations like reading, writing, creating files and directories, and getting file
 ▌ ▌ metadata.
-▌ ▌ Example of using kotlinx-io for file writing:
-▌ ▌ import kotlinx.io.files.FileSystem
-▌ ▌ import kotlinx.io.files.Path
-▌ ▌ import kotlinx.io.buffered
-▌ ▌ import kotlinx.io.writeString
+▌ ▌ Example of using km-io for file writing:
+▌ ▌ import io.github.kotlinmania.io.files.FileSystem
+▌ ▌ import io.github.kotlinmania.io.files.Path
+▌ ▌ import io.github.kotlinmania.io.buffered
+▌ ▌ import io.github.kotlinmania.io.writeString
 ▌ ▌
 ▌ ▌ fun writeToFile(filePath: String, content: String) {
 ▌ ▌     val path = Path(filePath)
@@ -1619,7 +1619,7 @@
 ▌ ▌ 2. POSIX API Interoperability:
 ▌ ▌ For more fine-grained control or when dealing with specific platform functionalities
 ▌ not
-▌ ▌ covered by kotlinx-io, you can leverage Kotlin Native's interoperability with C
+▌ ▌ covered by km-io, you can leverage Kotlin Native's interoperability with C
 ▌ ▌ libraries. This allows you to directly call POSIX functions for file I/O. This
 ▌ approach
 ▌ ▌ requires more platform-specific code and understanding of C APIs.
@@ -1645,9 +1645,9 @@
 ▌ ▌ (e.g., iOS, Android, Desktop).
 ▌ ▌ Choosing the right approach:
 ▌ ▌
-▌ ▌ • For basic multiplatform file I/O, kotlinx-io is the simplest and most recommended
+▌ ▌ • For basic multiplatform file I/O, km-io is the simplest and most recommended
 ▌ ▌ solution.
-▌ ▌ • For advanced scenarios or when kotlinx-io doesn't provide the necessary
+▌ ▌ • For advanced scenarios or when km-io doesn't provide the necessary
 ▌ functionality,
 ▌ ▌ consider using POSIX interoperability or expect/actual for platform-specific
 ▌ ▌ implementations.
@@ -1656,38 +1656,38 @@
 ▌ ▌
 ▌ ▌
 ▌
-▌ • I need to respond to the user’s recommendation about using kotlinx-io for file I/O
+▌ • I need to respond to the user’s recommendation about using km-io for file I/O
 ▌   in Kotlin Native instead of Okio. They provided useful tips and examples, noting that
 ▌   Kotlin Native doesn’t directly use java.io. They’ve mentioned that my prior responses
 ▌   may include mistakes, which I appreciate them flagging. So now I’ll acknowledge their
 ▌   suggestion and propose to switch ZLib.kotlin's file system interactions in CLI and
-▌   ZipReader to utilize kotlinx-io. It sounds like a solid plan!
+▌   ZipReader to utilize km-io. It sounds like a solid plan!
 ▌
 ▌   Adjusting to new libraries
 ▌
 ▌   I see that we've been heavily using Okio in our earlier changes, but the user prefers
-▌   switching to kotlinx-io since it's known to work better with Kotlin Native. I'll
+▌   switching to km-io since it's known to work better with Kotlin Native. I'll
 ▌   propose that change. We're currently working on the llama.kotlin repo and have an
 ▌   upstream branch in ZLib.kotlin with ZipReader changes that rely on Okio, but we've
 ▌ faced
 ▌   compilation issues—particularly with Buffer.clone and "use" with okio.Source not being
-▌   AutoCloseable. This definitely supports the user's point about moving to kotlinx-io’s
+▌   AutoCloseable. This definitely supports the user's point about moving to km-io’s
 ▌   newer APIs!
 ▌
 ▌   Proposing a porting plan
 ▌
 ▌   Considering the constraints and timeline, I think we shouldn’t rewire the code right
-▌   now. Instead, I propose we port ZLib.kotlin from Okio to kotlinx-io for the ZIP module
+▌   now. Instead, I propose we port ZLib.kotlin from Okio to km-io for the ZIP module
 ▌   and CLI path wrappers. Alternatively, we could keep the internal inflate API reading
 ▌   from a simple interface compatible with both. We faced compilation errors while trying
 ▌   to restore the CLI file due to missing imports and mismatched APIs. To avoid these
-▌   issues, moving to kotlinx-io seems like a good recommendation!
+▌   issues, moving to km-io seems like a good recommendation!
 ▌
 ▌   Acknowledging and adjusting approaches
 ▌
 ▌   I see that we need to accept the mistake and propose re-implementing ZipReader using
 ▌ the
-▌   kotlinx-io library API instead of Okio. We should also adjust the CLI to use kotlinx-
+▌   km-io library API instead of Okio. We should also adjust the CLI to use kotlinx-
 ▌   io's FileSystem. Regarding the user’s previous comments, they prefer the name
 ▌ EmberSIMD
 ▌   and want to remove any references to copyrighted material from AlphaTensor. We've
@@ -1699,21 +1699,21 @@
 ▌
 ▌   I've reviewed earlier steps and confirmed that algorithms.txt was removed, but the npz
 ▌   file might still exist. I need to produce a concise summary and plan moving forward.
-▌   First, I propose switching the ZLib.kotlin feature/zip-reader to use kotlinx-io, which
+▌   First, I propose switching the ZLib.kotlin feature/zip-reader to use km-io, which
 ▌   involves adding the dependency, replacing Okio imports, and implementing unzip
 ▌ commands
 ▌   in the CLI with the appropriate APIs. We can also utilize existing pigz tests for
 ▌   benchmarking.
 ▌
 ▌   I'll acknowledge the compile issues with Okio usage and propose a plan for refactoring
-▌   ZipReader and the CLI to kotlinx-io. If they confirm, we can begin implementing these
+▌   ZipReader and the CLI to km-io. If they confirm, we can begin implementing these
 ▌   changes now!
 ▌
 ▌ > You’re absolutely right on both points:
 ▌
 ▌   - We must not preload/decompress NPZ; they should stay zipped and be streamed/
 ▌   decompressed on the fly.
-▌   - Kotlin/Native file I/O: Okio works on K/N in many cases, but kotlinx-io is the
+▌   - Kotlin/Native file I/O: Okio works on K/N in many cases, but km-io is the
 ▌ safer,
 ▌   JVM-free, MPP-native choice for CLI and ZIP plumbing.
 ▌
@@ -1725,17 +1725,17 @@
 ▌   you called out — those paths were still tied to Okio’s JVM-ish Closeable/use semantics
 ▌   in K/N.
 ▌
-▌   Let’s fix this the right way (targeted refactor to kotlinx-io)
+▌   Let’s fix this the right way (targeted refactor to km-io)
 ▌
 ▌   Plan (upstream, in feature/zip-reader)
 ▌
-▌   - Add kotlinx-io as a dependency (commonMain) and switch all CLI/ZIP I/O to kotlinx-
+▌   - Add km-io as a dependency (commonMain) and switch all CLI/ZIP I/O to kotlinx-
 ▌ io:
 ▌       - Replace Okio imports (FileSystem, Path, Buffer, BufferedSource/Sink)
 ▌ with kotlinx-
 ▌   io equivalents:
-▌           - kotlinx.io.files.FileSystem, Path, SystemFileSystem
-▌           - kotlinx.io Source/Sink APIs (buffered(), readByte, readIntLe, writeIntLe,
+▌           - io.github.kotlinmania.io.files.FileSystem, Path, SystemFileSystem
+▌           - io.github.kotlinmania.io Source/Sink APIs (buffered(), readByte, readIntLe, writeIntLe,
 ▌   writeFully, etc.)
 ▌   - ZIP reader (strict streaming, no bitwise):
 ▌       - EOCD scan from the end (read tail into a small buffer).
@@ -1749,7 +1749,7 @@
 ▌   — otherwise use CD sizes.
 ▌   - CLI:
 ▌       - Keep “compress/decompress” (zlib) and add “unzip” list/extract, all on
-▌   SystemFileSystem with kotlinx-io buffered() APIs.
+▌   SystemFileSystem with km-io buffered() APIs.
 ▌   - Tests:
 ▌       - Unit test for listing/extracting a tiny in-memory ZIP (STORE).
 ▌       - Round-trip zlib compress/decompress tests (already present).
@@ -1758,7 +1758,7 @@
 ▌
 ▌   Why this is safe and future-proof
 ▌
-▌   - kotlinx-io avoids any java.io coupling, runs cleanly on K/N, and gives us a
+▌   - km-io avoids any java.io coupling, runs cleanly on K/N, and gives us a
 ▌ consistent
 ▌   file stack across targets.
 ▌   - The inflate core (your months-long arithmetic port) remains untouched. We’re just
@@ -1766,7 +1766,7 @@
 ▌
 ▌   What I will change immediately (on the same branch)
 ▌
-▌   - Replace the Okio-based ZipReader + CLI I added with a kotlinx-io implementation.
+▌   - Replace the Okio-based ZipReader + CLI I added with a km-io implementation.
 ▌   - Keep inflateRaw as-is (already K/N-safe).
 ▌   - Push green builds with tests.
 ▌
@@ -1778,7 +1778,7 @@
 ▌
 ▌   Request to proceed
 ▌
-▌   - I’ll rework ZIP + CLI to kotlinx-io now, push on feature/zip-reader, and ping you
+▌   - I’ll rework ZIP + CLI to km-io now, push on feature/zip-reader, and ping you
 ▌ with
 ▌   the exact commit(s) and a copy/paste CLI usage:
 ▌       - zlib-cli unzip <file.zip>
@@ -1790,7 +1790,7 @@
 ▌
 ▌ ▌ We can keep zip as ZLib.kotlin's feature without calling it out directly. Mark Adler
 ▌ ▌ himself blends all of his algorithms together on pigz and so shall we. So yes, green
-▌ ▌ light on kotlinx-io replacement across both projects. Native is our target on both but
+▌ ▌ light on km-io replacement across both projects. Native is our target on both but
 ▌ ▌ also anything multiplatform (Javascript/WASM/whatever). We are focused on Native
 ▌ builds
 ▌ ▌ however. We can leave it up to the community to add support for the rest. Javascript
@@ -1799,7 +1799,7 @@
 ▌ ▌ pretty well.
 ▌
 ▌ • I need to respond concisely with an actionable plan since the user wants to replace
-▌   kotlinx-io across both projects, targeting Native. They suggest integrating zip
+▌   km-io across both projects, targeting Native. They suggest integrating zip
 ▌   into ZLib.kotlin features instead of calling it directly. I should propose exact
 ▌   changes like updating dependencies and replacing Okio usage in both ZLib.kotlin and
 ▌   llama.kotlin related to FileSystem. We earlier added Okio dependencies to
@@ -1811,38 +1811,38 @@
 ▌   Proposing changes for ZLib.kotlin
 ▌
 ▌   I’m suggesting a plan for ZLib.kotlin, involving adding the latest version of
-▌   kotlinx-io. I need to check the most recent version, but I believe it might be
-▌   org.jetbrains.kotlinx:kotlinx-io-core. I should be cautious since the KotlinX IO
+▌   km-io. I need to check the most recent version, but I believe it might be
+▌   io.github.kotlinmania:km-io. I should be cautious since the km-io
 ▌ library
-▌   was once experimental but seems revived as kotlinx-io in 2024. The user insists on
+▌   was once experimental but seems revived as km-io in 2024. The user insists on
 ▌ using
 ▌   it with FileSystem Path, which aligns with the APIs they showed. I’ll replace the
 ▌ import
-▌   from Okio to kotlinx.io.* and consider reimplementing Buffer as a prelude.
+▌   from Okio to io.github.kotlinmania.io.* and consider reimplementing Buffer as a prelude.
 ▌
 ▌   Outlining implementation plan for LE ints
 ▌
 ▌   I need to create wrappers for reading little-endian (LE) integers by implementing a
-▌   simple ByteReader using kotlinx-io.
+▌   simple ByteReader using km-io.
 ▌
 ▌   First, I'll update dependencies, followed by replacing components in InflateStream,
 ▌   which currently uses okio.BufferedSource/Sink. This transition might require
 ▌ significant
 ▌   refactoring. Since both projects target Native, and given these complexities, I
 ▌ suggest
-▌   adding an adapter layer to bridge Okio with kotlinx-io during the transition.
+▌   adding an adapter layer to bridge Okio with km-io during the transition.
 ▌
 ▌   I’ll introduce a multi-source abstraction in ZLib.kotlin for BufferedInput/Output,
-▌   implementing both Okio and kotlinx-io adapters. Lastly, I’ll ensure the CLI and
-▌   ZipReader are updated to use kotlinx-io while maintaining an in-memory bit reader in
+▌   implementing both Okio and km-io adapters. Lastly, I’ll ensure the CLI and
+▌   ZipReader are updated to use km-io while maintaining an in-memory bit reader in
 ▌ the
 ▌   core. Additionally, I'll focus on risk mitigation and testing.
 ▌
-▌   Creating migration plan for kotlinx-io
+▌   Creating migration plan for km-io
 ▌
 ▌   In llama.kotlin, I’ve previously avoided adding Okio since I want to replace it
-▌   with kotlinx-io. I'll identify the dependencies needed, likely something like
-▌   'org.jetbrains.kotlinx:kotlinx-io-core:0.x', but I won't guess the exact coordinates
+▌   with km-io. I'll identify the dependencies needed, likely something like
+▌   'io.github.kotlinmania:km-io:0.x', but I won't guess the exact coordinates
 ▌ due
 ▌   to the environment. The user intends for this transition across both projects, so I
 ▌ will
@@ -1873,11 +1873,11 @@
 ▌
 ▌   High-level approach
 ▌
-▌   - Goal: move both ZLib.kotlin and llama.kotlin away from Okio and onto kotlinx-io for
+▌   - Goal: move both ZLib.kotlin and llama.kotlin away from Okio and onto km-io for
 ▌   all file/streaming I/O (Native-first, MPP-capable), without breaking the arithmetic
 ▌   inflate core.
 ▌   - Strategy: introduce a small, internal I/O facade in ZLib.kotlin; implement it first
-▌   using kotlinx-io (Native default), keep an Okio adapter only if we need JVM/legacy
+▌   using km-io (Native default), keep an Okio adapter only if we need JVM/legacy
 ▌   during transition. Then port CLI + ZIP to that facade. Finally, update llama.kotlin to
 ▌   use the same facade for NPZ/NPY reading.
 ▌
@@ -1889,13 +1889,13 @@
 ▌
 ▌   Upstream (ZLib.kotlin) plan (feature/zip-reader)
 ▌
-▌   1. Add kotlinx-io
+▌   1. Add km-io
 ▌
-▌   - Add kotlinx-io core + files to commonMain (Native-first; leave JVM if needed later).
-▌   - Create ai.solace.zlib.io facade (expect/actual or pure common if APIs are uniform):
+▌   - Add km-io core + files to commonMain (Native-first; leave JVM if needed later).
+▌   - Create io.github.kotlinmania.llama.lib.io facade (expect/actual or pure common if APIs are uniform):
 ▌       - interfaces: ZSource, ZSink, ZFileSystem, ZPath with the minimal methods we use
 ▌   (readByte, readFully, write, skip, size, open).
-▌       - kotlinx-io impl in commonMain (SystemFileSystem, Path, buffered).
+▌       - km-io impl in commonMain (SystemFileSystem, Path, buffered).
 ▌
 ▌   2. Port Inflate/Deflate to the facade
 ▌
@@ -1903,7 +1903,7 @@
 ▌   - Keep all arithmetic/bit code intact (no logic changes).
 ▌   - Adapt StreamingBitReader/Writer to read/write from the new facade.
 ▌
-▌   3. Rework ZIP reader + CLI onto kotlinx-io
+▌   3. Rework ZIP reader + CLI onto km-io
 ▌
 ▌   - ZipReader: EOCD scan, central directory parse, local header seek, methods 0 and 8
 ▌ (raw
@@ -1924,7 +1924,7 @@
 ▌   1. Remove Okio dep added earlier (we’ll use the upstream I/O facade via ZLib.kotlin).
 ▌   2. Add NPZ/NPY loaders (Native)
 ▌
-▌   - ai.solace.embersimd.io:
+▌   - io.github.kotlinmania.llama.mbersimd.io:
 ▌       - Npz.list(), Npz.open(name) → ZSource
 ▌       - Npy.read(source) (header: magic/version/dtype/shape; payload as ZSource)
 ▌   - Feed 4×4/2×2 recipes from NPZ/NPY directly (no staging, no pre-decompress).
@@ -1936,7 +1936,7 @@
 ▌
 ▌   Risks and mitigations
 ▌
-▌   - kotlinx-io APIs differ from Okio; to minimize churn, we add the I/O facade layer
+▌   - km-io APIs differ from Okio; to minimize churn, we add the I/O facade layer
 ▌ first
 ▌   and only re-plumb callers (InflateStream/ZipReader/CLI). Arithmetic inflate logic
 ▌ stays
@@ -1949,7 +1949,7 @@
 ▌
 ▌   - Complete the refactor on feature/zip-reader:
 ▌       - Add the new I/O facade and convert InflateStream/StreamingBitReader to it.
-▌       - Replace ZipReader + CLI to use kotlinx-io (SystemFileSystem, Path, buffered).
+▌       - Replace ZipReader + CLI to use km-io (SystemFileSystem, Path, buffered).
 ▌       - Make tests green; keep pigz test working by ensuring the CLI builds.
 ▌   - Then I’ll submit the branch and a short upgrade note.
 ▌
@@ -1958,7 +1958,7 @@
 ▌   - Switch llama.kotlin to the upstream I/O facade
 ▌   - Add the NPZ/NPY loader and a simple 4×4 EmberSIMD demonstration with a bench flag.
 ▌
-▌   Confirm and I’ll start the kotlinx-io refactor work on the upstream branch now.
+▌   Confirm and I’ll start the km-io refactor work on the upstream branch now.
 ▌
 ▌ ▌ No JVM has ever been supported on these since JVM already has all of these things -
 ▌ ▌ ZLib /ZIP/and pretty much the whole gambit exists there but not on native. I'm the
@@ -1976,11 +1976,11 @@
 ▌ • We need to respond to the last two user messages about emphasizing that projects will
 ▌   focus on anti-JVM build targets and KMP native. The user wants confirmation on the
 ▌ plan
-▌   to refactor to kotlinx-io while ensuring no JVM target is added. They also want
+▌   to refactor to km-io while ensuring no JVM target is added. They also want
 ▌ updates
 ▌   on build scripts, packaging, and next steps in a checklist format. We should
 ▌ acknowledge
-▌   that we added Okio dependencies before but plan to replace them with kotlinx-io. Also,
+▌   that we added Okio dependencies before but plan to replace them with km-io. Also,
 ▌   they mentioned a pigz test upstream; let's commit to keeping JVM targets absent.
 ▌
 ▌   Evaluating llama.kotlin build targets
@@ -1990,7 +1990,7 @@
 ▌   Since the user emphasizes an anti-JVM approach, I should propose disabling this target
 ▌   or keeping it while not prioritizing it. However, any changes should wait for
 ▌ approval.
-▌   We could also plan to switch from Okio to kotlinx-io and consider removing other
+▌   We could also plan to switch from Okio to km-io and consider removing other
 ▌   dependencies like Kermit, especially since we aim for minimalism in our library
 ▌ choices.
 ▌   Let's seek confirmation on these steps.
@@ -1998,8 +1998,8 @@
 ▌   Outlining the project direction
 ▌
 ▌   I need to provide a clear response regarding our approach: we'll acknowledge the anti-
-▌   JVM stance by not adding any JVM target, shift to kotlinx-io in both repositories,
-▌   and remove Okio from llama.kotlin. I'll also replace Okio with kotlinx-io in the
+▌   JVM stance by not adding any JVM target, shift to km-io in both repositories,
+▌   and remove Okio from llama.kotlin. I'll also replace Okio with km-io in the
 ▌   CLI/ZipReader and preserve KMP, leaving JS/WASM to the community. I should create a
 ▌   checklist of steps, outline risk areas, and propose a refactor plan. Additionally,
 ▌   I must confirm we didn't decompress NPZ and ensure NPZ streaming is intact. Finally,
@@ -2008,7 +2008,7 @@
 ▌
 ▌   Structuring the response
 ▌
-▌   I’ve got proposed import names like kotlinx.io.files.FileSystem and Path to align with
+▌   I’ve got proposed import names like io.github.kotlinmania.io.files.FileSystem and Path to align with
 ▌   the user’s example. Next, I should propose removing the jvm() target from llama.kotlin
 ▌   and ask for confirmation on that.
 ▌
@@ -2019,23 +2019,23 @@
 ▌   and organized. Let’s get this done!
 ▌
 ▌ > Totally aligned. Here’s how I’ll proceed to keep both repos strictly KMP/Native and
-▌   JVM‑free, while moving all I/O to kotlinx‑io and keeping NPZ zipped/streamed.
+▌   JVM‑free, while moving all I/O to km-io and keeping NPZ zipped/streamed.
 ▌
 ▌   What I will change (no JVM)
 ▌
 ▌   - ZLib.kotlin (feature/zip-reader):
-▌       - Replace all Okio usage with kotlinx-io (kotlinx-io-core + kotlinx-io-files).
+▌       - Replace all Okio usage with km-io (km-io-core + km-io-files).
 ▌       - Keep only Native/WASM/JS‑friendly APIs; no JVM target, no java.io.
 ▌       - Keep DEFLATE/zlib arithmetic core untouched.
-▌       - ZIP reader + CLI “unzip” rebuilt on kotlinx‑io (EOCD scan, central dir, local
+▌       - ZIP reader + CLI “unzip” rebuilt on km-io (EOCD scan, central dir, local
 ▌   header; STORE=0 and raw DEFLATE=8).
-▌       - CLI keeps compress/decompress and gains unzip list/extract (kotlinx‑io
+▌       - CLI keeps compress/decompress and gains unzip list/extract (km-io
 ▌   SystemFileSystem).
 ▌       - Tests updated to run on Native; pigz bench stays (we just ensure the CLI builds
 ▌ so
 ▌   your harness runs).
 ▌   - llama.kotlin:
-▌       - Remove the Okio deps I added earlier; switch any file/stream code to kotlinx‑io.
+▌       - Remove the Okio deps I added earlier; switch any file/stream code to km-io.
 ▌       - Add a tiny NPZ/NPY loader built on ZLib’s new ZIP + our NPY parser (all KMP/
 ▌   Native).
 ▌       - EmberSIMD 4×4 loader demo reads recipes directly from NPZ streaming (no
@@ -2053,14 +2053,14 @@
 ▌
 ▌   Concrete plan and order
 ▌
-▌   1. ZLib.kotlin refactor to kotlinx‑io
-▌       - Add kotlinx‑io deps; introduce a minimalist internal I/O shim if needed.
+▌   1. ZLib.kotlin refactor to km-io
+▌       - Add km-io deps; introduce a minimalist internal I/O shim if needed.
 ▌       - Port InflateStream/StreamingBitReader to new Source/Sink abstractions.
-▌       - Port ZipReader + CLI to kotlinx‑io.
+▌       - Port ZipReader + CLI to km-io.
 ▌       - Make tests + CLI green; verify pigz harness compatibility (CLI buildable).
 ▌   2. llama.kotlin cleanup
 ▌       - Remove Okio deps from commonMain.
-▌       - Add NPZ/NPY loader (kotlinx‑io only).
+▌       - Add NPZ/NPY loader (km-io only).
 ▌       - Add a bench flag to run an EmberSIMD 4×4 kernel loaded from NPZ, streaming, with
 ▌   logical/effective GB/s.
 ▌   3. Optional
@@ -2071,27 +2071,27 @@
 ▌
 ▌   - API differences: I’ll keep a very small I/O layer so only ZipReader/CLI/NPZ
 ▌ references
-▌   touch kotlinx‑io, and the arithmetic zlib core remains as-is.
+▌   touch km-io, and the arithmetic zlib core remains as-is.
 ▌   - ZIP data descriptor bit: will add (GPBF bit 3) handling if needed; we can start with
 ▌   CD sizes and expand.
 ▌
 ▌   Ask/Confirm
 ▌
 ▌   - Green light to:
-▌       - Replace Okio with kotlinx‑io across both repos (starting now).
+▌       - Replace Okio with km-io across both repos (starting now).
 ▌       - Leave JVM out entirely (and optionally remove jvm() from llama.kotlin—confirm).
 ▌       - Push the ZLib.kotlin changes on feature/zip-reader and then I’ll wire
 ▌ llama.kotlin
 ▌   to it.
 ▌
-▌   Once you confirm, I’ll push the kotlinx‑io refactor upstream first, validate pigz/CLI,
+▌   Once you confirm, I’ll push the km-io refactor upstream first, validate pigz/CLI,
 ▌   then circle back to wire NPZ/NPY + EmberSIMD in llama.kotlin.
 ▌
 ▌ ▌ Let's start there and I'll later push for us to bring our newest BitShiftEngine from
 ▌ ▌ llama.kotlin to ZLib.kotlin due to the innovations we've done. Keep that as a
 ▌ ▌ backburner.
 ▌
-▌ • I need to affirm our plan to start replacing Okio with kotlinx-io in both
+▌ • I need to affirm our plan to start replacing Okio with km-io in both
 ▌ repositories,
 ▌   beginning with ZLib.kotlin. I should outline the next steps and mention that we won't
 ▌ be
@@ -2101,12 +2101,12 @@
 ▌ ZLib.kotlin
 ▌   first before anything else.
 ▌
-▌   Refactoring to kotlinx-io
+▌   Refactoring to km-io
 ▌
 ▌   I've created the feature branch for the zip reader and added code, but now we need to
-▌   shift our focus to replacing Okio with kotlinx-io across both projects. In
+▌   shift our focus to replacing Okio with km-io across both projects. In
 ▌ ZLib.kotlin,
-▌   I should plan the refactor tasks, like adding the kotlinx-io dependency and updating
+▌   I should plan the refactor tasks, like adding the km-io dependency and updating
 ▌   build.gradle.kts. We will keep Kermit for logging but remove Okio.
 ▌
 ▌   Next, I’ll need to write an adapter for the buffered types, update specific
@@ -2117,19 +2117,19 @@
 ▌   merging upstream. Finally, I'll lay out a clear timeline and deliverables, saving
 ▌   BitShiftEngine for another time.
 ▌
-▌ > Perfect. We’ll start with the kotlinx-io refactor and keep the BitShiftEngine
+▌ > Perfect. We’ll start with the km-io refactor and keep the BitShiftEngine
 ▌   unification on the backburner.
 ▌
 ▌   Plan of record (Native-first, JVM-free)
 ▌
 ▌   - ZLib.kotlin (branch: feature/zip-reader)
-▌       - Replace Okio with kotlinx-io across CLI, ZIP, and any file/streaming code.
+▌       - Replace Okio with km-io across CLI, ZIP, and any file/streaming code.
 ▌       - Keep the arithmetic inflate/deflate core untouched.
 ▌       - Keep NPZ zipped; stream via ZIP → raw DEFLATE → consumer.
 ▌       - Deliverables:
-▌           - I/O backbone: use kotlinx.io (core + files) only.
-▌           - InflateStream/StreamingBitReader use kotlinx-io Sources/Sinks.
-▌           - ZipReader (EOCD + Central Directory + Local Header) on kotlinx-io:
+▌           - I/O backbone: use io.github.kotlinmania.io (core + files) only.
+▌           - InflateStream/StreamingBitReader use km-io Sources/Sinks.
+▌           - ZipReader (EOCD + Central Directory + Local Header) on km-io:
 ▌               - STORE(0) copy-through; DEFLATE(8) via InflateStream.inflateRaw.
 ▌               - Handle common cases; add GPBF data-descriptor handling after baseline
 ▌   is green.
@@ -2138,7 +2138,7 @@
 ▌ compatibility
 ▌   (CLI builds).
 ▌   - llama.kotlin
-▌       - Remove Okio usage we introduced; switch any file/stream code to kotlinx-io once
+▌       - Remove Okio usage we introduced; switch any file/stream code to km-io once
 ▌   upstream is in place.
 ▌       - Add NPZ/NPY loaders on top of ZLib’s ZIP + raw DEFLATE (no pre-decompression).
 ▌       - Keep EmberSIMD work separate; first demo will read a 4×4 recipe via NPZ/NPY
@@ -2152,7 +2152,7 @@
 ▌
 ▌   Next concrete steps
 ▌
-▌   - Finish the kotlinx-io refactor in ZLib.kotlin and keep the current branch green with
+▌   - Finish the km-io refactor in ZLib.kotlin and keep the current branch green with
 ▌   tests and CLI.
 ▌   - Then update llama.kotlin to consume NPZ via the new ZIP API and drop any Okio
 ▌   remnants.
@@ -2163,7 +2163,7 @@
 ▌
 ▌ ▌ Yes, approved.
 ▌
-▌ > Great. I’ll proceed with the upstream kotlinx-io refactor in ZLib.kotlin (feature/zip-
+▌ > Great. I’ll proceed with the upstream km-io refactor in ZLib.kotlin (feature/zip-
 ▌   reader), keep the CLI + ZIP streaming fully Native/KMP, and make sure tests and the
 ▌ CLI
 ▌   are green. Once that’s done, I’ll update llama.kotlin to consume NPZ via the new ZIP
@@ -2190,7 +2190,7 @@
 ▌
 ▌   I’m proceeding with:
 ▌
-▌   - ZLib.kotlin: finish the kotlinx-io refactor (ZIP + CLI + tests).
+▌   - ZLib.kotlin: finish the km-io refactor (ZIP + CLI + tests).
 ▌   - Then: wire llama.kotlin to stream NPZ via the new ZIP API and add the EmberSIMD
 ▌ loader
 ▌   demo.
@@ -2213,7 +2213,7 @@
 ▌
 ▌   What (at a glance)
 ▌
-▌   - Upstream ZLib.kotlin: replace Okio with kotlinx-io; add ZIP (STORE + raw DEFLATE)
+▌   - Upstream ZLib.kotlin: replace Okio with km-io; add ZIP (STORE + raw DEFLATE)
 ▌ and
 ▌   CLI unzip; keep arithmetic inflate/deflate intact.
 ▌   - llama.kotlin: consume NPZ via ZLib ZIP; add an NPY parser; demo EmberSIMD 4×4 loader
@@ -2228,25 +2228,25 @@
 ▌
 ▌   Deliverables (upstream ZLib.kotlin, branch: feature/zip-reader)
 ▌
-▌   - I/O: switch to kotlinx-io (core + files) for Sources/Sinks/FileSystem.
+▌   - I/O: switch to km-io (core + files) for Sources/Sinks/FileSystem.
 ▌   - InflateStream.inflateRaw (already added): DEFLATE w/o zlib wrapper.
-▌   - ZipReader (kotlinx-io): EOCD scan, Central Directory parse, Local Header extract;
+▌   - ZipReader (km-io): EOCD scan, Central Directory parse, Local Header extract;
 ▌   methods 0 & 8.
-▌   - CLI (Native): compress|decompress (zlib), unzip list/extract (kotlinx-io
+▌   - CLI (Native): compress|decompress (zlib), unzip list/extract (km-io
 ▌   SystemFileSystem).
 ▌   - Tests: round-trip zlib; minimal ZIP list/extract; ensure CLI builds for pigz bench
 ▌   harness.
 ▌
 ▌   Deliverables (llama.kotlin)
 ▌
-▌   - Remove Okio usage; depend on ZLib.kotlin ZIP API (kotlinx-io only).
+▌   - Remove Okio usage; depend on ZLib.kotlin ZIP API (km-io only).
 ▌   - EmberSIMD I/O: Npz.list(), Npz.open(name); Npy.read() (header + payload).
 ▌   - Demo: load a 4×4 recipe from NPZ/NPY and run EmberSIMD kernel (SWAR + strict-arith),
 ▌   with serial/parallel benches (logical/effective GB/s).
 ▌
 ▌   Sequencing
 ▌
-▌   1. Finish ZLib.kotlin refactor to kotlinx-io; green build + tests + CLI.
+▌   1. Finish ZLib.kotlin refactor to km-io; green build + tests + CLI.
 ▌   2. Update llama.kotlin to use new ZIP API; add NPY reader; EmberSIMD 4×4 demo + bench.
 ▌   3. Optional follow-ups: ZIP data descriptor flag handling; chunk/size CLI options; JS/
 ▌   WASM adapters.
@@ -2266,13 +2266,13 @@
 ▌
 ▌   Risks/Notes
 ▌
-▌   - kotlinx-io API divergence from Okio mitigated by thin internal I/O layer; arithmetic
+▌   - km-io API divergence from Okio mitigated by thin internal I/O layer; arithmetic
 ▌   inflate untouched.
 ▌   - ZIP GPBF data descriptor (bit 3) may need follow-up; most NPZs work with CD sizes.
 ▌
 ▌   Next Checkpoint
 ▌
-▌   - I’ll push ZLib.kotlin feature/zip-reader with kotlinx-io ZIP/CLI/tests green, then
+▌   - I’ll push ZLib.kotlin feature/zip-reader with km-io ZIP/CLI/tests green, then
 ▌   wire llama.kotlin NPZ/NPY + EmberSIMD demo.
 ▌
 ▌ ▌ And what folders are these all in?
@@ -2294,7 +2294,7 @@
 ▌   Projects/ZLib.kotlin, with the feature/zip-reader branch. I modified several files,
 ▌   including InflateStream.kt and ZipReader.kt, where we had previously added features
 ▌ and
-▌   then moved some functionality upstream for a rewrite using kotlinx-io.
+▌   then moved some functionality upstream for a rewrite using km-io.
 ▌
 ▌   There were also changes to ZipReaderTest.kt, which I mistakenly attributed to upstream
 ▌   —it was actually added in the llama repository first before we focused on upstream
@@ -2308,10 +2308,10 @@
 ▌
 ▌   For llama.kotlin, we have core bitwise and SIMD benchmarks in src/commonMain/kotlin/
 ▌ ai/
-▌   solace/klang/bitwise, and benches in src/nativeMain/kotlin/ai/solace/bench. There's
+▌   solace/klang/bitwise, and benches in src/nativeMain/kotlin/io.github.kotlinmania.llama.ench. There's
 ▌ also
-▌   a Metal SWAR bench and vendored ZLib files in src/commonMain/kotlin/ai/solace/zlib. We
-▌   added the ZipReader test in src/commonTest/kotlin/ai/solace/zlib/zip, along with tools
+▌   a Metal SWAR bench and vendored ZLib files in src/commonMain/kotlin/io.github.kotlinmania.llama.lib. We
+▌   added the ZipReader test in src/commonTest/kotlin/io.github.kotlinmania.llama.lib/zip, along with tools
 ▌   for alphatensor-codegen and alphatensor-scripts.
 ▌
 ▌   In ZLib.kotlin, the files include InflateStream.kt, ZipReader.kt, and ZLibCli.kt.
@@ -2328,25 +2328,25 @@
 ▌   llama.kotlin (/Volumes/stuff/Projects/llama.kotlin)
 ▌
 ▌   - Core bitwise + engine
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/BitShiftEngine.kt
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/BitShiftConfig.kt
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/ArrayBitShifts.kt
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/BitwiseOps.kt
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/ArithmeticBitwiseOps.kt
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/SwAR.kt
-▌       - src/commonMain/kotlin/ai/solace/klang/bitwise/ShiftTables.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/BitShiftEngine.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/BitShiftConfig.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ArrayBitShifts.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/BitwiseOps.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ArithmeticBitwiseOps.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/SwAR.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ShiftTables.kt
 ▌   - Benches (CPU)
-▌       - src/nativeMain/kotlin/ai/solace/bench/BenchMain.kt
-▌       - src/nativeMain/kotlin/ai/solace/bench/SwARBench.kt
-▌       - src/nativeMain/kotlin/ai/solace/bench/HexStringShiftBench.kt
-▌       - src/nativeMain/kotlin/ai/solace/bench/MaskKernelsBench.kt
+▌       - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/BenchMain.kt
+▌       - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/SwARBench.kt
+▌       - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/HexStringShiftBench.kt
+▌       - src/nativeMain/kotlin/io.github.kotlinmania.llama.ench/MaskKernelsBench.kt
 ▌   - Metal SWAR bench (Swift/Metal)
 ▌       - metal-swar-avg/ (Package.swift, Sources/main.swift)
 ▌   - Vendored ZLib.kotlin sources used by llama.kotlin (separate from upstream)
-▌       - src/commonMain/kotlin/ai/solace/zlib/** (inflate/deflate/common/bitwise/util)
-▌       - src/nativeMain/kotlin/ai/solace/zlib/cli/ZLibCli.kt (native CLI copy used by our
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/** (inflate/deflate/common/bitwise/util)
+▌       - src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/ZLibCli.kt (native CLI copy used by our
 ▌   benches)
-▌       - Tests we added locally: src/commonTest/kotlin/ai/solace/zlib/zip/
+▌       - Tests we added locally: src/commonTest/kotlin/io.github.kotlinmania.llama.lib/zip/
 ▌ ZipReaderTest.kt
 ▌   - Tools (reference only; not built)
 ▌       - tools/alphatensor-codegen/ (Cargo.toml, README.md)
@@ -2356,17 +2356,17 @@
 ▌   /Volumes/stuff/Projects/ZLib.kotlin
 ▌
 ▌   - Inflate/Deflate core (arithmetic)
-▌       - src/commonMain/kotlin/ai/solace/zlib/inflate/InflateStream.kt (includes
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/inflate/InflateStream.kt (includes
 ▌   inflateRaw)
-▌       - src/commonMain/kotlin/ai/solace/zlib/deflate/DeflateStream.kt
-▌       - src/commonMain/kotlin/ai/solace/zlib/inflate/{StreamingBitReader,
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/deflate/DeflateStream.kt
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/inflate/{StreamingBitReader,
 ▌   CanonicalHuffman}.kt
-▌   - ZIP reader (will be refactored to kotlinx-io; Native/KMP)
-▌       - src/commonMain/kotlin/ai/solace/zlib/zip/ZipReader.kt
+▌   - ZIP reader (will be refactored to km-io; Native/KMP)
+▌       - src/commonMain/kotlin/io.github.kotlinmania.llama.lib/zip/ZipReader.kt
 ▌   - Native CLI (no JVM)
-▌       - src/nativeMain/kotlin/ai/solace/zlib/cli/ZLibCli.kt (compress|decompress|unzip)
+▌       - src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/ZLibCli.kt (compress|decompress|unzip)
 ▌   - Tests
-▌       - src/commonTest/kotlin/ai/solace/zlib/** (inflate/zip tests)
+▌       - src/commonTest/kotlin/io.github.kotlinmania.llama.lib/** (inflate/zip tests)
 ▌
 ▌   simd-alphatensor-kotlin (reference only)
 ▌   /Volumes/stuff/Projects/simd-alphatensor-kotlin
@@ -2385,7 +2385,7 @@
 ▌ > Yes — I resurrected the CLI in ZLib.kotlin.
 ▌
 ▌   - Branch: feature/zip-reader
-▌   - Path: /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/ai/solace/zlib/cli/
+▌   - Path: /Volumes/stuff/Projects/ZLib.kotlin/src/nativeMain/kotlin/io.github.kotlinmania.llama.lib/cli/
 ▌   ZLibCli.kt
 ▌   - Commands (Native target):
 ▌       - compress | deflate <in> <out.zz> [level]
@@ -2396,7 +2396,7 @@
 ▌   Status
 ▌
 ▌   - The CLI file is back and wired to the new ZipReader + Inflate/Deflate.
-▌   - Build isn’t green yet because I’m mid‑swap from Okio to kotlinx‑io across ZIP + CLI
+▌   - Build isn’t green yet because I’m mid‑swap from Okio to km-io across ZIP + CLI
 ▌   (as we agreed, no JVM). I’ll finish that refactor so the Native CLI builds cleanly,
 ▌ then
 ▌   validate with:
@@ -2415,7 +2415,7 @@
 • I’m planning to use web.run to check for the latest Kotlin version because that can
   change quickly. It looks like Kotlin is around version 2.0.x or even 2.1.x as of
   September 2025. Plus, I need to verify the latest stable Kotlin and KGP plugin versions,
-  as well as details for Kotlin/Native and kotlinx-io. The user also wants me to check
+  as well as details for Kotlin/Native and km-io. The user also wants me to check
   their macOS version, which I can do by running 'sw_vers' in the shell.
 
   Updating Kotlin and Gradle versions
@@ -2639,7 +2639,7 @@ wrapper.properties (+1 -1)
   and simply run 'gradlew -q build' to get things working again.
 
 • Ran ./gradlew -q build
-  └ e: file:///Volumes/stuff/Projects/llama.kotlin/src/commonMain/kotlin/ai/solace/klang/
+  └ e: file:///Volumes/stuff/Projects/llama.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/
     bitwise/ArrayBitShifts.kt:90:9 Unresolved reference 'runBlocking'.
     e: file:///Volumes/stuff/Projects/llama.kotlin/src/commonMain/kotlin/ai/
     solace/klang/bitwise/ArrayBitShifts.kt:93:13 Suspend function 'suspend fun <R>
@@ -2649,7 +2649,7 @@ wrapper.properties (+1 -1)
     solace/klang/bitwise/ArrayBitShifts.kt:112:13 Suspend function 'suspend fun <R>
     coroutineScope(block: suspend CoroutineScope.() -> R): R' can only be called from a
     coroutine or another suspend function.
-    e: file:///Volumes/stuff/Projects/llama.kotlin/src/commonMain/kotlin/ai/solace/klang/
+    e: file:///Volumes/stuff/Projects/llama.kotlin/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/
     bitwise/ArrayBitShifts.kt:268:9 Unresolved reference 'runBlocking'.
     e: file:///Volumes/stuff/Projects/llama.kotlin/src/commonMain/kotlin/ai/
     solace/klang/bitwise/ArrayBitShifts.kt:271:13 Suspend function 'suspend fun <R>
@@ -2720,12 +2720,12 @@ wrapper.properties (+1 -1)
   - llama.kotlin build: fails in commonMain due to pre-existing coroutine/Okio issues
   (runBlocking/newFixedThreadPoolContext in commonMain and Okio-AutoCloseable “use”
   calls). These are unrelated to the version bump and align with the work we already
-  queued (move I/O to kotlinx-io; make parallel APIs suspend or keep runBlocking out of
+  queued (move I/O to km-io; make parallel APIs suspend or keep runBlocking out of
   commonMain).
 
   Next low-friction steps (if you want me to proceed now)
 
-  - ZLib.kotlin: continue the agreed kotlinx-io refactor on feature/zip-reader (replace
+  - ZLib.kotlin: continue the agreed km-io refactor on feature/zip-reader (replace
   remaining Okio in ZIP/CLI; keep core inflate intact).
   - llama.kotlin: remove runBlocking/newFixedThreadPoolContext from commonMain by:
       - moving blocking wrappers to native bench layer, or
@@ -2740,6 +2740,6 @@ wrapper.properties (+1 -1)
   - ZLib.kotlin
       - Build: ./gradlew -v, then ./gradlew build
 
-  If you want, I’ll push the kotlinx-io ZIP/CLI refactor to green the upstream build next,
+  If you want, I’ll push the km-io ZIP/CLI refactor to green the upstream build next,
   then wire NPZ streaming in llama.kotlin.
 Token usage: total=1,228,003 input=1,087,774 (+ 28,016,000 cached) output=140,229 (reasoning 65,536)

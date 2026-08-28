@@ -1,7 +1,7 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
-import ai.solace.klangnative.fp.CFloat32
-import ai.solace.klangnative.fp.Float32Math
+import io.github.kotlinmania.llama.lang.fp.CFloat32
+import io.github.kotlinmania.llama.lang.fp.Float32Math
 
 /**
  * Float operator extensions for symmetric CFloat32 arithmetic.

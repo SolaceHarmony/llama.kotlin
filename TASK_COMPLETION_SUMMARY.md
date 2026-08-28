@@ -25,13 +25,13 @@ Read the KOTLIN_PORT_CHECKLIST.md to understand the current project state, then 
 - **Impact**: Blocks entire build, preventing validation of implemented features
 
 #### B. Package Naming Issues
-- llama.kotlin code imports from `ai.solace.klangnative.*`
-- Some vendored klang files use `ai.solace.klangnative.*` (correct)
-- Other files reference `ai.solace.klang.*` internally (incorrect)
+- llama.kotlin code imports from `io.github.kotlinmania.llama.lang.*`
+- Some vendored klang files use `io.github.kotlinmania.llama.lang.*` (correct)
+- Other files reference `io.github.kotlinmania.llama.lang.*` internally (incorrect)
 - Caused duplicate symbol definitions and unresolved references
 
 #### C. Duplicate Sources
-- Found klang sources in BOTH `src/commonMain/kotlin/ai/solace/klang/` AND `external/klangnative/`
+- Found klang sources in BOTH `src/commonMain/kotlin/io.github.kotlinmania.llama.lang/` AND `external/klangnative/`
 - Removed duplicates from `src/` (59 files deleted)
 - Confirmed external source as authoritative
 

@@ -192,17 +192,17 @@ for (i in 0 until n) {
 
 ### Core Infrastructure
 - `external/klangnative/` - Vendored KLangNative library (130 files)
-- `external/klangnative/src/commonMain/kotlin/ai/solace/klangnative/fp/CFloat32.kt` - Bit-exact float32
-- `external/klangnative/src/commonMain/kotlin/ai/solace/klangnative/mem/GlobalHeap.kt` - Heap operations
-- `external/klangnative/src/commonMain/kotlin/ai/solace/klangnative/mem/KAligned.kt` - Aligned allocation
+- `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang.fp/CFloat32.kt` - Bit-exact float32
+- `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang.mem/GlobalHeap.kt` - Heap operations
+- `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang.mem/KAligned.kt` - Aligned allocation
 
 ### Storage Backends
-- `src/commonMain/kotlin/ai/solace/llamakotlin/backend/klangnative/KLangNativeHeapTensorStorage.kt` - Multiplatform heap storage
-- `src/nativeMain/kotlin/ai/solace/llamakotlin/backend/klangnative/NativeHeapTensorStorage.kt` - Native fast-path
+- `src/commonMain/kotlin/io.github.kotlinmania.llama.ackend/klangnative/KLangNativeHeapTensorStorage.kt` - Multiplatform heap storage
+- `src/nativeMain/kotlin/io.github.kotlinmania.llama.ackend/klangnative/NativeHeapTensorStorage.kt` - Native fast-path
 
 ### Quantization
-- `src/commonMain/kotlin/ai/solace/llamakotlin/core/QuantizationHelper.kt` - Array-based (current, CFloat32 refinement)
-- `src/commonMain/kotlin/ai/solace/llamakotlin/core/QuantizationHelperHeap.kt` - Heap-based variants
+- `src/commonMain/kotlin/io.github.kotlinmania.llama.ore/QuantizationHelper.kt` - Array-based (current, CFloat32 refinement)
+- `src/commonMain/kotlin/io.github.kotlinmania.llama.ore/QuantizationHelperHeap.kt` - Heap-based variants
 
 ### Documentation & Examples
 - `docs/kdocs/klangnative-heap-migration-plan.md` - Original migration plan

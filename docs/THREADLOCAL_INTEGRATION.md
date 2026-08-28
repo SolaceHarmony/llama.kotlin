@@ -31,7 +31,7 @@ The threadlocal-kotlin library has been added to `build.gradle.kts`:
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.kotlinmania:threadlocal-kotlin:0.3.1")
+    implementation("io.github.kotlinmania.llama.hreadlocal-kotlin:0.3.1")
 }
 ```
 
@@ -39,7 +39,7 @@ commonMain.dependencies {
 
 ### 1. GGMLThreadLocalContext
 
-Located: `src/commonMain/kotlin/ai/solace/llamakotlin/core/GGMLThreadLocalContext.kt`
+Located: `src/commonMain/kotlin/io.github.kotlinmania.llama.ore/GGMLThreadLocalContext.kt`
 
 Provides thread-local storage for GGML compute parameters, eliminating the need to pass `GGMLComputeParams` through deep call stacks.
 
@@ -84,7 +84,7 @@ GGMLThreadLocalContext.withParams(params) {
 
 ### 2. ThreadLocalCFloatTrace
 
-Located: `external/klangnative/src/commonMain/kotlin/ai/solace/klang/bitwise/ThreadLocalCFloatTrace.kt`
+Located: `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/bitwise/ThreadLocalCFloatTrace.kt`
 
 Provides thread-local tracing of floating-point operations without contention.
 
@@ -130,7 +130,7 @@ val (result, traces) = ThreadLocalCFloatTrace.withTracing {
 
 ### 3. ThreadLocalKMalloc
 
-Located: `external/klangnative/src/commonMain/kotlin/ai/solace/klang/mem/ThreadLocalKMalloc.kt`
+Located: `external/klangnative/src/commonMain/kotlin/io.github.kotlinmania.llama.lang/mem/ThreadLocalKMalloc.kt`
 
 Provides thread-local memory allocation arenas. **Note:** This is currently a wrapper around the global `KMalloc` object and will be fully functional once `KMalloc` is refactored into instances.
 
@@ -168,8 +168,8 @@ println("Allocated: ${stats.currentUsed} bytes")
 
 Tests have been added to verify the thread-local functionality:
 
-- `src/commonTest/kotlin/ai/solace/llamakotlin/core/GGMLThreadLocalContextTest.kt` - Tests for GGML context
-- `external/klangnative/src/commonTest/kotlin/ai/solace/klang/bitwise/ThreadLocalCFloatTraceTest.kt` - Tests for float tracing
+- `src/commonTest/kotlin/io.github.kotlinmania.llama.ore/GGMLThreadLocalContextTest.kt` - Tests for GGML context
+- `external/klangnative/src/commonTest/kotlin/io.github.kotlinmania.llama.lang/bitwise/ThreadLocalCFloatTraceTest.kt` - Tests for float tracing
 
 Run tests with:
 ```bash
@@ -267,7 +267,7 @@ All three components are inherently thread-safe because each thread has isolated
 ## References
 
 - [threadlocal-kotlin GitHub](https://github.com/KotlinMania/threadlocal-kotlin)
-- [threadlocal-kotlin on Maven Central](https://central.sonatype.com/artifact/io.github.kotlinmania/threadlocal-kotlin)
+- [threadlocal-kotlin on Maven Central](https://central.sonatype.com/artifact/io.github.kotlinmania.llama.hreadlocal-kotlin)
 - KDoc in source files for detailed API documentation
 
 ## Related Issues

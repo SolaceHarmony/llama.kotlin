@@ -1,6 +1,6 @@
 @file:Suppress("ktlint:standard:property-naming")
 
-package ai.solace.klangnative.common
+package io.github.kotlinmania.llama.lang.common
 
 /**
  * ZlibLogger: Cross-platform configurable logging system for KLang internals.
