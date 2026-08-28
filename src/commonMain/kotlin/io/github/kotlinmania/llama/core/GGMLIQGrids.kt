@@ -1,5 +1,5 @@
 // port-lint: source ggml/src/ggml-common.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 // IQ Grid Tables from ggml-common.h
 // These lookup tables are used by IQ quantization/dequantization functions.

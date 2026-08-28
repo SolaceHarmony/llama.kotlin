@@ -1,5 +1,5 @@
 // port-lint: source ggml/include/ggml-backend.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * Kotlin Native port of the GGML public backend API (`ggml-backend.h`).

@@ -1,6 +1,6 @@
 // port-lint: source ggml/src/ggml-common.h
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * Kotlin port of ggml-common.h — shared quantization block structures and lookup tables.

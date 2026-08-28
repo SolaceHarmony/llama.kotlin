@@ -1,5 +1,5 @@
 // port-lint: source ggml/include/ggml-alloc.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 // ============================================================================
 // ggml-alloc.h  –  Tensor & graph allocator public API

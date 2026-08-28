@@ -1,5 +1,5 @@
 // port-lint: source tmp/llama.cpp/ggml/src/ggml-cpu/common.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * Kotlin port of ggml-cpu/common.h — shared CPU backend utilities.

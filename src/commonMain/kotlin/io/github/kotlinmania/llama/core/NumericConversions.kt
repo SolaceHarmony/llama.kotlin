@@ -1,5 +1,5 @@
 // port-lint: source ggml/src/ggml-impl.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlin.math.abs
 import kotlin.math.exp

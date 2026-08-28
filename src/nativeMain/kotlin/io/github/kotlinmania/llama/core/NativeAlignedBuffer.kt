@@ -1,7 +1,7 @@
 // port-lint: source ggml/src/ggml.c (ggml_aligned_malloc / ggml_aligned_free)
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import io.github.kotlinmania.llama.platform.nativeAlignedAlloc
 import io.github.kotlinmania.llama.platform.nativeAlignedFree

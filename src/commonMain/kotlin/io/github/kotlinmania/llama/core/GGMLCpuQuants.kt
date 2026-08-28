@@ -1,6 +1,6 @@
 // port-lint: source ggml/src/ggml-cpu/quants.c
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * CPU-specific quantization / dequantization kernels ported from `ggml-cpu/quants.c`.

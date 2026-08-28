@@ -1,5 +1,5 @@
 // port-lint: source ggml/src/ggml-cpu/ops.cpp
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
 import io.github.kotlinmania.llama.core.ByteArrayExtensions.getIntLe

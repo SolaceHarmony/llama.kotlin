@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlinx.cinterop.toLong
 import kotlin.test.Test
