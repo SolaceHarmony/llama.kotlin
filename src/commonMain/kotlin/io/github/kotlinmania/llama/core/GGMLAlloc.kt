@@ -14,13 +14,13 @@ package io.github.kotlinmania.llama.ore
 
 /**
  * Lightweight per-tensor allocator that bumps a linear offset inside a
- * pre-existing [io.github.kotlinmania.llama.ore.GGMLBackendBuffer].
+ * pre-existing [io.github.kotlinmania.llama.core.GGMLBackendBuffer].
  *
  * Mirrors `struct ggml_tallocr` from ggml-alloc.h.
  */
 class GGMLTallocr(
     /** Backend buffer this allocator draws from. */
-    var buffer: io.github.kotlinmania.llama.ore.GGMLBackendBuffer,
+    var buffer: io.github.kotlinmania.llama.core.GGMLBackendBuffer,
     /** Base pointer / handle into the buffer. */
     var base: Any? = null,
     /** Required byte alignment. */
@@ -33,7 +33,7 @@ class GGMLTallocr(
          * Create a new tensor allocator for [buffer].
          * Mirrors `ggml_tallocr_new`.
          */
-        fun new(buffer: io.github.kotlinmania.llama.ore.GGMLBackendBuffer): GGMLTallocr {
+        fun new(buffer: io.github.kotlinmania.llama.core.GGMLBackendBuffer): GGMLTallocr {
             return GGMLTallocr(
                 buffer = buffer,
                 base = buffer.getBase(),
@@ -45,11 +45,11 @@ class GGMLTallocr(
 
     /**
      * Allocate space for [tensor] inside this allocator's buffer.
-     * Returns [io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS] on success.
+     * Returns [io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS] on success.
      *
      * Mirrors `ggml_tallocr_alloc`.
      */
-    fun alloc(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.GGMLStatus {
+    fun alloc(tensor: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.GGMLStatus {
         error("alloc not yet ported")
     }
 }
@@ -89,7 +89,7 @@ class GGMLTallocr(
  */
 class GGMLGallocr private constructor(
     /** Buffer types for each buffer slot. */
-    private val bufferTypes: List<io.github.kotlinmania.llama.ore.GGMLBackendBufferType>,
+    private val bufferTypes: List<io.github.kotlinmania.llama.core.GGMLBackendBufferType>,
     private val nBufs: Int
 ) {
     companion object {
@@ -97,7 +97,7 @@ class GGMLGallocr private constructor(
          * Create a graph allocator backed by a single buffer type.
          * Mirrors `ggml_gallocr_new`.
          */
-        fun new(buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferType): GGMLGallocr {
+        fun new(buft: io.github.kotlinmania.llama.core.GGMLBackendBufferType): GGMLGallocr {
             return GGMLGallocr(listOf(buft), 1)
         }
 
@@ -105,7 +105,7 @@ class GGMLGallocr private constructor(
          * Create a graph allocator backed by multiple buffer types.
          * Mirrors `ggml_gallocr_new_n`.
          */
-        fun newN(bufts: List<io.github.kotlinmania.llama.ore.GGMLBackendBufferType>, nBufs: Int): GGMLGallocr {
+        fun newN(bufts: List<io.github.kotlinmania.llama.core.GGMLBackendBufferType>, nBufs: Int): GGMLGallocr {
             return GGMLGallocr(bufts.toList(), nBufs)
         }
     }
@@ -123,7 +123,7 @@ class GGMLGallocr private constructor(
      *
      * Mirrors `ggml_gallocr_reserve`.
      */
-    fun reserve(graph: io.github.kotlinmania.llama.ore.GGMLCGraph): Boolean {
+    fun reserve(graph: io.github.kotlinmania.llama.core.GGMLCGraph): Boolean {
         error("reserve not yet ported")
     }
 
@@ -133,7 +133,7 @@ class GGMLGallocr private constructor(
      * Mirrors `ggml_gallocr_reserve_n_size`.
      */
     fun reserveNSize(
-        graph: io.github.kotlinmania.llama.ore.GGMLCGraph,
+        graph: io.github.kotlinmania.llama.core.GGMLCGraph,
         nodeBufferIds: IntArray,
         leafBufferIds: IntArray,
         sizes: ULongArray
@@ -147,7 +147,7 @@ class GGMLGallocr private constructor(
      * Mirrors `ggml_gallocr_reserve_n`.
      */
     fun reserveN(
-        graph: io.github.kotlinmania.llama.ore.GGMLCGraph,
+        graph: io.github.kotlinmania.llama.core.GGMLCGraph,
         nodeBufferIds: IntArray,
         leafBufferIds: IntArray
     ): Boolean {
@@ -164,7 +164,7 @@ class GGMLGallocr private constructor(
      *
      * Mirrors `ggml_gallocr_alloc_graph`.
      */
-    fun allocGraph(graph: io.github.kotlinmania.llama.ore.GGMLCGraph): Boolean {
+    fun allocGraph(graph: io.github.kotlinmania.llama.core.GGMLCGraph): Boolean {
         error("allocGraph not yet ported")
     }
 
@@ -185,37 +185,37 @@ class GGMLGallocr private constructor(
 // ---------------------------------------------------------------------------
 
 /** ggml_tallocr_new — ggml-alloc.c line 60. */
-fun ggmlTallocrNew(buffer: io.github.kotlinmania.llama.ore.GGMLBackendBuffer): io.github.kotlinmania.llama.ore.GGMLTallocr = io.github.kotlinmania.llama.ore.GGMLTallocr.new(buffer)
+fun ggmlTallocrNew(buffer: io.github.kotlinmania.llama.core.GGMLBackendBuffer): io.github.kotlinmania.llama.core.GGMLTallocr = io.github.kotlinmania.llama.core.GGMLTallocr.new(buffer)
 
 /** ggml_tallocr_alloc — ggml-alloc.c line 75. */
-fun ggmlTallocrAlloc(talloc: io.github.kotlinmania.llama.ore.GGMLTallocr, tensor: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.GGMLStatus = talloc.alloc(tensor)
+fun ggmlTallocrAlloc(talloc: io.github.kotlinmania.llama.core.GGMLTallocr, tensor: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.GGMLStatus = talloc.alloc(tensor)
 
 /** ggml_gallocr_new — ggml-alloc.c line 533. */
-fun ggmlGallocrNew(buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferType): io.github.kotlinmania.llama.ore.GGMLGallocr = io.github.kotlinmania.llama.ore.GGMLGallocr.new(buft)
+fun ggmlGallocrNew(buft: io.github.kotlinmania.llama.core.GGMLBackendBufferType): io.github.kotlinmania.llama.core.GGMLGallocr = io.github.kotlinmania.llama.core.GGMLGallocr.new(buft)
 
 /** ggml_gallocr_free — ggml-alloc.c line 537. */
-fun ggmlGallocrFree(galloc: io.github.kotlinmania.llama.ore.GGMLGallocr) = galloc.free()
+fun ggmlGallocrFree(galloc: io.github.kotlinmania.llama.core.GGMLGallocr) = galloc.free()
 
 /** ggml_gallocr_reserve — ggml-alloc.c line 965. */
-fun ggmlGallocrReserve(galloc: io.github.kotlinmania.llama.ore.GGMLGallocr, graph: io.github.kotlinmania.llama.ore.GGMLCGraph): Boolean = galloc.reserve(graph)
+fun ggmlGallocrReserve(galloc: io.github.kotlinmania.llama.core.GGMLGallocr, graph: io.github.kotlinmania.llama.core.GGMLCGraph): Boolean = galloc.reserve(graph)
 
 /** ggml_gallocr_reserve_n — ggml-alloc.c line 961. */
 fun ggmlGallocrReserveN(
-    galloc: io.github.kotlinmania.llama.ore.GGMLGallocr, graph: io.github.kotlinmania.llama.ore.GGMLCGraph,
+    galloc: io.github.kotlinmania.llama.core.GGMLGallocr, graph: io.github.kotlinmania.llama.core.GGMLCGraph,
     nodeBufferIds: IntArray, leafBufferIds: IntArray
 ): Boolean = galloc.reserveN(graph, nodeBufferIds, leafBufferIds)
 
 /** ggml_gallocr_reserve_n_size — ggml-alloc.c line 950. */
 fun ggmlGallocrReserveNSize(
-    galloc: io.github.kotlinmania.llama.ore.GGMLGallocr, graph: io.github.kotlinmania.llama.ore.GGMLCGraph,
+    galloc: io.github.kotlinmania.llama.core.GGMLGallocr, graph: io.github.kotlinmania.llama.core.GGMLCGraph,
     nodeBufferIds: IntArray, leafBufferIds: IntArray, sizes: ULongArray
 ) = galloc.reserveNSize(graph, nodeBufferIds, leafBufferIds, sizes)
 
 /** ggml_gallocr_alloc_graph — ggml-alloc.c line 1051. */
-fun ggmlGallocrAllocGraph(galloc: io.github.kotlinmania.llama.ore.GGMLGallocr, graph: io.github.kotlinmania.llama.ore.GGMLCGraph): Boolean = galloc.allocGraph(graph)
+fun ggmlGallocrAllocGraph(galloc: io.github.kotlinmania.llama.core.GGMLGallocr, graph: io.github.kotlinmania.llama.core.GGMLCGraph): Boolean = galloc.allocGraph(graph)
 
 /** ggml_gallocr_get_buffer_size — ggml-alloc.c line 1099. */
-fun ggmlGallocrGetBufferSize(galloc: io.github.kotlinmania.llama.ore.GGMLGallocr, bufferId: Int): ULong = galloc.getBufferSize(bufferId)
+fun ggmlGallocrGetBufferSize(galloc: io.github.kotlinmania.llama.core.GGMLGallocr, bufferId: Int): ULong = galloc.getBufferSize(bufferId)
 
 // ---------------------------------------------------------------------------
 // Utility: context-level tensor allocation
@@ -228,8 +228,8 @@ fun ggmlGallocrGetBufferSize(galloc: io.github.kotlinmania.llama.ore.GGMLGallocr
  * Mirrors `ggml_backend_alloc_ctx_tensors_from_buft_size`.
  */
 fun ggmlBackendAllocCtxTensorsFromBuftSize(
-    ctx: io.github.kotlinmania.llama.ore.GGMLContext,
-    buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferType
+    ctx: io.github.kotlinmania.llama.core.GGMLContext,
+    buft: io.github.kotlinmania.llama.core.GGMLBackendBufferType
 ): ULong {
     error("ggmlBackendAllocCtxTensorsFromBuftSize not yet ported")
 }
@@ -241,9 +241,9 @@ fun ggmlBackendAllocCtxTensorsFromBuftSize(
  * Mirrors `ggml_backend_alloc_ctx_tensors_from_buft`.
  */
 fun ggmlBackendAllocCtxTensorsFromBuft(
-    ctx: io.github.kotlinmania.llama.ore.GGMLContext,
-    buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferType
-): io.github.kotlinmania.llama.ore.GGMLBackendBuffer? {
+    ctx: io.github.kotlinmania.llama.core.GGMLContext,
+    buft: io.github.kotlinmania.llama.core.GGMLBackendBufferType
+): io.github.kotlinmania.llama.core.GGMLBackendBuffer? {
     error("ggmlBackendAllocCtxTensorsFromBuft not yet ported")
 }
 
@@ -254,10 +254,10 @@ fun ggmlBackendAllocCtxTensorsFromBuft(
  * Mirrors `ggml_backend_alloc_ctx_tensors`.
  */
 fun ggmlBackendAllocCtxTensors(
-    ctx: io.github.kotlinmania.llama.ore.GGMLContext,
-    backend: io.github.kotlinmania.llama.ore.GGMLBackend
-): io.github.kotlinmania.llama.ore.GGMLBackendBuffer? {
-    return io.github.kotlinmania.llama.ore.ggmlBackendAllocCtxTensorsFromBuft(
+    ctx: io.github.kotlinmania.llama.core.GGMLContext,
+    backend: io.github.kotlinmania.llama.core.GGMLBackend
+): io.github.kotlinmania.llama.core.GGMLBackendBuffer? {
+    return io.github.kotlinmania.llama.core.ggmlBackendAllocCtxTensorsFromBuft(
         ctx,
         backend.getDefaultBufferType()
     )
@@ -337,21 +337,21 @@ class GGMLTensorAllocator {
      *
      * @param tensor The tensor to allocate memory for
      */
-    fun allocate(tensor: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    fun allocate(tensor: io.github.kotlinmania.llama.core.GGMLTensor) {
         // Calculate the number of elements for direct array allocation
         val numElements = tensor.numElements().toInt() // Changed from calculateTensorSize
 
         // Align the offset to the required alignment
-        offset = io.github.kotlinmania.llama.ore.alignedOffset(offset, alignment)
+        offset = io.github.kotlinmania.llama.core.alignedOffset(offset, alignment)
 
         // Allocate memory for the tensor based on its type
         when (tensor.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> tensor.data = FloatArray(numElements) { 0.0f }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> tensor.data = ShortArray(numElements) { 0 }
-            io.github.kotlinmania.llama.ore.GGMLType.I8 -> tensor.data = ByteArray(numElements) { 0 }
-            io.github.kotlinmania.llama.ore.GGMLType.I16 -> tensor.data = ShortArray(numElements) { 0 }
-            io.github.kotlinmania.llama.ore.GGMLType.I32 -> tensor.data = IntArray(numElements) { 0 }
-            io.github.kotlinmania.llama.ore.GGMLType.I64 -> tensor.data = LongArray(numElements) { 0L }
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> tensor.data = FloatArray(numElements) { 0.0f }
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> tensor.data = ShortArray(numElements) { 0 }
+            io.github.kotlinmania.llama.core.GGMLType.I8 -> tensor.data = ByteArray(numElements) { 0 }
+            io.github.kotlinmania.llama.core.GGMLType.I16 -> tensor.data = ShortArray(numElements) { 0 }
+            io.github.kotlinmania.llama.core.GGMLType.I32 -> tensor.data = IntArray(numElements) { 0 }
+            io.github.kotlinmania.llama.core.GGMLType.I64 -> tensor.data = LongArray(numElements) { 0L }
             // For quantized types, GGMLTensorAllocator does not allocate raw data array this way.
             // It's more for unquantized, simple types.
             // The `else` case here might be problematic if a quantized type reaches it.
@@ -389,7 +389,7 @@ class GGMLDynTensorAllocator {
     var alignment: UInt = 16u
 
     // Free blocks
-    var freeBlocks = mutableListOf<io.github.kotlinmania.llama.ore.FreeBlock>()
+    var freeBlocks = mutableListOf<io.github.kotlinmania.llama.core.FreeBlock>()
 
     // Maximum size allocated
     private var maxSizeInternal: ULong = 0u
@@ -411,9 +411,9 @@ class GGMLDynTensorAllocator {
      * @param tensor The tensor to allocate memory for (used for debugging)
      * @return The offset of the allocated memory
      */
-    fun allocate(size: ULong, tensor: io.github.kotlinmania.llama.ore.GGMLTensor): ULong {
+    fun allocate(size: ULong, tensor: io.github.kotlinmania.llama.core.GGMLTensor): ULong {
         // Align the size to the required alignment
-        val alignedSize = io.github.kotlinmania.llama.ore.alignedOffset(size, alignment)
+        val alignedSize = io.github.kotlinmania.llama.core.alignedOffset(size, alignment)
 
         // Find the best fitting free block
         var bestFitBlock = -1
@@ -461,9 +461,9 @@ class GGMLDynTensorAllocator {
      * @param size The size of the memory to free
      * @param tensor The tensor to free memory for (used for debugging)
      */
-    fun freeTensor(offset: ULong, size: ULong, tensor: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    fun freeTensor(offset: ULong, size: ULong, tensor: io.github.kotlinmania.llama.core.GGMLTensor) {
         // Align the size to the required alignment
-        val alignedSize = io.github.kotlinmania.llama.ore.alignedOffset(size, alignment)
+        val alignedSize = io.github.kotlinmania.llama.core.alignedOffset(size, alignment)
 
         // Try to merge with an existing block
         for (i in freeBlocks.indices) {
@@ -496,7 +496,7 @@ class GGMLDynTensorAllocator {
         }
 
         // Add a new block
-        val newBlock = io.github.kotlinmania.llama.ore.FreeBlock(offset, alignedSize)
+        val newBlock = io.github.kotlinmania.llama.core.FreeBlock(offset, alignedSize)
 
         // Insert the new block in the correct position to keep the array sorted by address
         var insertPos = 0
@@ -513,7 +513,7 @@ class GGMLDynTensorAllocator {
     fun reset(bufferSize: ULong? = null) {
         freeBlocks.clear()
         freeBlocks.add(
-            io.github.kotlinmania.llama.ore.FreeBlock(
+            io.github.kotlinmania.llama.core.FreeBlock(
                 0u,
                 bufferSize ?: (ULong.MAX_VALUE / 2u)
             )
@@ -537,28 +537,28 @@ class GGMLDynTensorAllocator {
  */
 class GGMLGraphAllocator {
     // Tensor allocator for each buffer
-    var tensorAllocators = mutableListOf<io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator>()
+    var tensorAllocators = mutableListOf<io.github.kotlinmania.llama.core.GGMLDynTensorAllocator>()
 
     // Backend buffers
     var buffers = mutableListOf<Any?>()
     
     // Backend buffer objects (new)
-    var backendBuffers = mutableListOf<io.github.kotlinmania.llama.ore.GGMLBackendBuffer?>()
+    var backendBuffers = mutableListOf<io.github.kotlinmania.llama.core.GGMLBackendBuffer?>()
 
     // Map to store usage information for each tensor
-    internal val tensorUsageMap = mutableMapOf<io.github.kotlinmania.llama.ore.GGMLTensor, io.github.kotlinmania.llama.ore.TensorUsageInfo>()
+    internal val tensorUsageMap = mutableMapOf<io.github.kotlinmania.llama.core.GGMLTensor, io.github.kotlinmania.llama.core.TensorUsageInfo>()
     
     // Backend for this allocator
-    var backend: io.github.kotlinmania.llama.ore.GGMLBackend? = null
+    var backend: io.github.kotlinmania.llama.core.GGMLBackend? = null
     
     // Context associated with this allocator
-    var context: io.github.kotlinmania.llama.ore.GGMLContext =
-        io.github.kotlinmania.llama.ore.GGMLContext()
+    var context: io.github.kotlinmania.llama.core.GGMLContext =
+        io.github.kotlinmania.llama.core.GGMLContext()
 
     /**
      * Creates a new graph allocator with a specific backend.
      */
-    constructor(backend: io.github.kotlinmania.llama.ore.GGMLBackend? = null) {
+    constructor(backend: io.github.kotlinmania.llama.core.GGMLBackend? = null) {
         this.backend = backend
         
         // Create a default buffer
@@ -573,15 +573,15 @@ class GGMLGraphAllocator {
                 buffers.add(backendBuffer.getBase())
             } else {
                 // Fallback to regular ByteArray
-                buffers.add(io.github.kotlinmania.llama.ore.ggml_aligned_malloc(defaultBufferSize.toLong()))
+                buffers.add(io.github.kotlinmania.llama.core.ggml_aligned_malloc(defaultBufferSize.toLong()))
                 backendBuffers.add(null)
             }
         } else {
-            buffers.add(io.github.kotlinmania.llama.ore.ggml_aligned_malloc(defaultBufferSize.toLong()))
+            buffers.add(io.github.kotlinmania.llama.core.ggml_aligned_malloc(defaultBufferSize.toLong()))
             backendBuffers.add(null)
         }
         
-        tensorAllocators.add(io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
+        tensorAllocators.add(io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(bufferSize = defaultBufferSize.toULong()))
     }
 
     /**
@@ -594,7 +594,7 @@ class GGMLGraphAllocator {
      * This information can be used for memory optimization strategies like
      * inplace operations and memory reuse.
      */
-    private fun analyzeTensorUsage(graph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+    private fun analyzeTensorUsage(graph: io.github.kotlinmania.llama.core.GGMLCGraph) {
         tensorUsageMap.clear()
 
         // Initialize map for all unique tensors in the graph (leafs and nodes)
@@ -602,7 +602,7 @@ class GGMLGraphAllocator {
         val allTensors = (graph.leafs.filterNotNull() + graph.nodes.filterNotNull()).distinct()
         for (tensor in allTensors) {
             // isOutput() method was added to GGMLTensor in GGMLTypes.kt
-            tensorUsageMap.getOrPut(tensor) { io.github.kotlinmania.llama.ore.TensorUsageInfo() }.isOutputTensor = tensor.isOutput()
+            tensorUsageMap.getOrPut(tensor) { io.github.kotlinmania.llama.core.TensorUsageInfo() }.isOutputTensor = tensor.isOutput()
         }
 
         // Populate numChildren and numViews
@@ -611,12 +611,12 @@ class GGMLGraphAllocator {
 
             // Increment numViews for the source of a view tensor
             // ggml_is_view() is defined at the end of this file.
-            if (io.github.kotlinmania.llama.ore.ggml_is_view(node) && node.viewSrc != null) {
+            if (io.github.kotlinmania.llama.core.ggml_is_view(node) && node.viewSrc != null) {
                 tensorUsageMap[node.viewSrc!!]?.let { it.numViews++ }
             }
 
             // Increment numChildren for each source tensor
-            for (j in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_SRC) {
+            for (j in 0 until io.github.kotlinmania.llama.core.GGML_MAX_SRC) {
                 val srcTensor = node.src[j]
                 if (srcTensor != null) {
                     tensorUsageMap[srcTensor]?.let { it.numChildren++ }
@@ -656,7 +656,7 @@ class GGMLGraphAllocator {
             }
 
             // Allocate via ggml_aligned_malloc — returns NativeAlignedBuffer on native, ByteArray on jvm/js
-            buffers[bufferId] = io.github.kotlinmania.llama.ore.ggml_aligned_malloc(newSize.toLong())
+            buffers[bufferId] = io.github.kotlinmania.llama.core.ggml_aligned_malloc(newSize.toLong())
                 ?: ByteArray(newSize)
             tensorAllocators[bufferId].reset(newSize.toULong())
         }
@@ -669,7 +669,7 @@ class GGMLGraphAllocator {
      * @param graph The computation graph to allocate memory for
      * @return True if allocation was successful, false otherwise
      */
-    fun allocateGraph(graph: io.github.kotlinmania.llama.ore.GGMLCGraph): Boolean {
+    fun allocateGraph(graph: io.github.kotlinmania.llama.core.GGMLCGraph): Boolean {
         analyzeTensorUsage(graph) // Analyze usage first
 
         // Reset the allocators
@@ -677,11 +677,11 @@ class GGMLGraphAllocator {
             allocator.reset()
         }
 
-        fun allocateIfNeeded(tensor: io.github.kotlinmania.llama.ore.GGMLTensor?) {
+        fun allocateIfNeeded(tensor: io.github.kotlinmania.llama.core.GGMLTensor?) {
             if (tensor == null) return
             val usage = tensorUsageMap[tensor] ?: return
             if (usage.bufferId != -1 || usage.ownsMemory) return
-            if (tensor.data == null && !io.github.kotlinmania.llama.ore.ggml_is_view(tensor)) {
+            if (tensor.data == null && !io.github.kotlinmania.llama.core.ggml_is_view(tensor)) {
                 allocateTensor(tensor, 0)
             }
         }
@@ -696,7 +696,7 @@ class GGMLGraphAllocator {
             val node = graph.nodes[i] ?: continue
 
             // Allocate memory for source tensors if needed
-            for (j in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_SRC) {
+            for (j in 0 until io.github.kotlinmania.llama.core.GGML_MAX_SRC) {
                 allocateIfNeeded(node.src[j])
             }
 
@@ -705,7 +705,7 @@ class GGMLGraphAllocator {
 
             // After node is allocated (and potentially reused parent's memory),
             // check if any of its parents can be freed.
-            for (j in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_SRC) {
+            for (j in 0 until io.github.kotlinmania.llama.core.GGML_MAX_SRC) {
                 val parentTensor = node.src[j]
                 if (parentTensor != null) {
                     val parentUsageInfo = tensorUsageMap[parentTensor]
@@ -714,7 +714,7 @@ class GGMLGraphAllocator {
                     parentUsageInfo.numChildren--
 
                     if (parentUsageInfo.numChildren == 0 && parentUsageInfo.numViews == 0) {
-                        if (io.github.kotlinmania.llama.ore.ggml_is_view(parentTensor)) {
+                        if (io.github.kotlinmania.llama.core.ggml_is_view(parentTensor)) {
                             parentTensor.viewSrc?.let { viewSrc ->
                                 tensorUsageMap[viewSrc]?.let { viewSrcUsage ->
                                     viewSrcUsage.numViews--
@@ -752,17 +752,17 @@ class GGMLGraphAllocator {
      * Public helper: allocate a new tensor with given type and shape, owned by this allocator.
      * Useful for examples/tests to create leaf tensors without building a graph first.
      */
-    fun allocateTensor(type: io.github.kotlinmania.llama.ore.GGMLType, ne: LongArray): io.github.kotlinmania.llama.ore.GGMLTensor {
-        val t = io.github.kotlinmania.llama.ore.GGMLTensor(type = type)
+    fun allocateTensor(type: io.github.kotlinmania.llama.core.GGMLType, ne: LongArray): io.github.kotlinmania.llama.core.GGMLTensor {
+        val t = io.github.kotlinmania.llama.core.GGMLTensor(type = type)
         // Pad/assign ne
-        val shape = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L }
-        val limit = if (ne.size < io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) ne.size else io.github.kotlinmania.llama.ore.GGML_MAX_DIMS
+        val shape = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L }
+        val limit = if (ne.size < io.github.kotlinmania.llama.core.GGML_MAX_DIMS) ne.size else io.github.kotlinmania.llama.core.GGML_MAX_DIMS
         for (i in 0 until limit) { shape[i] = ne[i] }
         t.ne = shape
-        t.nb = io.github.kotlinmania.llama.ore.calculateContiguousStrides(t.ne, t.type, t.rank())
+        t.nb = io.github.kotlinmania.llama.core.calculateContiguousStrides(t.ne, t.type, t.rank())
 
         // Register minimal usage info so internal allocateTensor() can work
-        tensorUsageMap[t] = io.github.kotlinmania.llama.ore.TensorUsageInfo()
+        tensorUsageMap[t] = io.github.kotlinmania.llama.core.TensorUsageInfo()
         allocateTensor(t, 0)
         return t
     }
@@ -774,17 +774,17 @@ class GGMLGraphAllocator {
      * @param bufferId The ID of the buffer to allocate from (default or chosen by strategy)
      */
     // Public overload to allocate an already-constructed tensor in the allocator's buffer
-    fun allocateTensor(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, bufferId: Int = 0) {
+    fun allocateTensor(tensor: io.github.kotlinmania.llama.core.GGMLTensor, bufferId: Int = 0) {
         val tensorUsage = tensorUsageMap[tensor]
             ?: throw IllegalStateException("TensorUsageInfo not found for tensor ${tensor.name}. analyzeTensorUsage must be called first.")
 
         // Handle Pre-allocated/View Tensors
-        if (tensor.data != null || io.github.kotlinmania.llama.ore.ggml_is_view(tensor)) {
+        if (tensor.data != null || io.github.kotlinmania.llama.core.ggml_is_view(tensor)) {
             tensorUsage.ownsMemory = false // Does not own memory from this allocator
             // For views, bufferId and dataOffset should ideally be set based on viewSrc.
             // This might require view-specific initialization logic elsewhere.
             // If it's a view and viewSrc is in tensorUsageMap, copy allocation details.
-            if (io.github.kotlinmania.llama.ore.ggml_is_view(tensor) && tensor.viewSrc != null) {
+            if (io.github.kotlinmania.llama.core.ggml_is_view(tensor) && tensor.viewSrc != null) {
                 tensorUsageMap[tensor.viewSrc!!]?.let { srcUsage ->
                     tensor.bufferId = srcUsage.bufferId
                     // tensor.viewOffs is the byte offset from the start of viewSrc's data region (which begins at srcUsage.dataOffset).
@@ -796,7 +796,7 @@ class GGMLGraphAllocator {
                     // Ensure calculatedSize for the view tensor reflects its own dimensions and type, using byte size.
                     // Now calls the global/internal function from GGMLTypes.kt
                     tensorUsage.calculatedSize =
-                        io.github.kotlinmania.llama.ore.calculateTensorByteSize(tensor)
+                        io.github.kotlinmania.llama.core.calculateTensorByteSize(tensor)
                 }
             }
             return // No new allocation needed
@@ -806,7 +806,7 @@ class GGMLGraphAllocator {
 
         // Use the global/internal function from GGMLTypes.kt
         val tensorCalculatedByteSize =
-            io.github.kotlinmania.llama.ore.calculateTensorByteSize(tensor)
+            io.github.kotlinmania.llama.core.calculateTensorByteSize(tensor)
 
         // New handling for zero-sized tensors, placed before inplace allocation logic
         if (tensorCalculatedByteSize == 0uL) {
@@ -919,7 +919,7 @@ class GGMLGraphAllocator {
      * @param graph The computation graph to reserve memory for
      * @return True if reservation was successful, false otherwise
      */
-    fun reserveGraph(graph: io.github.kotlinmania.llama.ore.GGMLCGraph): Boolean {
+    fun reserveGraph(graph: io.github.kotlinmania.llama.core.GGMLCGraph): Boolean {
         analyzeTensorUsage(graph) // Analyze usage first
 
         // This is similar to allocateGraph, but doesn't actually allocate memory
@@ -930,12 +930,12 @@ class GGMLGraphAllocator {
             allocator.reset()
         }
 
-        val reserved = mutableSetOf<io.github.kotlinmania.llama.ore.GGMLTensor>()
+        val reserved = mutableSetOf<io.github.kotlinmania.llama.core.GGMLTensor>()
 
-        fun reserveIfNeeded(tensor: io.github.kotlinmania.llama.ore.GGMLTensor?) {
+        fun reserveIfNeeded(tensor: io.github.kotlinmania.llama.core.GGMLTensor?) {
             if (tensor == null) return
             if (!reserved.add(tensor)) return
-            if (tensor.data == null && !io.github.kotlinmania.llama.ore.ggml_is_view(tensor)) {
+            if (tensor.data == null && !io.github.kotlinmania.llama.core.ggml_is_view(tensor)) {
                 reserveTensor(tensor, 0)
             }
         }
@@ -951,7 +951,7 @@ class GGMLGraphAllocator {
             reserveIfNeeded(node)
 
             // Calculate memory requirements for source tensors if needed
-            for (j in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_SRC) {
+            for (j in 0 until io.github.kotlinmania.llama.core.GGML_MAX_SRC) {
                 reserveIfNeeded(node?.src?.get(j))
             }
         }
@@ -965,9 +965,9 @@ class GGMLGraphAllocator {
      * @param tensor The tensor to reserve memory for
      * @param bufferId The ID of the buffer to reserve from
      */
-    private fun reserveTensor(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, bufferId: Int) {
+    private fun reserveTensor(tensor: io.github.kotlinmania.llama.core.GGMLTensor, bufferId: Int) {
         // Calculate the byte size of the tensor using the global/internal function
-        val byteSize = io.github.kotlinmania.llama.ore.calculateTensorByteSize(tensor)
+        val byteSize = io.github.kotlinmania.llama.core.calculateTensorByteSize(tensor)
 
         // Reserve memory from the tensor allocator
         tensorAllocators[bufferId].allocate(byteSize, tensor)
@@ -994,6 +994,6 @@ class GGMLGraphAllocator {
  * @param tensor The tensor to check
  * @return True if the tensor is a view, false otherwise
  */
-fun ggml_is_view(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean {
+fun ggml_is_view(tensor: io.github.kotlinmania.llama.core.GGMLTensor): Boolean {
     return tensor.viewSrc != null
 }

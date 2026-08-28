@@ -477,7 +477,7 @@ interface GGMLBackendReg {
 // ---------------------------------------------------------------------------
 
 /**
- * Simple data holder used by [io.github.kotlinmania.llama.ore.GGMLBackendRegistry] to track registered backends.
+ * Simple data holder used by [io.github.kotlinmania.llama.core.GGMLBackendRegistry] to track registered backends.
  * This is a Kotlin-side convenience; the C API uses `ggml_backend_reg_t` directly.
  */
 data class GGMLBackendRegistration(

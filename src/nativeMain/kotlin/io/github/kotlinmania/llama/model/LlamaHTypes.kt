@@ -1,7 +1,7 @@
 // port-lint: source llama.h
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 
 // =============================================================================
 // Types and constants from llama.h that are NOT already defined elsewhere.

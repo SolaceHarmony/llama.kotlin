@@ -5,16 +5,16 @@ import kotlin.math.*
 
 class SimpleQ4KTest {
     
-    private lateinit var graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator
+    private lateinit var graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator
     private lateinit var testBuffer: ByteArray
     private val bufferSize = 2 * 1024 * 1024 // 2MB
 
     @BeforeTest
     fun setup() {
-        graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
         testBuffer = ByteArray(bufferSize)
         if (graphAllocator.buffers.isEmpty()) graphAllocator.buffers.add(null)
-        if (graphAllocator.tensorAllocators.isEmpty()) graphAllocator.tensorAllocators.add(io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator())
+        if (graphAllocator.tensorAllocators.isEmpty()) graphAllocator.tensorAllocators.add(io.github.kotlinmania.llama.core.GGMLDynTensorAllocator())
         graphAllocator.buffers[0] = testBuffer
         graphAllocator.tensorAllocators[0].reset(bufferSize.toULong())
     }
@@ -22,16 +22,16 @@ class SimpleQ4KTest {
     @Test
     fun testQ4KTypeDefinition() {
         // Test basic Q4_K type definition
-        assertEquals("q4_k", io.github.kotlinmania.llama.ore.GGMLType.Q4_K.description)
-        assertTrue(io.github.kotlinmania.llama.ore.GGMLType.Q4_K.byteSize > 0u)
-        println("Q4_K byteSize: ${io.github.kotlinmania.llama.ore.GGMLType.Q4_K.byteSize}")
+        assertEquals("q4_k", io.github.kotlinmania.llama.core.GGMLType.Q4_K.description)
+        assertTrue(io.github.kotlinmania.llama.core.GGMLType.Q4_K.byteSize > 0u)
+        println("Q4_K byteSize: ${io.github.kotlinmania.llama.core.GGMLType.Q4_K.byteSize}")
         
         // Test constants
-        assertEquals(256, io.github.kotlinmania.llama.ore.QK_K)
-        assertEquals(12, io.github.kotlinmania.llama.ore.K_SCALE_SIZE)
+        assertEquals(256, io.github.kotlinmania.llama.core.QK_K)
+        assertEquals(12, io.github.kotlinmania.llama.core.K_SCALE_SIZE)
         
         // Expected size: 2*F16 (d,dmin) + K_SCALE_SIZE + QK_K/2 = 4 + 12 + 128 = 144 bytes
-        assertEquals(144uL, io.github.kotlinmania.llama.ore.GGMLType.Q4_K.byteSize)
+        assertEquals(144uL, io.github.kotlinmania.llama.core.GGMLType.Q4_K.byteSize)
         println("Q4_K constants validated successfully")
     }
 
@@ -41,21 +41,21 @@ class SimpleQ4KTest {
         values: FloatArray,
         dataOffset: ULong = 0uL,
         bufferId: Int = 0
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
         val tensor =
-            io.github.kotlinmania.llama.ore.GGMLTensor(io.github.kotlinmania.llama.ore.GGMLType.F32)
+            io.github.kotlinmania.llama.core.GGMLTensor(io.github.kotlinmania.llama.core.GGMLType.F32)
         tensor.name = name
         
-        tensor.ne = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L }
+        tensor.ne = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L }
         dims.forEachIndexed { index, dimSize ->
-            if (index < io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) tensor.ne[index] = dimSize
+            if (index < io.github.kotlinmania.llama.core.GGML_MAX_DIMS) tensor.ne[index] = dimSize
         }
         
         // Calculate strides
-        tensor.nb = ULongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 0uL }
+        tensor.nb = ULongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 0uL }
         if (tensor.type.byteSize > 0uL) {
             tensor.nb[0] = tensor.type.byteSize
-            for (d in 1 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+            for (d in 1 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                 val prevDimSize = tensor.ne.getOrElse(d - 1) { 1L }
                 tensor.nb[d] = tensor.nb[d-1] * (if (prevDimSize > 0) prevDimSize.toULong() else 1uL)
             }
@@ -70,9 +70,9 @@ class SimpleQ4KTest {
 
         // Set tensor values
         for (i in values.indices) {
-            val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
+            val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
             var tempIdx = i.toLong()
-            for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+            for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                 if (tensor.ne[dim] > 0) {
                     indices[dim] = (tempIdx % tensor.ne[dim]).toInt()
                     tempIdx /= tensor.ne[dim]
@@ -84,14 +84,14 @@ class SimpleQ4KTest {
         return tensor
     }
 
-    private fun getTensorDataAsFloatArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): FloatArray {
+    private fun getTensorDataAsFloatArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): FloatArray {
         val numElements = tensor.numElements().toInt()
         val floatArray = FloatArray(numElements)
         
         for (i in 0 until numElements) {
-            val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
+            val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
             var tempIdx = i.toLong()
-            for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+            for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                 if (tensor.ne[dim] > 0) {
                     indices[dim] = (tempIdx % tensor.ne[dim]).toInt()
                     tempIdx /= tensor.ne[dim]
@@ -99,8 +99,8 @@ class SimpleQ4KTest {
             }
             
             floatArray[i] = when (tensor.type) {
-                io.github.kotlinmania.llama.ore.GGMLType.F32 -> tensor.getFloat(graphAllocator, *indices)
-                io.github.kotlinmania.llama.ore.GGMLType.F16 -> tensor.getHalf(graphAllocator, *indices)
+                io.github.kotlinmania.llama.core.GGMLType.F32 -> tensor.getFloat(graphAllocator, *indices)
+                io.github.kotlinmania.llama.core.GGMLType.F16 -> tensor.getHalf(graphAllocator, *indices)
                 else -> throw IllegalArgumentException("Unsupported tensor type ${tensor.type} for direct float array extraction.")
             }
         }
@@ -111,13 +111,13 @@ class SimpleQ4KTest {
     @Test
     fun testQ4KBasicQuantization() {
         // Create simple F32 tensor to quantize (one block)
-        val numElements = io.github.kotlinmania.llama.ore.QK_K // One block
+        val numElements = io.github.kotlinmania.llama.core.QK_K // One block
         val originalData = FloatArray(numElements) { i -> 
             when {
-                i < io.github.kotlinmania.llama.ore.QK_K /4 -> (i.toFloat() / (io.github.kotlinmania.llama.ore.QK_K /4).toFloat()) * 4.0f - 2.0f  // Range -2.0 to 2.0
-                i < io.github.kotlinmania.llama.ore.QK_K /2 -> if (i % 2 == 0) 1.0f else -1.0f  // Alternating
-                i < 3* io.github.kotlinmania.llama.ore.QK_K /4 -> (i - io.github.kotlinmania.llama.ore.QK_K /2).toFloat() * 0.01f  // Small values
-                else -> (i - 3* io.github.kotlinmania.llama.ore.QK_K /4).toFloat() / (io.github.kotlinmania.llama.ore.QK_K /4).toFloat() * 8.0f - 4.0f  // Range -4.0 to 4.0
+                i < io.github.kotlinmania.llama.core.QK_K /4 -> (i.toFloat() / (io.github.kotlinmania.llama.core.QK_K /4).toFloat()) * 4.0f - 2.0f  // Range -2.0 to 2.0
+                i < io.github.kotlinmania.llama.core.QK_K /2 -> if (i % 2 == 0) 1.0f else -1.0f  // Alternating
+                i < 3* io.github.kotlinmania.llama.core.QK_K /4 -> (i - io.github.kotlinmania.llama.core.QK_K /2).toFloat() * 0.01f  // Small values
+                else -> (i - 3* io.github.kotlinmania.llama.core.QK_K /4).toFloat() / (io.github.kotlinmania.llama.core.QK_K /4).toFloat() * 8.0f - 4.0f  // Range -4.0 to 4.0
             }
         }
         
@@ -125,22 +125,22 @@ class SimpleQ4KTest {
         val f32Tensor = createAndPopulateF32Tensor("test_f32_q4k", dims, originalData)
         
         // Try to quantize to Q4_K
-        val q4kTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q4kTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32Tensor,
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_K
+            io.github.kotlinmania.llama.core.GGMLType.Q4_K
         )
         
         // Basic checks
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.Q4_K, q4kTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.Q4_K, q4kTensor.type)
         assertEquals(numElements.toLong(), q4kTensor.ne[0])
         assertNotNull(q4kTensor.data)
         assertTrue(q4kTensor.data is ByteArray)
         
         // Test dequantization
         val dequantizedTensor =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, q4kTensor)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, dequantizedTensor.type)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, q4kTensor)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, dequantizedTensor.type)
         assertEquals(numElements.toLong(), dequantizedTensor.ne[0])
         
         val dequantizedData = getTensorDataAsFloatArray(dequantizedTensor, graphAllocator)
@@ -172,15 +172,15 @@ class SimpleQ4KTest {
     @Test
     fun testQ4KAccessorFunctions() {
         // Create a Q4_K tensor with known values
-        val numElements = io.github.kotlinmania.llama.ore.QK_K
+        val numElements = io.github.kotlinmania.llama.core.QK_K
         val testData = FloatArray(numElements) { i -> (i % 16).toFloat() - 8.0f } // Range -8 to 7
         
         val dims = longArrayOf(numElements.toLong())
         val f32Tensor = createAndPopulateF32Tensor("test_f32_accessor", dims, testData)
-        val q4kTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q4kTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32Tensor,
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_K
+            io.github.kotlinmania.llama.core.GGMLType.Q4_K
         )
         
         // Test accessor functions

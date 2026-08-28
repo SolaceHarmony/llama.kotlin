@@ -1,9 +1,9 @@
 package io.github.kotlinmania.llama.gguf
 
-import io.github.kotlinmania.llama.ore.*
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setLongLe
+import io.github.kotlinmania.llama.core.*
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setLongLe
 
 /**
  * Simple GGUF file generator for testing purposes

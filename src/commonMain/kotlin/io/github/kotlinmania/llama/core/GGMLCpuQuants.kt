@@ -24,86 +24,86 @@ private const val GROUP_MAX_EPS = 1e-15f
 // ════════════════════════════════════════════════════════════════════════════════
 
 fun quantizeRowQ10(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q1_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q1_0_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ40(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_0_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ41(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_1_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_1_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ50(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_0_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ51(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_1_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_1_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ80Generic(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_0_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ81Generic(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_1_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_1_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowMxfp4(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_mxfp4_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_mxfp4_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowNvfp4(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_nvfp4_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_nvfp4_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ2K(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q2_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q2_K_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ3K(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q3_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q3_K_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ4K(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.ore.QK_K})" }
-    io.github.kotlinmania.llama.ore.quantize_row_q4_K_ref(x, 0, y, 0, k)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.core.QK_K})" }
+    io.github.kotlinmania.llama.core.quantize_row_q4_K_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ5K(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.ore.QK_K})" }
-    io.github.kotlinmania.llama.ore.quantize_row_q5_K_ref(x, 0, y, 0, k)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.core.QK_K})" }
+    io.github.kotlinmania.llama.core.quantize_row_q5_K_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ6K(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.ore.QK_K})" }
-    io.github.kotlinmania.llama.ore.quantize_row_q6_K_ref(x, 0, y, 0, k)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.core.QK_K})" }
+    io.github.kotlinmania.llama.core.quantize_row_q6_K_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowQ8KGeneric(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_K_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowTq10(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.ore.QK_K})" }
-    io.github.kotlinmania.llama.ore.quantize_row_tq1_0_ref(x, 0, y, 0, k)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.core.QK_K})" }
+    io.github.kotlinmania.llama.core.quantize_row_tq1_0_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowTq20(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.ore.QK_K})" }
-    io.github.kotlinmania.llama.ore.quantize_row_tq2_0_ref(x, 0, y, 0, k)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.core.QK_K})" }
+    io.github.kotlinmania.llama.core.quantize_row_tq2_0_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowIq4Nl(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK4_NL == 0L) { "k ($k) must be a multiple of QK4_NL (${io.github.kotlinmania.llama.ore.QK4_NL})" }
-    io.github.kotlinmania.llama.ore.quantize_row_iq4_nl_ref(x, 0, y, 0, k)
+    require(k % io.github.kotlinmania.llama.core.QK4_NL == 0L) { "k ($k) must be a multiple of QK4_NL (${io.github.kotlinmania.llama.core.QK4_NL})" }
+    io.github.kotlinmania.llama.core.quantize_row_iq4_nl_ref(x, 0, y, 0, k)
 }
 
 fun quantizeRowIq4Xs(x: FloatArray, y: ByteArray, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.ore.QK_K})" }
-    io.github.kotlinmania.llama.ore.quantize_iq4_xs(x, y, 1L, k, null)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L) { "k ($k) must be a multiple of QK_K (${io.github.kotlinmania.llama.core.QK_K})" }
+    io.github.kotlinmania.llama.core.quantize_iq4_xs(x, y, 1L, k, null)
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -113,30 +113,30 @@ fun quantizeRowIq4Xs(x: FloatArray, y: ByteArray, k: Long) {
 /**
  * Q1_0 × Q8_0 dot product (scalar).
  *
- * Each Q1_0 block covers [io.github.kotlinmania.llama.ore.QK1_0] = 128 elements, which spans 4 Q8_0 blocks
+ * Each Q1_0 block covers [io.github.kotlinmania.llama.core.QK1_0] = 128 elements, which spans 4 Q8_0 blocks
  * of 32 elements each. Each bit in `x[i].qs` maps to ±1.
  *
- * @param n   number of elements (must be divisible by [io.github.kotlinmania.llama.ore.QK1_0])
+ * @param n   number of elements (must be divisible by [io.github.kotlinmania.llama.core.QK1_0])
  * @param vx  Q1_0 blocks
  * @param vy  Q8_0 blocks (4× as many as vx)
  * @return    the dot product
  */
-fun ggmlVecDotQ10Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ1_0>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    val qk = io.github.kotlinmania.llama.ore.QK1_0
+fun ggmlVecDotQ10Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ1_0>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    val qk = io.github.kotlinmania.llama.core.QK1_0
     val nb = n / qk
     require(n % qk == 0) { "n ($n) must be divisible by $qk" }
 
     var sumf = 0.0f
     for (i in 0 until nb) {
-        val d0 = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d)
+        val d0 = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d)
         var sumi = 0.0f
 
         for (k in 0 until 4) {
-            val d1 = io.github.kotlinmania.llama.ore.halfToFloat(vy[i * 4 + k].d)
+            val d1 = io.github.kotlinmania.llama.core.halfToFloat(vy[i * 4 + k].d)
             var sumiBlock = 0
 
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK8_0) {
-                val bitIndex = k * io.github.kotlinmania.llama.ore.QK8_0 + j
+            for (j in 0 until io.github.kotlinmania.llama.core.QK8_0) {
+                val bitIndex = k * io.github.kotlinmania.llama.core.QK8_0 + j
                 val byteIndex = bitIndex / 8
                 val bitOffset = bitIndex % 8
 
@@ -156,13 +156,13 @@ fun ggmlVecDotQ10Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
  * Each Q4_0 block stores 32 four-bit weights packed into 16 bytes (two per byte,
  * offset by 8). The companion Q8_0 block has 32 signed-byte weights.
  *
- * @param n   number of elements (must be divisible by [io.github.kotlinmania.llama.ore.QK8_0])
+ * @param n   number of elements (must be divisible by [io.github.kotlinmania.llama.core.QK8_0])
  * @param vx  Q4_0 blocks
  * @param vy  Q8_0 blocks
  * @return    the dot product
  */
-fun ggmlVecDotQ40Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ4_0>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+fun ggmlVecDotQ40Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ4_0>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     val nb = n / qk
     require(n % qk == 0) { "n ($n) must be divisible by $qk" }
 
@@ -178,7 +178,7 @@ fun ggmlVecDotQ40Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             sumi1 += v1 * vy[ib].qs[j + qk / 2].toInt()
         }
         val sumi = sumi0 + sumi1
-        sumf += sumi * io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.ore.halfToFloat(
+        sumf += sumi * io.github.kotlinmania.llama.core.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].d
         )
     }
@@ -191,8 +191,8 @@ fun ggmlVecDotQ40Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
  * Like Q4_0 but with an additional minimum (`m`) and sum (`s`) per block.
  * Nibbles are unsigned (no −8 offset).
  */
-fun ggmlVecDotQ41Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ4_1>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_1>): Float {
-    val qk = io.github.kotlinmania.llama.ore.QK8_1
+fun ggmlVecDotQ41Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ4_1>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_1>): Float {
+    val qk = io.github.kotlinmania.llama.core.QK8_1
     val nb = n / qk
     require(n % qk == 0) { "n ($n) must be divisible by $qk" }
 
@@ -208,10 +208,10 @@ fun ggmlVecDotQ41Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             sumi1 += v1 * vy[ib].qs[j + qk / 2].toInt()
         }
         val sumi = sumi0 + sumi1
-        sumf += (io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.ore.halfToFloat(
+        sumf += (io.github.kotlinmania.llama.core.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].d
         )) * sumi +
-                io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].m) * io.github.kotlinmania.llama.ore.halfToFloat(
+                io.github.kotlinmania.llama.core.halfToFloat(vx[ib].m) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].s
         )
     }
@@ -223,8 +223,8 @@ fun ggmlVecDotQ41Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
  *
  * Q5_0 uses 4 low bits in `qs` and a 5th (high) bit in `qh` (packed as a uint32).
  */
-fun ggmlVecDotQ50Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ5_0>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+fun ggmlVecDotQ50Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ5_0>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     val nb = n / qk
     require(n % qk == 0) { "n ($n) must be divisible by $qk" }
 
@@ -249,7 +249,7 @@ fun ggmlVecDotQ50Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             sumi1 += x1 * vy[ib].qs[j + qk / 2].toInt()
         }
         val sumi = sumi0 + sumi1
-        sumf += (io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.ore.halfToFloat(
+        sumf += (io.github.kotlinmania.llama.core.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].d
         )) * sumi
     }
@@ -261,8 +261,8 @@ fun ggmlVecDotQ50Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
  *
  * Like Q5_0 but with separate min/sum fields and unsigned nibbles.
  */
-fun ggmlVecDotQ51Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ5_1>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_1>): Float {
-    val qk = io.github.kotlinmania.llama.ore.QK8_1
+fun ggmlVecDotQ51Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ5_1>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_1>): Float {
+    val qk = io.github.kotlinmania.llama.core.QK8_1
     val nb = n / qk
     require(n % qk == 0) { "n ($n) must be divisible by $qk" }
 
@@ -286,10 +286,10 @@ fun ggmlVecDotQ51Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             sumi1 += x1 * vy[ib].qs[j + qk / 2].toInt()
         }
         val sumi = sumi0 + sumi1
-        sumf += (io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.ore.halfToFloat(
+        sumf += (io.github.kotlinmania.llama.core.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].d
         )) * sumi +
-                io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].m) * io.github.kotlinmania.llama.ore.halfToFloat(
+                io.github.kotlinmania.llama.core.halfToFloat(vx[ib].m) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].s
         )
     }
@@ -302,8 +302,8 @@ fun ggmlVecDotQ51Q81Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
  * Straightforward: multiply corresponding 8-bit quants and accumulate,
  * then scale by the product of both block deltas.
  */
-fun ggmlVecDotQ80Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+fun ggmlVecDotQ80Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ8_0>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     val nb = n / qk
     require(n % qk == 0) { "n ($n) must be divisible by $qk" }
 
@@ -313,7 +313,7 @@ fun ggmlVecDotQ80Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         for (j in 0 until qk) {
             sumi += vx[ib].qs[j].toInt() * vy[ib].qs[j].toInt()
         }
-        sumf += sumi * (io.github.kotlinmania.llama.ore.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.ore.halfToFloat(
+        sumf += sumi * (io.github.kotlinmania.llama.core.halfToFloat(vx[ib].d) * io.github.kotlinmania.llama.core.halfToFloat(
             vy[ib].d
         ))
     }
@@ -323,24 +323,24 @@ fun ggmlVecDotQ80Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 /**
  * MXFP4 × Q8_0 dot product (scalar).
  *
- * Uses the [io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesMXFP4] lookup to dequantize 4-bit mantissa values.
+ * Uses the [io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesMXFP4] lookup to dequantize 4-bit mantissa values.
  */
-fun ggmlVecDotMxfp4Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockMXFP4>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_MXFP4 == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_MXFP4}" }
-    val nb = n / io.github.kotlinmania.llama.ore.QK_MXFP4
+fun ggmlVecDotMxfp4Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockMXFP4>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_MXFP4 == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_MXFP4}" }
+    val nb = n / io.github.kotlinmania.llama.core.QK_MXFP4
 
     var sumf = 0.0f
     for (ib in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vy[ib].d) * io.github.kotlinmania.llama.ore.ggmlE8M0ToFp32Half(
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vy[ib].d) * io.github.kotlinmania.llama.core.ggmlE8M0ToFp32Half(
             vx[ib].e
         )
         var sumi1 = 0
         var sumi2 = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_MXFP4 / 2) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_MXFP4 / 2) {
             sumi1 += vy[ib].qs[j].toInt() *
-                    io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesMXFP4[vx[ib].qs[j].toInt() and 0xF].toInt()
-            sumi2 += vy[ib].qs[j + io.github.kotlinmania.llama.ore.QK_MXFP4 / 2].toInt() *
-                    io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesMXFP4[(vx[ib].qs[j].toInt() and 0xFF) ushr 4].toInt()
+                    io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesMXFP4[vx[ib].qs[j].toInt() and 0xF].toInt()
+            sumi2 += vy[ib].qs[j + io.github.kotlinmania.llama.core.QK_MXFP4 / 2].toInt() *
+                    io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesMXFP4[(vx[ib].qs[j].toInt() and 0xFF) ushr 4].toInt()
         }
         sumf += d * (sumi1 + sumi2)
     }
@@ -352,26 +352,26 @@ fun ggmlVecDotMxfp4Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.
  *
  * NVFP4 super-blocks have 64 elements = 4 sub-blocks of 16, spanning 2 Q8_0 blocks.
  */
-fun ggmlVecDotNvfp4Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockNVFP4>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_NVFP4 == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_NVFP4}" }
-    val nb = n / io.github.kotlinmania.llama.ore.QK_NVFP4
+fun ggmlVecDotNvfp4Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockNVFP4>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_NVFP4 == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_NVFP4}" }
+    val nb = n / io.github.kotlinmania.llama.core.QK_NVFP4
 
     var sumf = 0.0f
     for (ib in 0 until nb) {
         for (sIdx in 0 until 4) {
-            val d = io.github.kotlinmania.llama.ore.ggmlUE4M3ToFp32(vx[ib].d[sIdx])
+            val d = io.github.kotlinmania.llama.core.ggmlUE4M3ToFp32(vx[ib].d[sIdx])
             val q8Block = sIdx / 2
-            val q8Off = (sIdx % 2) * io.github.kotlinmania.llama.ore.QK_NVFP4_SUB
-            val dy = io.github.kotlinmania.llama.ore.halfToFloat(vy[2 * ib + q8Block].d)
+            val q8Off = (sIdx % 2) * io.github.kotlinmania.llama.core.QK_NVFP4_SUB
+            val dy = io.github.kotlinmania.llama.core.halfToFloat(vy[2 * ib + q8Block].d)
 
             var sumiLo = 0
             var sumiHi = 0
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_NVFP4_SUB / 2) {
-                val qv = vx[ib].qs[sIdx * (io.github.kotlinmania.llama.ore.QK_NVFP4_SUB / 2) + j].toInt() and 0xFF
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_NVFP4_SUB / 2) {
+                val qv = vx[ib].qs[sIdx * (io.github.kotlinmania.llama.core.QK_NVFP4_SUB / 2) + j].toInt() and 0xFF
                 sumiLo += vy[2 * ib + q8Block].qs[q8Off + j].toInt() *
-                        io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesMXFP4[qv and 0xF].toInt()
-                sumiHi += vy[2 * ib + q8Block].qs[q8Off + j + io.github.kotlinmania.llama.ore.QK_NVFP4_SUB / 2].toInt() *
-                        io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesMXFP4[qv ushr 4].toInt()
+                        io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesMXFP4[qv and 0xF].toInt()
+                sumiHi += vy[2 * ib + q8Block].qs[q8Off + j + io.github.kotlinmania.llama.core.QK_NVFP4_SUB / 2].toInt() *
+                        io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesMXFP4[qv ushr 4].toInt()
             }
             sumf += dy * d * (sumiLo + sumiHi)
         }
@@ -387,8 +387,8 @@ fun ggmlVecDotNvfp4Q80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.
  * Ternary base-3 packed quants. 5 ternary values per byte in `qs`,
  * 4 values per byte in `qh`.
  */
-fun ggmlVecDotTq10Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockTQ1_0>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+fun ggmlVecDotTq10Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockTQ1_0>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
     val pow3 = intArrayOf(1, 3, 9, 27, 81, 243)
 
     var sumf = 0.0f
@@ -431,7 +431,7 @@ fun ggmlVecDotTq10Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
             }
         }
 
-        sumf += sum.toFloat() * (io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d)
+        sumf += sum.toFloat() * (io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d)
     }
     return sumf
 }
@@ -441,8 +441,8 @@ fun ggmlVecDotTq10Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
  *
  * 2-bit ternary packed: each byte holds 4 ternary values in 2-bit pairs.
  */
-fun ggmlVecDotTq20Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockTQ2_0>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+fun ggmlVecDotTq20Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockTQ2_0>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
     var sumf = 0.0f
 
     for (i in 0 until nb) {
@@ -461,7 +461,7 @@ fun ggmlVecDotTq20Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
             j += 32
         }
 
-        val d = vy[i].d * io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d)
+        val d = vy[i].d * io.github.kotlinmania.llama.core.halfToFloat(vx[i].d)
         sumf += sumi.toFloat() * d
     }
     return sumf
@@ -474,8 +474,8 @@ fun ggmlVecDotTq20Q8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
  *
  * Super-block with 4-bit scales/mins in `scales`, 2-bit quants in `qs`.
  */
-fun ggmlVecDotQ2KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ2K>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+fun ggmlVecDotQ2KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ2K>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
     var sumf = 0.0f
 
     for (i in 0 until nb) {
@@ -486,14 +486,14 @@ fun ggmlVecDotQ2KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             summs += vy[i].bsums[j].toInt() * ((sc[j].toInt() and 0xFF) ushr 4)
         }
 
-        val dall = vy[i].d * io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d)
-        val dmin = vy[i].d * io.github.kotlinmania.llama.ore.halfToFloat(vx[i].dmin)
+        val dall = vy[i].d * io.github.kotlinmania.llama.core.halfToFloat(vx[i].d)
+        val dmin = vy[i].d * io.github.kotlinmania.llama.core.halfToFloat(vx[i].dmin)
 
         var isum = 0
         var isIdx = 0
         var q2Off = 0
         var q8Off = 0
-        for (k in 0 until io.github.kotlinmania.llama.ore.QK_K / 128) {
+        for (k in 0 until io.github.kotlinmania.llama.core.QK_K / 128) {
             var shift = 0
             for (j in 0 until 4) {
                 val d1 = sc[isIdx++].toInt() and 0xF
@@ -522,15 +522,15 @@ fun ggmlVecDotQ2KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 }
 
 /** Q3_K × Q8_K dot product (scalar). */
-fun ggmlVecDotQ3KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ3K>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotQ3KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ3K>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
     val kmask1 = 0x03030303
     val kmask2 = 0x0f0f0f0f
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -542,7 +542,7 @@ fun ggmlVecDotQ3KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         for (l in 0 until 8) aux32[l] = 0
         var aOff = 0
         var m = 1
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) aux8[aOff + l] = (vx[i].qs[q3Off + l].toInt() and 0xFF) and 3
             for (l in 0 until 32) aux8[aOff + l] -= if ((vx[i].hmask[l].toInt() and 0xFF) and m != 0) 0 else 4
             aOff += 32; m = m shl 1
@@ -573,7 +573,7 @@ fun ggmlVecDotQ3KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         auxs1 = (auxs1 and kmask2) or ((((tmp ushr 2) and kmask1)) shl 4)
         val auxsArr = intArrayOf(auxs0, auxs1, auxs2, auxs3)
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             // scales[j] = (int8_t) from auxs reinterpreted as bytes
             val scaleVal = (auxsArr[j / 4] ushr ((j % 4) * 8)).toByte().toInt()
             for (l in 0 until 8) aux16[l] = vy[i].qs[q8Off + l].toInt() * aux8[aOff + l]
@@ -583,7 +583,7 @@ fun ggmlVecDotQ3KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             for (l in 0 until 8) aux32[l] += (scaleVal - 32) * aux16[l]
             q8Off += 8; aOff += 8
         }
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         for (l in 0 until 8) sums[l] += d * aux32[l]
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -591,16 +591,16 @@ fun ggmlVecDotQ3KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 }
 
 /** Q4_K × Q8_K dot product (scalar). */
-fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ4K>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ4K>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
     val kmask1 = 0x3f3f3f3f
     val kmask2 = 0x0f0f0f0f
     val kmask3 = 0x03030303
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -611,7 +611,7 @@ fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         var q8Off = 0
         for (l in 0 until 8) aux32[l] = 0
         var aOff = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 64) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 64) {
             for (l in 0 until 32) aux8[aOff + l] = ((vx[i].qs[q4Off + l].toInt() and 0xFF) and 0xF).toByte().toInt()
             aOff += 32
             for (l in 0 until 32) aux8[aOff + l] = ((vx[i].qs[q4Off + l].toInt() and 0xFF) ushr 4).toByte().toInt()
@@ -634,7 +634,7 @@ fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         val utmpArr = intArrayOf(utmp0, utmp1, utmp2, utmp3)
 
         var sumi = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             // mins[j/2] = byte from utmp[2 + (j/2)/4] at position (j/2)%4
             val minsIdx = j / 2
             val minsVal = (utmpArr[2 + minsIdx / 4] ushr ((minsIdx % 4) * 8)) and 0xFF
@@ -643,7 +643,7 @@ fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 
         aOff = 0
         var isIdx = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             // scales[is] = byte from utmp[isIdx/4] at position isIdx%4
             val scale = (utmpArr[isIdx / 4] ushr ((isIdx % 4) * 8)) and 0xFF
             isIdx++
@@ -660,9 +660,9 @@ fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
             q8Off += 8; aOff += 8
         }
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         for (l in 0 until 8) sums[l] += d * aux32[l]
-        val dmin = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].dmin) * vy[i].d
+        val dmin = io.github.kotlinmania.llama.core.halfToFloat(vx[i].dmin) * vy[i].d
         sumf -= dmin * sumi
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -670,16 +670,16 @@ fun ggmlVecDotQ4KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 }
 
 /** Q5_K × Q8_K dot product (scalar). */
-fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ5K>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ5K>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
     val kmask1 = 0x3f3f3f3f
     val kmask2 = 0x0f0f0f0f
     val kmask3 = 0x03030303
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -691,7 +691,7 @@ fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         for (l in 0 until 8) aux32[l] = 0
         var aOff = 0
         var m = 1
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 64) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 64) {
             for (l in 0 until 32) aux8[aOff + l] = ((vx[i].qs[q4Off + l].toInt() and 0xFF) and 0xF).toByte().toInt()
             for (l in 0 until 32) aux8[aOff + l] += if ((vx[i].qh[l].toInt() and 0xFF) and m != 0) 16 else 0
             aOff += 32; m = m shl 1
@@ -717,7 +717,7 @@ fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         val utmpArr = intArrayOf(utmp0, utmp1, utmp2, utmp3)
 
         var sumi = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val minsIdx = j / 2
             val minsVal = (utmpArr[2 + minsIdx / 4] ushr ((minsIdx % 4) * 8)) and 0xFF
             sumi += vy[i].bsums[j].toInt() * minsVal
@@ -725,7 +725,7 @@ fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 
         aOff = 0
         var isIdx = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scale = (utmpArr[isIdx / 4] ushr ((isIdx % 4) * 8)) and 0xFF
             isIdx++
             for (l in 0 until 8) aux16[l] = vy[i].qs[q8Off + l].toInt() * aux8[aOff + l]
@@ -741,9 +741,9 @@ fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
             q8Off += 8; aOff += 8
         }
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         for (l in 0 until 8) sums[l] += d * aux32[l]
-        val dmin = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].dmin) * vy[i].d
+        val dmin = io.github.kotlinmania.llama.core.halfToFloat(vx[i].dmin) * vy[i].d
         sumf -= dmin * sumi
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -751,12 +751,12 @@ fun ggmlVecDotQ5KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 }
 
 /** Q6_K × Q8_K dot product (scalar). */
-fun ggmlVecDotQ6KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockQ6K>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotQ6KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockQ6K>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -768,7 +768,7 @@ fun ggmlVecDotQ6KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         var q8Off = 0
         for (l in 0 until 8) aux32[l] = 0
         var aOff = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 aux8[aOff + l + 0] = (((vx[i].ql[q4Off + l + 0].toInt() and 0xFF) and 0xF) or
                         ((((vx[i].qh[qhOff + l].toInt() and 0xFF) ushr 0) and 3) shl 4)).toByte().toInt() - 32
@@ -785,7 +785,7 @@ fun ggmlVecDotQ6KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
         }
         aOff = 0
         var isIdx = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val scale = vx[i].scales[isIdx++].toInt()
             for (l in 0 until 8) aux16[l] = vy[i].qs[q8Off + l].toInt() * aux8[aOff + l]
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
@@ -794,7 +794,7 @@ fun ggmlVecDotQ6KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
             q8Off += 8; aOff += 8
         }
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         for (l in 0 until 8) sums[l] += d * aux32[l]
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -803,18 +803,18 @@ fun ggmlVecDotQ6KQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.Bl
 
 // ── IQ dot products ─────────────────────────────────────────────────────────────
 
-fun ggmlVecDotIq2XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ2XXS>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq2XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ2XXS>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
     for (i in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         var q2Off = 0
         var q8Off = 0
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             // memcpy(aux32, q2, 2*sizeof(uint32_t)) — 4 uint16s → 2 uint32s (little-endian)
             val a32_0 = (vx[i].qs[q2Off + 0].toInt() and 0xFFFF) or ((vx[i].qs[q2Off + 1].toInt() and 0xFFFF) shl 16)
             val a32_1 = (vx[i].qs[q2Off + 2].toInt() and 0xFFFF) or ((vx[i].qs[q2Off + 3].toInt() and 0xFFFF) shl 16)
@@ -824,11 +824,11 @@ fun ggmlVecDotIq2XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore
             // aux8 = bytes of a32_0/a32_1: aux8[0..3] from a32_0, aux8[4..7] from a32_1
             for (l in 0 until 4) {
                 val aux8val = (a32_0 ushr (l * 8)) and 0xFF
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq2xxsGrid[aux8val]
-                val signs = io.github.kotlinmania.llama.ore.GGMLCommonTables.ksignsIQ2XS[((a32_1 ushr (7 * l)) and 127).toByte().toInt() and 0xFF]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq2xxsGrid[aux8val]
+                val signs = io.github.kotlinmania.llama.core.GGMLCommonTables.ksignsIQ2XS[((a32_1 ushr (7 * l)) and 127).toByte().toInt() and 0xFF]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal ushr (j * 8)) and 0xFFL).toInt()
-                    val sign = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
+                    val sign = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
                     sumi += gridByte * vy[i].qs[q8Off + j].toInt() * sign
                 }
                 q8Off += 8
@@ -840,28 +840,28 @@ fun ggmlVecDotIq2XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore
     return 0.125f * sumf
 }
 
-fun ggmlVecDotIq2XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ2XS>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq2XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ2XS>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
     for (i in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         var q8Off = 0
         var bsum = 0
         var q2Off = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val ls1 = 2 * (vx[i].scales[ib32].toInt() and 0xF) + 1
             val ls2 = 2 * ((vx[i].scales[ib32].toInt() and 0xFF) ushr 4) + 1
             var sumi = 0
             for (l in 0 until 2) {
                 val q2val = vx[i].qs[q2Off + l].toInt() and 0xFFFF
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq2xsGrid[q2val and 511]
-                val signs = io.github.kotlinmania.llama.ore.GGMLCommonTables.ksignsIQ2XS[(q2val ushr 9) and 0xFF]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq2xsGrid[q2val and 511]
+                val signs = io.github.kotlinmania.llama.core.GGMLCommonTables.ksignsIQ2XS[(q2val ushr 9) and 0xFF]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal ushr (j * 8)) and 0xFFL).toInt()
-                    val sign = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
+                    val sign = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
                     sumi += gridByte * vy[i].qs[q8Off + j].toInt() * sign
                 }
                 q8Off += 8
@@ -870,11 +870,11 @@ fun ggmlVecDotIq2XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.
             sumi = 0
             for (l in 2 until 4) {
                 val q2val = vx[i].qs[q2Off + l].toInt() and 0xFFFF
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq2xsGrid[q2val and 511]
-                val signs = io.github.kotlinmania.llama.ore.GGMLCommonTables.ksignsIQ2XS[(q2val ushr 9) and 0xFF]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq2xsGrid[q2val and 511]
+                val signs = io.github.kotlinmania.llama.core.GGMLCommonTables.ksignsIQ2XS[(q2val ushr 9) and 0xFF]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal ushr (j * 8)) and 0xFFL).toInt()
-                    val sign = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
+                    val sign = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
                     sumi += gridByte * vy[i].qs[q8Off + j].toInt() * sign
                 }
                 q8Off += 8
@@ -887,21 +887,21 @@ fun ggmlVecDotIq2XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.
     return 0.125f * sumf
 }
 
-fun ggmlVecDotIq2SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ2S>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq2SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ2S>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
     for (i in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         var q8Off = 0
         var qsOff = 0
-        val signsBase = io.github.kotlinmania.llama.ore.QK_K / 8
+        val signsBase = io.github.kotlinmania.llama.core.QK_K / 8
         var signsOff = 0
 
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val ls1 = 1 + 2 * (vx[i].scales[ib32].toInt() and 0xF)
             val ls2 = 1 + 2 * ((vx[i].scales[ib32].toInt() and 0xFF) ushr 4)
             var sumi1 = 0
@@ -910,11 +910,11 @@ fun ggmlVecDotIq2SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
                 val qsVal = vx[i].qs[qsOff + l].toInt() and 0xFF
                 val qhVal = vx[i].qh[ib32].toInt() and 0xFF
                 val gridIdx = qsVal or ((qhVal shl (8 - 2 * l)) and 0x300)
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq2sGrid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq2sGrid[gridIdx]
                 val signsVal = vx[i].qs[signsBase + signsOff + l].toInt() and 0xFF
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal ushr (j * 8)) and 0xFFL).toInt()
-                    val sign = if (signsVal and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
+                    val sign = if (signsVal and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
                     sumi1 += vy[i].qs[q8Off + j].toInt() * gridByte * sign
                 }
                 q8Off += 8
@@ -923,11 +923,11 @@ fun ggmlVecDotIq2SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
                 val qsVal = vx[i].qs[qsOff + l].toInt() and 0xFF
                 val qhVal = vx[i].qh[ib32].toInt() and 0xFF
                 val gridIdx = qsVal or ((qhVal shl (8 - 2 * l)) and 0x300)
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq2sGrid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq2sGrid[gridIdx]
                 val signsVal = vx[i].qs[signsBase + signsOff + l].toInt() and 0xFF
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal ushr (j * 8)) and 0xFFL).toInt()
-                    val sign = if (signsVal and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
+                    val sign = if (signsVal and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j].toInt() and 0xFF) != 0) -1 else 1
                     sumi2 += vy[i].qs[q8Off + j].toInt() * gridByte * sign
                 }
                 q8Off += 8
@@ -943,19 +943,19 @@ fun ggmlVecDotIq2SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
     return 0.125f * sumf
 }
 
-fun ggmlVecDotIq3XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ3XXS>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq3XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ3XXS>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
     for (i in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         var q3Off = 0
-        var gasOff = io.github.kotlinmania.llama.ore.QK_K / 4
+        var gasOff = io.github.kotlinmania.llama.core.QK_K / 4
         var q8Off = 0
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             // memcpy(&aux32, gas, sizeof(uint32_t))
             val aux32 = (vx[i].qs[gasOff + 0].toInt() and 0xFF) or
                     ((vx[i].qs[gasOff + 1].toInt() and 0xFF) shl 8) or
@@ -965,14 +965,14 @@ fun ggmlVecDotIq3XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore
             val ls = 2 * ((aux32 ushr 28) and 0xF) + 1
             var sumi = 0
             for (l in 0 until 4) {
-                val grid1Val = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq3xxsGrid[vx[i].qs[q3Off + 2 * l + 0].toInt() and 0xFF]
-                val grid2Val = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq3xxsGrid[vx[i].qs[q3Off + 2 * l + 1].toInt() and 0xFF]
-                val signs = io.github.kotlinmania.llama.ore.GGMLCommonTables.ksignsIQ2XS[((aux32 ushr (7 * l)) and 127).toByte().toInt() and 0xFF]
+                val grid1Val = io.github.kotlinmania.llama.core.GGMLCommonTables.iq3xxsGrid[vx[i].qs[q3Off + 2 * l + 0].toInt() and 0xFF]
+                val grid2Val = io.github.kotlinmania.llama.core.GGMLCommonTables.iq3xxsGrid[vx[i].qs[q3Off + 2 * l + 1].toInt() and 0xFF]
+                val signs = io.github.kotlinmania.llama.core.GGMLCommonTables.ksignsIQ2XS[((aux32 ushr (7 * l)) and 127).toByte().toInt() and 0xFF]
                 for (j in 0 until 4) {
                     val g1byte = ((grid1Val ushr (j * 8)) and 0xFF)
                     val g2byte = ((grid2Val ushr (j * 8)) and 0xFF)
-                    val sign1 = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j + 0].toInt() and 0xFF) != 0) -1 else 1
-                    val sign2 = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j + 4].toInt() and 0xFF) != 0) -1 else 1
+                    val sign1 = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j + 0].toInt() and 0xFF) != 0) -1 else 1
+                    val sign2 = if ((signs.toInt() and 0xFF) and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j + 4].toInt() and 0xFF) != 0) -1 else 1
                     sumi += g1byte * vy[i].qs[q8Off + j + 0].toInt() * sign1
                     sumi += g2byte * vy[i].qs[q8Off + j + 4].toInt() * sign2
                 }
@@ -986,20 +986,20 @@ fun ggmlVecDotIq3XxsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore
     return 0.25f * sumf
 }
 
-fun ggmlVecDotIq3SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ3S>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq3SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ3S>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
     for (i in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d
         var qsOff = 0
         var q8Off = 0
         var signsOff = 0
         var bsum = 0
         var ib32 = 0
-        while (ib32 < io.github.kotlinmania.llama.ore.QK_K / 32) {
+        while (ib32 < io.github.kotlinmania.llama.core.QK_K / 32) {
             val ls1 = 2 * (vx[i].scales[ib32 / 2].toInt() and 0xF) + 1
             val ls2 = 2 * ((vx[i].scales[ib32 / 2].toInt() and 0xFF) ushr 4) + 1
             var sumi = 0
@@ -1007,14 +1007,14 @@ fun ggmlVecDotIq3SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
                 val qhVal0 = vx[i].qh[ib32 + 0].toInt() and 0xFF
                 val grid1Idx = (vx[i].qs[qsOff + 2 * l + 0].toInt() and 0xFF) or (((qhVal0 shl (8 - 2 * l)) and 256))
                 val grid2Idx = (vx[i].qs[qsOff + 2 * l + 1].toInt() and 0xFF) or (((qhVal0 shl (7 - 2 * l)) and 256))
-                val grid1Val = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq3sGrid[grid1Idx]
-                val grid2Val = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq3sGrid[grid2Idx]
+                val grid1Val = io.github.kotlinmania.llama.core.GGMLCommonTables.iq3sGrid[grid1Idx]
+                val grid2Val = io.github.kotlinmania.llama.core.GGMLCommonTables.iq3sGrid[grid2Idx]
                 val signsVal = vx[i].signs[signsOff + l].toInt() and 0xFF
                 for (j in 0 until 4) {
                     val g1byte = ((grid1Val ushr (j * 8)) and 0xFF)
                     val g2byte = ((grid2Val ushr (j * 8)) and 0xFF)
-                    val sign1 = if (signsVal and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j + 0].toInt() and 0xFF) != 0) -1 else 1
-                    val sign2 = if (signsVal and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j + 4].toInt() and 0xFF) != 0) -1 else 1
+                    val sign1 = if (signsVal and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j + 0].toInt() and 0xFF) != 0) -1 else 1
+                    val sign2 = if (signsVal and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j + 4].toInt() and 0xFF) != 0) -1 else 1
                     sumi += g1byte * vy[i].qs[q8Off + j + 0].toInt() * sign1
                     sumi += g2byte * vy[i].qs[q8Off + j + 4].toInt() * sign2
                 }
@@ -1028,14 +1028,14 @@ fun ggmlVecDotIq3SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
                 val qhVal1 = vx[i].qh[ib32 + 1].toInt() and 0xFF
                 val grid1Idx = (vx[i].qs[qsOff + 2 * l + 0].toInt() and 0xFF) or (((qhVal1 shl (8 - 2 * l)) and 256))
                 val grid2Idx = (vx[i].qs[qsOff + 2 * l + 1].toInt() and 0xFF) or (((qhVal1 shl (7 - 2 * l)) and 256))
-                val grid1Val = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq3sGrid[grid1Idx]
-                val grid2Val = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq3sGrid[grid2Idx]
+                val grid1Val = io.github.kotlinmania.llama.core.GGMLCommonTables.iq3sGrid[grid1Idx]
+                val grid2Val = io.github.kotlinmania.llama.core.GGMLCommonTables.iq3sGrid[grid2Idx]
                 val signsVal = vx[i].signs[signsOff + l].toInt() and 0xFF
                 for (j in 0 until 4) {
                     val g1byte = ((grid1Val ushr (j * 8)) and 0xFF)
                     val g2byte = ((grid2Val ushr (j * 8)) and 0xFF)
-                    val sign1 = if (signsVal and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j + 0].toInt() and 0xFF) != 0) -1 else 1
-                    val sign2 = if (signsVal and (io.github.kotlinmania.llama.ore.GGMLCommonTables.kmaskIQ2XS[j + 4].toInt() and 0xFF) != 0) -1 else 1
+                    val sign1 = if (signsVal and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j + 0].toInt() and 0xFF) != 0) -1 else 1
+                    val sign2 = if (signsVal and (io.github.kotlinmania.llama.core.GGMLCommonTables.kmaskIQ2XS[j + 4].toInt() and 0xFF) != 0) -1 else 1
                     sumi += g1byte * vy[i].qs[q8Off + j + 0].toInt() * sign1
                     sumi += g2byte * vy[i].qs[q8Off + j + 4].toInt() * sign2
                 }
@@ -1051,10 +1051,10 @@ fun ggmlVecDotIq3SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
     return sumf
 }
 
-fun ggmlVecDotIq1SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ1S>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq1SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ1S>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
     val IQ1S_DELTA = 0.125f
 
     var sumf = 0.0f
@@ -1064,14 +1064,14 @@ fun ggmlVecDotIq1SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
 
         var sumi = 0
         var sumi1 = 0
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val qhVal = vx[i].qh[ib].toInt() and 0xFFFF
             val ls = 2 * ((qhVal ushr 12) and 7) + 1
             val delta = if (qhVal and 0x8000 != 0) -1 else 1
             var lsum = 0
             for (l in 0 until 4) {
                 val gridIdx = (vx[i].qs[qsOff + l].toInt() and 0xFF) or (((qhVal ushr (3 * l)) and 7) shl 8)
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq1sGrid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq1sGrid[gridIdx]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal ushr (j * 8)) and 0xFFL).toByte().toInt()
                     lsum += vy[i].qs[q8Off + j].toInt() * gridByte
@@ -1083,16 +1083,16 @@ fun ggmlVecDotIq1SQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
             qsOff += 4
         }
 
-        sumf += io.github.kotlinmania.llama.ore.halfToFloat(vx[i].d) * vy[i].d * (sumi + IQ1S_DELTA * sumi1)
+        sumf += io.github.kotlinmania.llama.core.halfToFloat(vx[i].d) * vy[i].d * (sumi + IQ1S_DELTA * sumi1)
     }
 
     return sumf
 }
 
-fun ggmlVecDotIq1MQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ1M>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq1MQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ1M>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     val sum1 = IntArray(2)
     val sum2 = IntArray(2)
@@ -1114,11 +1114,11 @@ fun ggmlVecDotIq1MQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
                 (((sc[1] ushr 8) and 0x00F0)) or
                 (((sc[2] ushr 4) and 0x0F00)) or
                 ((sc[3] and 0xF000))
-        val scale = io.github.kotlinmania.llama.ore.IQ1MScale(scaleBits.toShort())
+        val scale = io.github.kotlinmania.llama.core.IQ1MScale(scaleBits.toShort())
 
         var sumi1 = 0
         var sumi2 = 0
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val qh0 = vx[i].qh[qhOff + 0].toInt() and 0xFF
             val qh1 = vx[i].qh[qhOff + 1].toInt() and 0xFF
             delta[0] = if (qh0 and 0x08 != 0) -1 else 1
@@ -1130,7 +1130,7 @@ fun ggmlVecDotIq1MQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
                 val qhByte = vx[i].qh[qhOff + l / 2].toInt() and 0xFF
                 val gridIdx = (vx[i].qs[qsOff + l].toInt() and 0xFF) or
                         (((qhByte shl (8 - 4 * (l % 2))) and 0x700))
-                val gridVal = io.github.kotlinmania.llama.ore.GGMLCommonTables.iq1sGrid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.GGMLCommonTables.iq1sGrid[gridIdx]
                 var lsum1 = 0
                 var lsum2 = 0
                 for (j in 0 until 8) {
@@ -1152,7 +1152,7 @@ fun ggmlVecDotIq1MQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
             qhOff += 2
         }
 
-        sumf += io.github.kotlinmania.llama.ore.halfToFloat(scale.f16) * vy[i].d * (sumi1 + io.github.kotlinmania.llama.ore.IQ1M_DELTA * sumi2)
+        sumf += io.github.kotlinmania.llama.core.halfToFloat(scale.f16) * vy[i].d * (sumi1 + io.github.kotlinmania.llama.core.IQ1M_DELTA * sumi2)
     }
 
     return sumf
@@ -1161,43 +1161,43 @@ fun ggmlVecDotIq1MQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.B
 /**
  * IQ4_NL × Q8_0 dot product (scalar).
  *
- * Non-linear 4-bit quants use [io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL] for dequantization.
+ * Non-linear 4-bit quants use [io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL] for dequantization.
  */
-fun ggmlVecDotIq4NlQ80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ4NL>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8_0>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK4_NL == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK4_NL}" }
-    val nb = n / io.github.kotlinmania.llama.ore.QK4_NL
+fun ggmlVecDotIq4NlQ80Generic(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ4NL>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8_0>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK4_NL == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK4_NL}" }
+    val nb = n / io.github.kotlinmania.llama.core.QK4_NL
 
     var sumf = 0.0f
     for (ib in 0 until nb) {
-        val d = io.github.kotlinmania.llama.ore.halfToFloat(vy[ib].d) * io.github.kotlinmania.llama.ore.halfToFloat(
+        val d = io.github.kotlinmania.llama.core.halfToFloat(vy[ib].d) * io.github.kotlinmania.llama.core.halfToFloat(
             vx[ib].d
         )
         var sumi1 = 0
         var sumi2 = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK4_NL / 2) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK4_NL / 2) {
             sumi1 += vy[ib].qs[j].toInt() *
-                    io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL[vx[ib].qs[j].toInt() and 0xF].toInt()
-            sumi2 += vy[ib].qs[j + io.github.kotlinmania.llama.ore.QK4_NL / 2].toInt() *
-                    io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL[(vx[ib].qs[j].toInt() and 0xFF) ushr 4].toInt()
+                    io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL[vx[ib].qs[j].toInt() and 0xF].toInt()
+            sumi2 += vy[ib].qs[j + io.github.kotlinmania.llama.core.QK4_NL / 2].toInt() *
+                    io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL[(vx[ib].qs[j].toInt() and 0xFF) ushr 4].toInt()
         }
         sumf += d * (sumi1 + sumi2)
     }
     return sumf
 }
 
-fun ggmlVecDotIq4XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.BlockIQ4XS>, vy: Array<io.github.kotlinmania.llama.ore.BlockQ8K>): Float {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.ore.QK_K}" }
+fun ggmlVecDotIq4XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.core.BlockIQ4XS>, vy: Array<io.github.kotlinmania.llama.core.BlockQ8K>): Float {
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0) { "n ($n) must be divisible by ${io.github.kotlinmania.llama.core.QK_K}" }
 
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
     for (ibl in 0 until nb) {
-        val d4d8 = io.github.kotlinmania.llama.ore.halfToFloat(vx[ibl].d) * vy[ibl].d
+        val d4d8 = io.github.kotlinmania.llama.core.halfToFloat(vx[ibl].d) * vy[ibl].d
         var h = vx[ibl].scalesH.toInt() and 0xFFFF
         var qsOff = 0
         var q8Off = 0
         var ib = 0
-        while (ib < io.github.kotlinmania.llama.ore.QK_K / 32) {
+        while (ib < io.github.kotlinmania.llama.core.QK_K / 32) {
             val ls1 = ((vx[ibl].scalesL[ib / 2].toInt() and 0xFF) and 0xF) or ((h shl 4) and 0x30)
             val ls2 = ((vx[ibl].scalesL[ib / 2].toInt() and 0xFF) ushr 4) or ((h shl 2) and 0x30)
             h = h ushr 4
@@ -1207,9 +1207,9 @@ fun ggmlVecDotIq4XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.
             var sumi2 = 0
             for (j in 0 until 16) {
                 sumi1 += vy[ibl].qs[q8Off + j + 0].toInt() *
-                        io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL[vx[ibl].qs[qsOff + j].toInt() and 0xF].toInt()
+                        io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL[vx[ibl].qs[qsOff + j].toInt() and 0xF].toInt()
                 sumi2 += vy[ibl].qs[q8Off + j + 16].toInt() *
-                        io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL[(vx[ibl].qs[qsOff + j].toInt() and 0xFF) ushr 4].toInt()
+                        io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL[(vx[ibl].qs[qsOff + j].toInt() and 0xFF) ushr 4].toInt()
             }
             sumf += d1 * (sumi1 + sumi2)
             qsOff += 16
@@ -1217,9 +1217,9 @@ fun ggmlVecDotIq4XsQ8KGeneric(n: Int, vx: Array<io.github.kotlinmania.llama.ore.
             sumi1 = 0; sumi2 = 0
             for (j in 0 until 16) {
                 sumi1 += vy[ibl].qs[q8Off + j + 0].toInt() *
-                        io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL[vx[ibl].qs[qsOff + j].toInt() and 0xF].toInt()
+                        io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL[vx[ibl].qs[qsOff + j].toInt() and 0xF].toInt()
                 sumi2 += vy[ibl].qs[q8Off + j + 16].toInt() *
-                        io.github.kotlinmania.llama.ore.GGMLCommonTables.kvaluesIQ4NL[(vx[ibl].qs[qsOff + j].toInt() and 0xFF) ushr 4].toInt()
+                        io.github.kotlinmania.llama.core.GGMLCommonTables.kvaluesIQ4NL[(vx[ibl].qs[qsOff + j].toInt() and 0xFF) ushr 4].toInt()
             }
             sumf += d2 * (sumi1 + sumi2)
             qsOff += 16

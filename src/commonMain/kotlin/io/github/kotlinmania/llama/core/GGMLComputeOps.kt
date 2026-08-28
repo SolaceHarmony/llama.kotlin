@@ -1,18 +1,18 @@
 // port-lint: source ggml/src/ggml-cpu/ops.cpp
 package io.github.kotlinmania.llama.ore
 
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getLongLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getShortLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setLongLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setShortLe
-import io.github.kotlinmania.llama.ore.getBits
-import io.github.kotlinmania.llama.ore.lowBits
-import io.github.kotlinmania.llama.ore.simd.GGMLSimd
-import io.github.kotlinmania.llama.ore.toUnsignedInt
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getLongLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setLongLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setShortLe
+import io.github.kotlinmania.llama.core.getBits
+import io.github.kotlinmania.llama.core.lowBits
+import io.github.kotlinmania.llama.core.simd.GGMLSimd
+import io.github.kotlinmania.llama.core.toUnsignedInt
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.exp
@@ -64,7 +64,7 @@ import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
     replaceWith = ReplaceWith("GGMLTensorUtils.calculateTotalSize(ne)")
 )
 fun calculateTotalSize(ne: LongArray): Int {
-    return io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(ne).toInt()
+    return io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(ne).toInt()
 }
 
 internal object GGMLDebugFlags {
@@ -98,29 +98,29 @@ internal object GGMLDebugFlags {
  * @throws IllegalArgumentException if tensor types don't match or dimensions are inconsistent
  */
 internal fun computeDotProductQ80F32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ80: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K items per row, ne[1]=M rows)
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N items per row, ne[1]=K rows)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ80: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K items per row, ne[1]=M rows)
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N items per row, ne[1]=K rows)
     rowIndexInQ80: Int,     // Row index 'i' for tensorQ80 (0 to M-1)
     colIndexInF32: Int,     // Column index 'j' for tensorF32 (0 to N-1)
     commonDimK: Int         // The shared dimension K (should be tensorQ80.ne[0] and tensorF32.ne[1])
 ): Float {
-    require(tensorQ80.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ80.type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
     require(tensorQ80.ne[0].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)"}
 
     var sumF32 = 0.0f
     for (k in 0 until commonDimK) {
         val flatIndexInQ80 = rowIndexInQ80 * commonDimK + k
-        val blockIndexQ80 = flatIndexInQ80 / io.github.kotlinmania.llama.ore.QK8_0
-        val itemInBlockQ80 = flatIndexInQ80 % io.github.kotlinmania.llama.ore.QK8_0
+        val blockIndexQ80 = flatIndexInQ80 / io.github.kotlinmania.llama.core.QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % io.github.kotlinmania.llama.core.QK8_0
         val scale = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
         val qWeight = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
         val dequantizedQ80Value = scale * qWeight.toFloat()
         val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
-        if (io.github.kotlinmania.llama.ore.GGMLDebugFlags.logQ80F32DotProducts) {
-            io.github.kotlinmania.llama.ore.GGMLDebugFlags.q80F32Logger?.invoke(rowIndexInQ80, colIndexInF32, k, blockIndexQ80, scale, qWeight, f32Value)
+        if (io.github.kotlinmania.llama.core.GGMLDebugFlags.logQ80F32DotProducts) {
+            io.github.kotlinmania.llama.core.GGMLDebugFlags.q80F32Logger?.invoke(rowIndexInQ80, colIndexInF32, k, blockIndexQ80, scale, qWeight, f32Value)
         }
         sumF32 += dequantizedQ80Value * f32Value
     }
@@ -132,15 +132,15 @@ internal fun computeDotProductQ80F32(
  * This is the symmetric version of computeDotProductQ4_KF32 for F32 x Q4_K operations.
  */
 internal fun computeDotProductF32Q4_K(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,     // M x K (ne[1]=M rows, ne[0]=K elements per row)
-    tensorQ4_K: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[1]=K rows, ne[0]=N elements per row)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,     // M x K (ne[1]=M rows, ne[0]=K elements per row)
+    tensorQ4_K: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[1]=K rows, ne[0]=N elements per row)
     rowIndexInF32: Int,        // Row index for tensorF32 (0 to M-1)
     colIndexInQ4_K: Int,       // Column index for tensorQ4_K (0 to N-1)
     commonDimK: Int            // The shared dimension K
 ): Float {
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductF32Q4_K: tensorF32 must be F32. Got ${tensorF32.type}" }
-    require(tensorQ4_K.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "computeDotProductF32Q4_K: tensorQ4_K must be Q4_K. Got ${tensorQ4_K.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductF32Q4_K: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ4_K.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "computeDotProductF32Q4_K: tensorQ4_K must be Q4_K. Got ${tensorQ4_K.type}" }
     
     val M_f32 = tensorF32.ne[1].toInt()
     val K_f32 = tensorF32.ne[0].toInt()
@@ -155,11 +155,11 @@ internal fun computeDotProductF32Q4_K(
     var sumF32 = 0.0f
     
     // Process in Q4_K blocks (QK_K elements per block)
-    val numBlocks = (commonDimK + io.github.kotlinmania.llama.ore.QK_K - 1) / io.github.kotlinmania.llama.ore.QK_K
+    val numBlocks = (commonDimK + io.github.kotlinmania.llama.core.QK_K - 1) / io.github.kotlinmania.llama.core.QK_K
     
     for (blockIdx in 0 until numBlocks) {
-        val blockStart = blockIdx * io.github.kotlinmania.llama.ore.QK_K
-        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.ore.QK_K, commonDimK)
+        val blockStart = blockIdx * io.github.kotlinmania.llama.core.QK_K
+        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.core.QK_K, commonDimK)
         
         // Get Q4_K block scales
         val d = tensorQ4_K.getQ4_KBlockScale(graphAllocator, blockIdx)
@@ -185,9 +185,9 @@ internal fun computeDotProductF32Q4_K(
             val quantizedMinHigh = if (bufferIndex >= 0 && bufferIndex < buffer.size) {
                 buffer[bufferIndex].getBits(0, 4)
             } else 0
-            val quantizedMin = io.github.kotlinmania.llama.ore.mergeBits32(
+            val quantizedMin = io.github.kotlinmania.llama.core.mergeBits32(
                 quantizedMinLow,
-                io.github.kotlinmania.llama.ore.logicalLeft32(quantizedMinHigh, 2)
+                io.github.kotlinmania.llama.core.logicalLeft32(quantizedMinHigh, 2)
             )
             
             // Reconstruct sub-block scale and min
@@ -195,7 +195,7 @@ internal fun computeDotProductF32Q4_K(
             val min = (quantizedMin.toFloat() / 63.0f) * d + dmin
             
             // Dot product for this sub-block
-            val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + subBlock * 16
+            val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + subBlock * 16
             
             for (i in 0 until (subBlockEnd - subBlockStart) step 2) {
                 val k1 = subBlockStart + i
@@ -227,15 +227,15 @@ internal fun computeDotProductF32Q4_K(
  * This enables direct Q4_K x Q4_K matrix multiplication without intermediate dequantization.
  */
 internal fun computeDotProductQ4_KQ4_K(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ4_KA: io.github.kotlinmania.llama.ore.GGMLTensor,   // M x K (ne[1]=M rows, ne[0]=K elements per row)
-    tensorQ4_KB: io.github.kotlinmania.llama.ore.GGMLTensor,   // K x N (ne[1]=K rows, ne[0]=N elements per row)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ4_KA: io.github.kotlinmania.llama.core.GGMLTensor,   // M x K (ne[1]=M rows, ne[0]=K elements per row)
+    tensorQ4_KB: io.github.kotlinmania.llama.core.GGMLTensor,   // K x N (ne[1]=K rows, ne[0]=N elements per row)
     rowIndexInA: Int,          // Row index for tensorQ4_KA (0 to M-1)
     colIndexInB: Int,          // Column index for tensorQ4_KB (0 to N-1)
     commonDimK: Int            // The shared dimension K
 ): Float {
-    require(tensorQ4_KA.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "computeDotProductQ4_KQ4_K: tensorQ4_KA must be Q4_K. Got ${tensorQ4_KA.type}" }
-    require(tensorQ4_KB.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "computeDotProductQ4_KQ4_K: tensorQ4_KB must be Q4_K. Got ${tensorQ4_KB.type}" }
+    require(tensorQ4_KA.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "computeDotProductQ4_KQ4_K: tensorQ4_KA must be Q4_K. Got ${tensorQ4_KA.type}" }
+    require(tensorQ4_KB.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "computeDotProductQ4_KQ4_K: tensorQ4_KB must be Q4_K. Got ${tensorQ4_KB.type}" }
     
     val M_a = tensorQ4_KA.ne[1].toInt()
     val K_a = tensorQ4_KA.ne[0].toInt()
@@ -250,11 +250,11 @@ internal fun computeDotProductQ4_KQ4_K(
     var sumF32 = 0.0f
     
     // Process in Q4_K blocks (QK_K elements per block)  
-    val numBlocks = (commonDimK + io.github.kotlinmania.llama.ore.QK_K - 1) / io.github.kotlinmania.llama.ore.QK_K
+    val numBlocks = (commonDimK + io.github.kotlinmania.llama.core.QK_K - 1) / io.github.kotlinmania.llama.core.QK_K
     
     for (blockIdx in 0 until numBlocks) {
-        val blockStart = blockIdx * io.github.kotlinmania.llama.ore.QK_K
-        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.ore.QK_K, commonDimK)
+        val blockStart = blockIdx * io.github.kotlinmania.llama.core.QK_K
+        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.core.QK_K, commonDimK)
         
         // Get scales for both tensors
         val dA = tensorQ4_KA.getQ4_KBlockScale(graphAllocator, blockIdx)
@@ -277,39 +277,39 @@ internal fun computeDotProductQ4_KQ4_K(
             // Get sub-block scales and mins for both tensors
             // Tensor A
             val scaleByteA = bufferA[(tensorQ4_KA.dataOffset + blockByteOffsetA.toULong() + 4uL + subBlock.toULong()).toInt()]
-            val scaleUnsignedA = io.github.kotlinmania.llama.ore.unsignedByte(scaleByteA)
-            val quantizedScaleA = io.github.kotlinmania.llama.ore.maskLowBits32(scaleUnsignedA, 6)
-            val quantizedMinLowA = io.github.kotlinmania.llama.ore.extractBits(scaleUnsignedA, 6, 2)
+            val scaleUnsignedA = io.github.kotlinmania.llama.core.unsignedByte(scaleByteA)
+            val quantizedScaleA = io.github.kotlinmania.llama.core.maskLowBits32(scaleUnsignedA, 6)
+            val quantizedMinLowA = io.github.kotlinmania.llama.core.extractBits(scaleUnsignedA, 6, 2)
             val minByteOffsetA = blockByteOffsetA + 4 + subBlock * 2
-            val quantizedMinHighA = if (minByteOffsetA < blockByteOffsetA + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE) {
-                io.github.kotlinmania.llama.ore.lowNibble(bufferA[(tensorQ4_KA.dataOffset + minByteOffsetA.toULong() + 1uL).toInt()].toInt())
+            val quantizedMinHighA = if (minByteOffsetA < blockByteOffsetA + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE) {
+                io.github.kotlinmania.llama.core.lowNibble(bufferA[(tensorQ4_KA.dataOffset + minByteOffsetA.toULong() + 1uL).toInt()].toInt())
             } else 0
-            val quantizedMinA = io.github.kotlinmania.llama.ore.mergeBits32(
+            val quantizedMinA = io.github.kotlinmania.llama.core.mergeBits32(
                 quantizedMinLowA,
-                io.github.kotlinmania.llama.ore.logicalLeft32(quantizedMinHighA, 2)
+                io.github.kotlinmania.llama.core.logicalLeft32(quantizedMinHighA, 2)
             )
             val scaleA = (quantizedScaleA.toFloat() / 63.0f) * dA
             val minA = (quantizedMinA.toFloat() / 63.0f) * dA + dminA
 
             // Tensor B  
             val scaleByteB = bufferB[(tensorQ4_KB.dataOffset + blockByteOffsetB.toULong() + 4uL + subBlock.toULong()).toInt()]
-            val scaleUnsignedB = io.github.kotlinmania.llama.ore.unsignedByte(scaleByteB)
-            val quantizedScaleB = io.github.kotlinmania.llama.ore.maskLowBits32(scaleUnsignedB, 6)
-            val quantizedMinLowB = io.github.kotlinmania.llama.ore.extractBits(scaleUnsignedB, 6, 2)
+            val scaleUnsignedB = io.github.kotlinmania.llama.core.unsignedByte(scaleByteB)
+            val quantizedScaleB = io.github.kotlinmania.llama.core.maskLowBits32(scaleUnsignedB, 6)
+            val quantizedMinLowB = io.github.kotlinmania.llama.core.extractBits(scaleUnsignedB, 6, 2)
             val minByteOffsetB = blockByteOffsetB + 4 + subBlock * 2
-            val quantizedMinHighB = if (minByteOffsetB < blockByteOffsetB + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE) {
-                io.github.kotlinmania.llama.ore.lowNibble(bufferB[(tensorQ4_KB.dataOffset + minByteOffsetB.toULong() + 1uL).toInt()].toInt())
+            val quantizedMinHighB = if (minByteOffsetB < blockByteOffsetB + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE) {
+                io.github.kotlinmania.llama.core.lowNibble(bufferB[(tensorQ4_KB.dataOffset + minByteOffsetB.toULong() + 1uL).toInt()].toInt())
             } else 0
-            val quantizedMinB = io.github.kotlinmania.llama.ore.mergeBits32(
+            val quantizedMinB = io.github.kotlinmania.llama.core.mergeBits32(
                 quantizedMinLowB,
-                io.github.kotlinmania.llama.ore.logicalLeft32(quantizedMinHighB, 2)
+                io.github.kotlinmania.llama.core.logicalLeft32(quantizedMinHighB, 2)
             )
             val scaleB = (quantizedScaleB.toFloat() / 63.0f) * dB
             val minB = (quantizedMinB.toFloat() / 63.0f) * dB + dminB
             
             // Dot product for this sub-block
-            val qsBaseOffsetA = blockByteOffsetA + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + subBlock * 16
-            val qsBaseOffsetB = blockByteOffsetB + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + subBlock * 16
+            val qsBaseOffsetA = blockByteOffsetA + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + subBlock * 16
+            val qsBaseOffsetB = blockByteOffsetB + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + subBlock * 16
             
             for (i in 0 until (subBlockEnd - subBlockStart) step 2) {
                 val k1 = subBlockStart + i
@@ -342,15 +342,15 @@ internal fun computeDotProductQ4_KQ4_K(
 }
 
 internal fun computeDotProductQ41F32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ41: io.github.kotlinmania.llama.ore.GGMLTensor,    // Assumed layout M x K (ne[1] = M rows, ne[0] = K elements per row for access)
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,    // Assumed layout K x N (ne[1] = K rows, ne[0] = N columns for access)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ41: io.github.kotlinmania.llama.core.GGMLTensor,    // Assumed layout M x K (ne[1] = M rows, ne[0] = K elements per row for access)
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,    // Assumed layout K x N (ne[1] = K rows, ne[0] = N columns for access)
     rowIndexInQ41: Int,     // Row index 'i' for tensorQ41 (0 to M-1)
     colIndexInF32: Int,     // Column index 'j' for tensorF32 (0 to N-1)
     commonDimK: Int         // The shared dimension K, should match tensorQ41.ne[0] and tensorF32.ne[1]
 ): Float {
-    require(tensorQ41.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "computeDotProductQ41F32: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductQ41F32: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ41.type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "computeDotProductQ41F32: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductQ41F32: tensorF32 must be F32. Got ${tensorF32.type}" }
 
     // Validate dimensions for clarity and robustness
     val M_q41 = tensorQ41.ne[1].toInt()
@@ -370,8 +370,8 @@ internal fun computeDotProductQ41F32(
         // Calculate flat index for Q4_1 tensor elements.
         // tensorQ41.ne[0] is K (elements per row).
         val flatIndexInQ41 = rowIndexInQ41 * K_q41 + k
-        val blockIndexQ41 = flatIndexInQ41 / io.github.kotlinmania.llama.ore.QK4_1
-        val itemInBlockQ41 = flatIndexInQ41 % io.github.kotlinmania.llama.ore.QK4_1
+        val blockIndexQ41 = flatIndexInQ41 / io.github.kotlinmania.llama.core.QK4_1
+        val itemInBlockQ41 = flatIndexInQ41 % io.github.kotlinmania.llama.core.QK4_1
 
         val scaleD = tensorQ41.getQ4_1BlockScale(graphAllocator, blockIndexQ41)
         val minM = tensorQ41.getQ4_1BlockMin(graphAllocator, blockIndexQ41)
@@ -392,23 +392,23 @@ internal fun computeDotProductQ41F32(
  * Computes the dot product of a row from a Q4_0 tensor and a column from an F32 tensor.
  */
 internal fun computeDotProductQ40F32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ40: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ40: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInQ40: Int,
     colIndexInF32: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ40.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0) { "computeDotProductQ40F32: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductQ40F32: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ40.type == io.github.kotlinmania.llama.core.GGMLType.Q4_0) { "computeDotProductQ40F32: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductQ40F32: tensorF32 must be F32. Got ${tensorF32.type}" }
     require(tensorQ40.ne[0].toInt() == commonDimK) { "tensorQ40 K dim (${tensorQ40.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)"}
 
     var sumF32 = 0.0f
     for (k in 0 until commonDimK) {
         val flatIndexInQ40 = rowIndexInQ40 * commonDimK + k
-        val blockIndexQ40 = flatIndexInQ40 / io.github.kotlinmania.llama.ore.QK4_0
-        val itemInBlockQ40 = flatIndexInQ40 % io.github.kotlinmania.llama.ore.QK4_0
+        val blockIndexQ40 = flatIndexInQ40 / io.github.kotlinmania.llama.core.QK4_0
+        val itemInBlockQ40 = flatIndexInQ40 % io.github.kotlinmania.llama.core.QK4_0
         val scale = tensorQ40.getQ4_0BlockScale(graphAllocator, blockIndexQ40)
         val qNibble = tensorQ40.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40, itemInBlockQ40)
         val dequantizedQ40Value = scale * (qNibble.toFloat() - 8.0f)
@@ -424,42 +424,42 @@ internal fun computeDotProductQ40F32(
  * Computes the dot product of a row from a Q2_K tensor and a column from an F32 tensor.
  */
 internal fun computeDotProductQ2_KF32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ2_K: io.github.kotlinmania.llama.ore.GGMLTensor,
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ2_K: io.github.kotlinmania.llama.core.GGMLTensor,
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,
     rowIndexInQ2_K: Int,
     colIndexInF32: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ2_K.type == io.github.kotlinmania.llama.ore.GGMLType.Q2_K) { "tensorQ2_K must be Q2_K. Got ${tensorQ2_K.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ2_K.type == io.github.kotlinmania.llama.core.GGMLType.Q2_K) { "tensorQ2_K must be Q2_K. Got ${tensorQ2_K.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
     require(tensorQ2_K.ne[0].toInt() == commonDimK) { "tensorQ2_K K dim (${tensorQ2_K.ne[0]}) must match commonDimK ($commonDimK)" }
     require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
 
     var sumF32 = 0.0f
     
     // Process in blocks of QK_K
-    for (blockStart in 0 until commonDimK step io.github.kotlinmania.llama.ore.QK_K) {
-        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.ore.QK_K, commonDimK)
+    for (blockStart in 0 until commonDimK step io.github.kotlinmania.llama.core.QK_K) {
+        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.core.QK_K, commonDimK)
         val blockSize = blockEnd - blockStart
         
-        if (blockSize == io.github.kotlinmania.llama.ore.QK_K) {
+        if (blockSize == io.github.kotlinmania.llama.core.QK_K) {
             // Full block optimization
             val flatIndexStart = rowIndexInQ2_K * commonDimK + blockStart
-            val blockIndex = flatIndexStart / io.github.kotlinmania.llama.ore.QK_K
+            val blockIndex = flatIndexStart / io.github.kotlinmania.llama.core.QK_K
             
             val d = tensorQ2_K.getQ2_KBlockScale(graphAllocator, blockIndex)
             val dmin = tensorQ2_K.getQ2_KBlockScaleMin(graphAllocator, blockIndex)
             
             // Process sub-blocks
-            for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K /16) {
+            for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K /16) {
                 val scaleAndMin = tensorQ2_K.getQ2_KScale(graphAllocator, blockIndex, subBlock)
                 val scaleAndMinUnsigned =
-                    io.github.kotlinmania.llama.ore.maskLowBits32(scaleAndMin.toInt(), 8)
+                    io.github.kotlinmania.llama.core.maskLowBits32(scaleAndMin.toInt(), 8)
                 val quantizedScale =
-                    io.github.kotlinmania.llama.ore.maskLowBits32(scaleAndMinUnsigned, 4)
+                    io.github.kotlinmania.llama.core.maskLowBits32(scaleAndMinUnsigned, 4)
                 val quantizedMin =
-                    io.github.kotlinmania.llama.ore.extractBits(scaleAndMinUnsigned, 4, 4)
+                    io.github.kotlinmania.llama.core.extractBits(scaleAndMinUnsigned, 4, 4)
                 
                 val scale = (quantizedScale.toFloat() / 15.0f) * d
                 val min = (quantizedMin.toFloat() * d) + dmin
@@ -471,8 +471,8 @@ internal fun computeDotProductQ2_KF32(
                     for (j in 0 until 4) {
                         val k = blockStart + subBlock * 16 + i + j
                         if (k < blockEnd) {
-                            val quantizedValue = io.github.kotlinmania.llama.ore.extractBits(
-                                io.github.kotlinmania.llama.ore.unsignedByte(quantByte), j * 2, 2
+                            val quantizedValue = io.github.kotlinmania.llama.core.extractBits(
+                                io.github.kotlinmania.llama.core.unsignedByte(quantByte), j * 2, 2
                             )
                             val dequantizedValue = (quantizedValue.toFloat() / 3.0f) * scale + min
                             val f32Value = tensorF32.getFloat(graphAllocator, colIndexInF32, k)
@@ -485,8 +485,8 @@ internal fun computeDotProductQ2_KF32(
             // Handle partial blocks by dequantizing (fallback)
             for (k in blockStart until blockEnd) {
                 val flatIndex = rowIndexInQ2_K * commonDimK + k
-                val blockIndex = flatIndex / io.github.kotlinmania.llama.ore.QK_K
-                val itemInBlock = flatIndex % io.github.kotlinmania.llama.ore.QK_K
+                val blockIndex = flatIndex / io.github.kotlinmania.llama.core.QK_K
+                val itemInBlock = flatIndex % io.github.kotlinmania.llama.core.QK_K
                 
                 // Simplified dequantization for partial blocks
                 val d = tensorQ2_K.getQ2_KBlockScale(graphAllocator, blockIndex)
@@ -495,11 +495,11 @@ internal fun computeDotProductQ2_KF32(
                 val subBlock = itemInBlock / 16
                 val scaleAndMin = tensorQ2_K.getQ2_KScale(graphAllocator, blockIndex, subBlock)
                 val scaleAndMinUnsigned =
-                    io.github.kotlinmania.llama.ore.maskLowBits32(scaleAndMin.toInt(), 8)
+                    io.github.kotlinmania.llama.core.maskLowBits32(scaleAndMin.toInt(), 8)
                 val quantizedScale =
-                    io.github.kotlinmania.llama.ore.maskLowBits32(scaleAndMinUnsigned, 4)
+                    io.github.kotlinmania.llama.core.maskLowBits32(scaleAndMinUnsigned, 4)
                 val quantizedMin =
-                    io.github.kotlinmania.llama.ore.extractBits(scaleAndMinUnsigned, 4, 4)
+                    io.github.kotlinmania.llama.core.extractBits(scaleAndMinUnsigned, 4, 4)
                 
                 val scale = (quantizedScale.toFloat() / 15.0f) * d
                 val min = (quantizedMin.toFloat() * d) + dmin
@@ -507,8 +507,8 @@ internal fun computeDotProductQ2_KF32(
                 val quantByteIdx = (subBlock * 4) + ((itemInBlock % 16) / 4)
                 val quantByte = tensorQ2_K.getQ2_KQuant(graphAllocator, blockIndex, quantByteIdx)
                 val bitPos = ((itemInBlock % 16) % 4) * 2
-                val quantizedValue = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(quantByte), bitPos, 2
+                val quantizedValue = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(quantByte), bitPos, 2
                 )
                 
                 val dequantizedValue = (quantizedValue.toFloat() / 3.0f) * scale + min
@@ -525,28 +525,28 @@ internal fun computeDotProductQ2_KF32(
  * Computes the dot product of a row from a Q4_K tensor and a column from an F32 tensor.
  */
 internal fun computeDotProductQ4_KF32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ4_K: io.github.kotlinmania.llama.ore.GGMLTensor,
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ4_K: io.github.kotlinmania.llama.core.GGMLTensor,
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,
     rowIndexInQ4_K: Int,
     colIndexInF32: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ4_K.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "tensorQ4_K must be Q4_K. Got ${tensorQ4_K.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ4_K.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "tensorQ4_K must be Q4_K. Got ${tensorQ4_K.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
     require(tensorQ4_K.ne[0].toInt() == commonDimK) { "tensorQ4_K K dim (${tensorQ4_K.ne[0]}) must match commonDimK ($commonDimK)" }
     require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
 
     var sumF32 = 0.0f
     
     // Process in blocks of QK_K
-    for (blockStart in 0 until commonDimK step io.github.kotlinmania.llama.ore.QK_K) {
-        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.ore.QK_K, commonDimK)
+    for (blockStart in 0 until commonDimK step io.github.kotlinmania.llama.core.QK_K) {
+        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.core.QK_K, commonDimK)
         val blockSize = blockEnd - blockStart
         
-        if (blockSize == io.github.kotlinmania.llama.ore.QK_K) {
+        if (blockSize == io.github.kotlinmania.llama.core.QK_K) {
             val flatIndexStart = rowIndexInQ4_K * commonDimK + blockStart
-            val blockIndex = flatIndexStart / io.github.kotlinmania.llama.ore.QK_K
+            val blockIndex = flatIndexStart / io.github.kotlinmania.llama.core.QK_K
             
             val d = tensorQ4_K.getQ4_KBlockScale(graphAllocator, blockIndex)
             val dmin = tensorQ4_K.getQ4_KBlockScaleMin(graphAllocator, blockIndex)
@@ -561,26 +561,26 @@ internal fun computeDotProductQ4_KF32(
                 val scaleByte = buffer[(tensorQ4_K.dataOffset + scaleByteOffset.toULong()).toInt()]
                 val quantizedScale = scaleByte.toUnsignedInt().lowBits(6)
                 val quantizedMinLow =
-                    io.github.kotlinmania.llama.ore.extractBits(scaleByte.toUnsignedInt(), 6, 2)
+                    io.github.kotlinmania.llama.core.extractBits(scaleByte.toUnsignedInt(), 6, 2)
                 
                 val minByteOffset = blockByteOffset + 4 + subBlock * 2 + 1
-                val quantizedMinHigh = if (minByteOffset < blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE) {
-                    io.github.kotlinmania.llama.ore.maskLowBits32(
-                        io.github.kotlinmania.llama.ore.unsignedByte(
+                val quantizedMinHigh = if (minByteOffset < blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE) {
+                    io.github.kotlinmania.llama.core.maskLowBits32(
+                        io.github.kotlinmania.llama.core.unsignedByte(
                             buffer[(tensorQ4_K.dataOffset + minByteOffset.toULong()).toInt()]
                         ), 4
                     )
                 } else 0
-                val quantizedMin = io.github.kotlinmania.llama.ore.mergeBits32(
+                val quantizedMin = io.github.kotlinmania.llama.core.mergeBits32(
                     quantizedMinLow,
-                    io.github.kotlinmania.llama.ore.logicalLeft32(quantizedMinHigh, 2)
+                    io.github.kotlinmania.llama.core.logicalLeft32(quantizedMinHigh, 2)
                 )
                 
                 val scale = (quantizedScale.toFloat() / 63.0f) * d
                 val min = (quantizedMin.toFloat() / 63.0f) * d + dmin
                 
                 // Process 32 4-bit values in this sub-block
-                val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + subBlock * 16
+                val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + subBlock * 16
                 for (i in 0 until 32 step 2) {
                     val k1 = blockStart + subBlock * 32 + i
                     val k2 = blockStart + subBlock * 32 + i + 1
@@ -606,8 +606,8 @@ internal fun computeDotProductQ4_KF32(
             // Fallback for partial blocks
             for (k in blockStart until blockEnd) {
                 val flatIndex = rowIndexInQ4_K * commonDimK + k
-                val blockIndex = flatIndex / io.github.kotlinmania.llama.ore.QK_K
-                val itemInBlock = flatIndex % io.github.kotlinmania.llama.ore.QK_K
+                val blockIndex = flatIndex / io.github.kotlinmania.llama.core.QK_K
+                val itemInBlock = flatIndex % io.github.kotlinmania.llama.core.QK_K
                 
                 val d = tensorQ4_K.getQ4_KBlockScale(graphAllocator, blockIndex)
                 val dmin = tensorQ4_K.getQ4_KBlockScaleMin(graphAllocator, blockIndex)
@@ -622,7 +622,7 @@ internal fun computeDotProductQ4_KF32(
                 val quantizedScale = scaleByte.toUnsignedInt().lowBits(6)
                 val scale = (quantizedScale.toFloat() / 63.0f) * d
                 
-                val qsOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + subBlock * 16 + ((itemInBlock % 32) / 2)
+                val qsOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + subBlock * 16 + ((itemInBlock % 32) / 2)
                 val qsByte = buffer[(tensorQ4_K.dataOffset + qsOffset.toULong()).toInt()]
                 val q = if ((itemInBlock % 32) % 2 == 0) qsByte.getBits(0, 4) else qsByte.getBits(4, 4)
                 
@@ -641,15 +641,15 @@ internal fun computeDotProductQ4_KF32(
  * This is the symmetric case: F32 x Q4_1
  */
 internal fun computeDotProductF32Q41(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorQ41: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ41: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInF32: Int,
     colIndexInQ41: Int,
     commonDimK: Int
 ): Float {
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductF32Q41: tensorF32 must be F32. Got ${tensorF32.type}" }
-    require(tensorQ41.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "computeDotProductF32Q41: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductF32Q41: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ41.type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "computeDotProductF32Q41: tensorQ41 must be Q4_1. Got ${tensorQ41.type}" }
     require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorQ41.ne[1].toInt() == commonDimK) { "tensorQ41 K dim (${tensorQ41.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -658,8 +658,8 @@ internal fun computeDotProductF32Q41(
         val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
         // Access tensorQ41[k, colIndexInQ41] - row k, column colIndexInQ41
         val flatIndexInQ41 = k * tensorQ41.ne[0].toInt() + colIndexInQ41
-        val blockIndexQ41 = flatIndexInQ41 / io.github.kotlinmania.llama.ore.QK4_1
-        val itemInBlockQ41 = flatIndexInQ41 % io.github.kotlinmania.llama.ore.QK4_1
+        val blockIndexQ41 = flatIndexInQ41 / io.github.kotlinmania.llama.core.QK4_1
+        val itemInBlockQ41 = flatIndexInQ41 % io.github.kotlinmania.llama.core.QK4_1
         
         val scaleD = tensorQ41.getQ4_1BlockScale(graphAllocator, blockIndexQ41)
         val minM = tensorQ41.getQ4_1BlockMin(graphAllocator, blockIndexQ41)
@@ -674,32 +674,32 @@ internal fun computeDotProductF32Q41(
  * Computes the dot product of a row from a Q8_K tensor and a column from an F32 tensor.
  */
 internal fun computeDotProductQ8_KF32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ8_K: io.github.kotlinmania.llama.ore.GGMLTensor,
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ8_K: io.github.kotlinmania.llama.core.GGMLTensor,
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,
     rowIndexInQ8_K: Int,
     colIndexInF32: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ8_K.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_K) { "tensorQ8_K must be Q8_K. Got ${tensorQ8_K.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ8_K.type == io.github.kotlinmania.llama.core.GGMLType.Q8_K) { "tensorQ8_K must be Q8_K. Got ${tensorQ8_K.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
     require(tensorQ8_K.ne[0].toInt() == commonDimK) { "tensorQ8_K K dim (${tensorQ8_K.ne[0]}) must match commonDimK ($commonDimK)" }
     require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
 
     var sumF32 = 0.0f
     
     // Process in blocks of QK_K (simpler for Q8_K)
-    for (blockStart in 0 until commonDimK step io.github.kotlinmania.llama.ore.QK_K) {
-        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.ore.QK_K, commonDimK)
+    for (blockStart in 0 until commonDimK step io.github.kotlinmania.llama.core.QK_K) {
+        val blockEnd = minOf(blockStart + io.github.kotlinmania.llama.core.QK_K, commonDimK)
         
-        if (blockEnd - blockStart == io.github.kotlinmania.llama.ore.QK_K) {
+        if (blockEnd - blockStart == io.github.kotlinmania.llama.core.QK_K) {
             val flatIndexStart = rowIndexInQ8_K * commonDimK + blockStart
-            val blockIndex = flatIndexStart / io.github.kotlinmania.llama.ore.QK_K
+            val blockIndex = flatIndexStart / io.github.kotlinmania.llama.core.QK_K
             
             val d = tensorQ8_K.getQ8_KBlockScale(graphAllocator, blockIndex)
             
             // Simple dot product for Q8_K block
-            for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+            for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
                 val k = blockStart + i
                 val quantizedValue = tensorQ8_K.getQ8_KWeight(graphAllocator, blockIndex, i)
                 val dequantizedValue = quantizedValue.toFloat() * d
@@ -710,8 +710,8 @@ internal fun computeDotProductQ8_KF32(
             // Fallback for partial blocks
             for (k in blockStart until blockEnd) {
                 val flatIndex = rowIndexInQ8_K * commonDimK + k
-                val blockIndex = flatIndex / io.github.kotlinmania.llama.ore.QK_K
-                val itemInBlock = flatIndex % io.github.kotlinmania.llama.ore.QK_K
+                val blockIndex = flatIndex / io.github.kotlinmania.llama.core.QK_K
+                val itemInBlock = flatIndex % io.github.kotlinmania.llama.core.QK_K
                 
                 val d = tensorQ8_K.getQ8_KBlockScale(graphAllocator, blockIndex)
                 val quantizedValue = tensorQ8_K.getQ8_KWeight(graphAllocator, blockIndex, itemInBlock)
@@ -734,15 +734,15 @@ internal fun computeDotProductQ8_KF32(
  * This is the symmetric case: F32 x Q8_0
  */
 internal fun computeDotProductF32Q80(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorQ80: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ80: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInF32: Int,
     colIndexInQ80: Int,
     commonDimK: Int
 ): Float {
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductF32Q80: tensorF32 must be F32. Got ${tensorF32.type}" }
-    require(tensorQ80.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "computeDotProductF32Q80: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductF32Q80: tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorQ80.type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "computeDotProductF32Q80: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
     require(tensorF32.ne[0].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorQ80.ne[1].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -751,8 +751,8 @@ internal fun computeDotProductF32Q80(
         val f32Value = tensorF32.getFloat(graphAllocator, k, rowIndexInF32)
         // Access tensorQ80[k, colIndexInQ80] - row k, column colIndexInQ80
         val flatIndexInQ80 = k * tensorQ80.ne[0].toInt() + colIndexInQ80
-        val blockIndexQ80 = flatIndexInQ80 / io.github.kotlinmania.llama.ore.QK8_0
-        val itemInBlockQ80 = flatIndexInQ80 % io.github.kotlinmania.llama.ore.QK8_0
+        val blockIndexQ80 = flatIndexInQ80 / io.github.kotlinmania.llama.core.QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % io.github.kotlinmania.llama.core.QK8_0
         val scale = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
         val qWeight = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
         val dequantizedQ80Value = scale * qWeight.toFloat()
@@ -765,15 +765,15 @@ internal fun computeDotProductF32Q80(
  * Computes the dot product of a row from an F32 tensor and a column from another F32 tensor.
  */
 internal fun computeDotProductF32F32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorF32A: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorF32B: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorF32A: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorF32B: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInF32A: Int,
     colIndexInF32B: Int,
     commonDimK: Int
 ): Float {
-    require(tensorF32A.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductF32F32: tensorF32A must be F32. Got ${tensorF32A.type}" }
-    require(tensorF32B.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "computeDotProductF32F32: tensorF32B must be F32. Got ${tensorF32B.type}" }
+    require(tensorF32A.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductF32F32: tensorF32A must be F32. Got ${tensorF32A.type}" }
+    require(tensorF32B.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "computeDotProductF32F32: tensorF32B must be F32. Got ${tensorF32B.type}" }
     require(tensorF32A.ne[0].toInt() == commonDimK) { "tensorF32A K dim (${tensorF32A.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorF32B.ne[1].toInt() == commonDimK) { "tensorF32B K dim (${tensorF32B.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -785,7 +785,7 @@ internal fun computeDotProductF32F32(
         if (strideA > 0 && strideB > 0) {
             val baseOffsetA = tensorF32A.dataOffset.toInt() + rowIndexInF32A * tensorF32A.nb[1].toInt()
             val baseOffsetB = tensorF32B.dataOffset.toInt() + colIndexInF32B * tensorF32B.nb[0].toInt()
-            return io.github.kotlinmania.llama.ore.simd.GGMLSimd.dotF32(
+            return io.github.kotlinmania.llama.core.simd.GGMLSimd.dotF32(
                 bufferA,
                 baseOffsetA,
                 strideA,
@@ -811,15 +811,15 @@ internal fun computeDotProductF32F32(
  * This avoids dequantization by computing the dot product directly on quantized values.
  */
 internal fun computeDotProductQ80Q80(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ80A: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorQ80B: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ80A: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ80B: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInQ80A: Int,
     colIndexInQ80B: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ80A.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80A must be Q8_0. Got ${tensorQ80A.type}" }
-    require(tensorQ80B.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80B must be Q8_0. Got ${tensorQ80B.type}" }
+    require(tensorQ80A.type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80A must be Q8_0. Got ${tensorQ80A.type}" }
+    require(tensorQ80B.type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "computeDotProductQ80Q80: tensorQ80B must be Q8_0. Got ${tensorQ80B.type}" }
     require(tensorQ80A.ne[0].toInt() == commonDimK) { "tensorQ80A K dim (${tensorQ80A.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorQ80B.ne[1].toInt() == commonDimK) { "tensorQ80B K dim (${tensorQ80B.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -827,15 +827,15 @@ internal fun computeDotProductQ80Q80(
     for (k in 0 until commonDimK) {
         // Access tensorQ80A[rowIndexInQ80A, k]
         val flatIndexInQ80A = rowIndexInQ80A * commonDimK + k
-        val blockIndexQ80A = flatIndexInQ80A / io.github.kotlinmania.llama.ore.QK8_0
-        val itemInBlockQ80A = flatIndexInQ80A % io.github.kotlinmania.llama.ore.QK8_0
+        val blockIndexQ80A = flatIndexInQ80A / io.github.kotlinmania.llama.core.QK8_0
+        val itemInBlockQ80A = flatIndexInQ80A % io.github.kotlinmania.llama.core.QK8_0
         val scaleA = tensorQ80A.getQ8_0BlockScale(graphAllocator, blockIndexQ80A)
         val qWeightA = tensorQ80A.getQ8_0Weight(graphAllocator, blockIndexQ80A, itemInBlockQ80A)
 
         // Access tensorQ80B[k, colIndexInQ80B]
         val flatIndexInQ80B = k * tensorQ80B.ne[0].toInt() + colIndexInQ80B
-        val blockIndexQ80B = flatIndexInQ80B / io.github.kotlinmania.llama.ore.QK8_0
-        val itemInBlockQ80B = flatIndexInQ80B % io.github.kotlinmania.llama.ore.QK8_0
+        val blockIndexQ80B = flatIndexInQ80B / io.github.kotlinmania.llama.core.QK8_0
+        val itemInBlockQ80B = flatIndexInQ80B % io.github.kotlinmania.llama.core.QK8_0
         val scaleB = tensorQ80B.getQ8_0BlockScale(graphAllocator, blockIndexQ80B)
         val qWeightB = tensorQ80B.getQ8_0Weight(graphAllocator, blockIndexQ80B, itemInBlockQ80B)
 
@@ -849,15 +849,15 @@ internal fun computeDotProductQ80Q80(
  * Computes the direct quantized dot product Q4_0 x Q4_0 -> F32.
  */
 internal fun computeDotProductQ40Q40(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ40A: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorQ40B: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ40A: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40B: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInQ40A: Int,
     colIndexInQ40B: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ40A.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40A must be Q4_0. Got ${tensorQ40A.type}" }
-    require(tensorQ40B.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40B must be Q4_0. Got ${tensorQ40B.type}" }
+    require(tensorQ40A.type == io.github.kotlinmania.llama.core.GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40A must be Q4_0. Got ${tensorQ40A.type}" }
+    require(tensorQ40B.type == io.github.kotlinmania.llama.core.GGMLType.Q4_0) { "computeDotProductQ40Q40: tensorQ40B must be Q4_0. Got ${tensorQ40B.type}" }
     require(tensorQ40A.ne[0].toInt() == commonDimK) { "tensorQ40A K dim (${tensorQ40A.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorQ40B.ne[1].toInt() == commonDimK) { "tensorQ40B K dim (${tensorQ40B.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -865,15 +865,15 @@ internal fun computeDotProductQ40Q40(
     for (k in 0 until commonDimK) {
         // Access tensorQ40A[rowIndexInQ40A, k]
         val flatIndexInQ40A = rowIndexInQ40A * commonDimK + k
-        val blockIndexQ40A = flatIndexInQ40A / io.github.kotlinmania.llama.ore.QK4_0
-        val itemInBlockQ40A = flatIndexInQ40A % io.github.kotlinmania.llama.ore.QK4_0
+        val blockIndexQ40A = flatIndexInQ40A / io.github.kotlinmania.llama.core.QK4_0
+        val itemInBlockQ40A = flatIndexInQ40A % io.github.kotlinmania.llama.core.QK4_0
         val scaleA = tensorQ40A.getQ4_0BlockScale(graphAllocator, blockIndexQ40A)
         val qNibbleA = tensorQ40A.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40A, itemInBlockQ40A)
 
         // Access tensorQ40B[k, colIndexInQ40B]
         val flatIndexInQ40B = k * tensorQ40B.ne[0].toInt() + colIndexInQ40B
-        val blockIndexQ40B = flatIndexInQ40B / io.github.kotlinmania.llama.ore.QK4_0
-        val itemInBlockQ40B = flatIndexInQ40B % io.github.kotlinmania.llama.ore.QK4_0
+        val blockIndexQ40B = flatIndexInQ40B / io.github.kotlinmania.llama.core.QK4_0
+        val itemInBlockQ40B = flatIndexInQ40B % io.github.kotlinmania.llama.core.QK4_0
         val scaleB = tensorQ40B.getQ4_0BlockScale(graphAllocator, blockIndexQ40B)
         val qNibbleB = tensorQ40B.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40B, itemInBlockQ40B)
 
@@ -889,15 +889,15 @@ internal fun computeDotProductQ40Q40(
  * Computes the direct quantized dot product Q4_1 x Q4_1 -> F32.
  */
 internal fun computeDotProductQ41Q41(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ41A: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorQ41B: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ41A: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorQ41B: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInQ41A: Int,
     colIndexInQ41B: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ41A.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41A must be Q4_1. Got ${tensorQ41A.type}" }
-    require(tensorQ41B.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41B must be Q4_1. Got ${tensorQ41B.type}" }
+    require(tensorQ41A.type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41A must be Q4_1. Got ${tensorQ41A.type}" }
+    require(tensorQ41B.type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "computeDotProductQ41Q41: tensorQ41B must be Q4_1. Got ${tensorQ41B.type}" }
     require(tensorQ41A.ne[0].toInt() == commonDimK) { "tensorQ41A K dim (${tensorQ41A.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorQ41B.ne[1].toInt() == commonDimK) { "tensorQ41B K dim (${tensorQ41B.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -905,16 +905,16 @@ internal fun computeDotProductQ41Q41(
     for (k in 0 until commonDimK) {
         // Access tensorQ41A[rowIndexInQ41A, k]
         val flatIndexInQ41A = rowIndexInQ41A * commonDimK + k
-        val blockIndexQ41A = flatIndexInQ41A / io.github.kotlinmania.llama.ore.QK4_1
-        val itemInBlockQ41A = flatIndexInQ41A % io.github.kotlinmania.llama.ore.QK4_1
+        val blockIndexQ41A = flatIndexInQ41A / io.github.kotlinmania.llama.core.QK4_1
+        val itemInBlockQ41A = flatIndexInQ41A % io.github.kotlinmania.llama.core.QK4_1
         val scaleDA = tensorQ41A.getQ4_1BlockScale(graphAllocator, blockIndexQ41A)
         val minMA = tensorQ41A.getQ4_1BlockMin(graphAllocator, blockIndexQ41A)
         val qNibbleA = tensorQ41A.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41A, itemInBlockQ41A)
 
         // Access tensorQ41B[k, colIndexInQ41B]
         val flatIndexInQ41B = k * tensorQ41B.ne[0].toInt() + colIndexInQ41B
-        val blockIndexQ41B = flatIndexInQ41B / io.github.kotlinmania.llama.ore.QK4_1
-        val itemInBlockQ41B = flatIndexInQ41B % io.github.kotlinmania.llama.ore.QK4_1
+        val blockIndexQ41B = flatIndexInQ41B / io.github.kotlinmania.llama.core.QK4_1
+        val itemInBlockQ41B = flatIndexInQ41B % io.github.kotlinmania.llama.core.QK4_1
         val scaleDB = tensorQ41B.getQ4_1BlockScale(graphAllocator, blockIndexQ41B)
         val minMB = tensorQ41B.getQ4_1BlockMin(graphAllocator, blockIndexQ41B)
         val qNibbleB = tensorQ41B.getQ4_1NibbleWeight(graphAllocator, blockIndexQ41B, itemInBlockQ41B)
@@ -931,15 +931,15 @@ internal fun computeDotProductQ41Q41(
  * Computes mixed quantized dot product Q8_0 x Q4_0 -> F32.
  */
 internal fun computeDotProductQ80Q40(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorQ80: io.github.kotlinmania.llama.ore.GGMLTensor,     // M x K (ne[0]=K, ne[1]=M)
-    tensorQ40: io.github.kotlinmania.llama.ore.GGMLTensor,     // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorQ80: io.github.kotlinmania.llama.core.GGMLTensor,     // M x K (ne[0]=K, ne[1]=M)
+    tensorQ40: io.github.kotlinmania.llama.core.GGMLTensor,     // K x N (ne[0]=N, ne[1]=K)
     rowIndexInQ80: Int,
     colIndexInQ40: Int,
     commonDimK: Int
 ): Float {
-    require(tensorQ80.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "computeDotProductQ80Q40: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
-    require(tensorQ40.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0) { "computeDotProductQ80Q40: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
+    require(tensorQ80.type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "computeDotProductQ80Q40: tensorQ80 must be Q8_0. Got ${tensorQ80.type}" }
+    require(tensorQ40.type == io.github.kotlinmania.llama.core.GGMLType.Q4_0) { "computeDotProductQ80Q40: tensorQ40 must be Q4_0. Got ${tensorQ40.type}" }
     require(tensorQ80.ne[0].toInt() == commonDimK) { "tensorQ80 K dim (${tensorQ80.ne[0]}) must match commonDimK ($commonDimK)"}
     require(tensorQ40.ne[1].toInt() == commonDimK) { "tensorQ40 K dim (${tensorQ40.ne[1]}) must match commonDimK ($commonDimK)"}
 
@@ -947,15 +947,15 @@ internal fun computeDotProductQ80Q40(
     for (k in 0 until commonDimK) {
         // Access tensorQ80[rowIndexInQ80, k]
         val flatIndexInQ80 = rowIndexInQ80 * commonDimK + k
-        val blockIndexQ80 = flatIndexInQ80 / io.github.kotlinmania.llama.ore.QK8_0
-        val itemInBlockQ80 = flatIndexInQ80 % io.github.kotlinmania.llama.ore.QK8_0
+        val blockIndexQ80 = flatIndexInQ80 / io.github.kotlinmania.llama.core.QK8_0
+        val itemInBlockQ80 = flatIndexInQ80 % io.github.kotlinmania.llama.core.QK8_0
         val scaleQ80 = tensorQ80.getQ8_0BlockScale(graphAllocator, blockIndexQ80)
         val qWeightQ80 = tensorQ80.getQ8_0Weight(graphAllocator, blockIndexQ80, itemInBlockQ80)
 
         // Access tensorQ40[k, colIndexInQ40]
         val flatIndexInQ40 = k * tensorQ40.ne[0].toInt() + colIndexInQ40
-        val blockIndexQ40 = flatIndexInQ40 / io.github.kotlinmania.llama.ore.QK4_0
-        val itemInBlockQ40 = flatIndexInQ40 % io.github.kotlinmania.llama.ore.QK4_0
+        val blockIndexQ40 = flatIndexInQ40 / io.github.kotlinmania.llama.core.QK4_0
+        val itemInBlockQ40 = flatIndexInQ40 % io.github.kotlinmania.llama.core.QK4_0
         val scaleQ40 = tensorQ40.getQ4_0BlockScale(graphAllocator, blockIndexQ40)
         val qNibbleQ40 = tensorQ40.getQ4_0NibbleWeight(graphAllocator, blockIndexQ40, itemInBlockQ40)
 
@@ -972,23 +972,23 @@ internal fun computeDotProductQ80Q40(
  * Used as a core part of BitNet 1.58 x F32 matrix multiplication.
  */
 internal fun computeDotProductBitNet158F32(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorBitNet: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor,       // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorBitNet: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorF32: io.github.kotlinmania.llama.core.GGMLTensor,       // K x N (ne[0]=N, ne[1]=K)
     rowIndexInBitNet: Int,       // Row index for tensorBitNet (0 to M-1)
     colIndexInF32: Int,          // Column index for tensorF32 (0 to N-1)
     commonDimK: Int              // The shared dimension K
 ): Float {
-    require(tensorBitNet.type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "tensorBitNet must be BITNET_1_58. Got ${tensorBitNet.type}" }
-    require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
+    require(tensorBitNet.type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "tensorBitNet must be BITNET_1_58. Got ${tensorBitNet.type}" }
+    require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tensorF32 must be F32. Got ${tensorF32.type}" }
     require(tensorBitNet.ne[0].toInt() == commonDimK) { "tensorBitNet K dim (${tensorBitNet.ne[0]}) must match commonDimK ($commonDimK)" }
     require(tensorF32.ne[1].toInt() == commonDimK) { "tensorF32 K dim (${tensorF32.ne[1]}) must match commonDimK ($commonDimK)" }
 
     var sumF32 = 0.0f
     for (k in 0 until commonDimK) {
         val flatIndexInBitNet = rowIndexInBitNet * commonDimK + k
-        val blockIndexBitNet = flatIndexInBitNet / io.github.kotlinmania.llama.ore.QK_BITNET_1_58
-        val itemInBlockBitNet = flatIndexInBitNet % io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+        val blockIndexBitNet = flatIndexInBitNet / io.github.kotlinmania.llama.core.QK_BITNET_1_58
+        val itemInBlockBitNet = flatIndexInBitNet % io.github.kotlinmania.llama.core.QK_BITNET_1_58
         val scale = tensorBitNet.getBitNet158BlockScale(graphAllocator, blockIndexBitNet)
         val ternaryWeight = tensorBitNet.getBitNet158TernaryWeight(graphAllocator, blockIndexBitNet, itemInBlockBitNet)
         val dequantizedBitNetValue = scale * ternaryWeight.toFloat()
@@ -1002,15 +1002,15 @@ internal fun computeDotProductBitNet158F32(
  * Computes the direct quantized dot product BitNet 1.58 x BitNet 1.58 -> F32.
  */
 internal fun computeDotProductBitNet158BitNet158(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    tensorBitNetA: io.github.kotlinmania.llama.ore.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
-    tensorBitNetB: io.github.kotlinmania.llama.ore.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    tensorBitNetA: io.github.kotlinmania.llama.core.GGMLTensor,    // M x K (ne[0]=K, ne[1]=M)
+    tensorBitNetB: io.github.kotlinmania.llama.core.GGMLTensor,    // K x N (ne[0]=N, ne[1]=K)
     rowIndexInBitNetA: Int,
     colIndexInBitNetB: Int,
     commonDimK: Int
 ): Float {
-    require(tensorBitNetA.type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "tensorBitNetA must be BITNET_1_58. Got ${tensorBitNetA.type}" }
-    require(tensorBitNetB.type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "tensorBitNetB must be BITNET_1_58. Got ${tensorBitNetB.type}" }
+    require(tensorBitNetA.type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "tensorBitNetA must be BITNET_1_58. Got ${tensorBitNetA.type}" }
+    require(tensorBitNetB.type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "tensorBitNetB must be BITNET_1_58. Got ${tensorBitNetB.type}" }
     require(tensorBitNetA.ne[0].toInt() == commonDimK) { "tensorBitNetA K dim (${tensorBitNetA.ne[0]}) must match commonDimK ($commonDimK)" }
     require(tensorBitNetB.ne[1].toInt() == commonDimK) { "tensorBitNetB K dim (${tensorBitNetB.ne[1]}) must match commonDimK ($commonDimK)" }
 
@@ -1018,15 +1018,15 @@ internal fun computeDotProductBitNet158BitNet158(
     for (k in 0 until commonDimK) {
         // Access tensorBitNetA[rowIndexInBitNetA, k]
         val flatIndexInBitNetA = rowIndexInBitNetA * commonDimK + k
-        val blockIndexBitNetA = flatIndexInBitNetA / io.github.kotlinmania.llama.ore.QK_BITNET_1_58
-        val itemInBlockBitNetA = flatIndexInBitNetA % io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+        val blockIndexBitNetA = flatIndexInBitNetA / io.github.kotlinmania.llama.core.QK_BITNET_1_58
+        val itemInBlockBitNetA = flatIndexInBitNetA % io.github.kotlinmania.llama.core.QK_BITNET_1_58
         val scaleA = tensorBitNetA.getBitNet158BlockScale(graphAllocator, blockIndexBitNetA)
         val ternaryWeightA = tensorBitNetA.getBitNet158TernaryWeight(graphAllocator, blockIndexBitNetA, itemInBlockBitNetA)
 
         // Access tensorBitNetB[k, colIndexInBitNetB]
         val flatIndexInBitNetB = k * tensorBitNetB.ne[0].toInt() + colIndexInBitNetB
-        val blockIndexBitNetB = flatIndexInBitNetB / io.github.kotlinmania.llama.ore.QK_BITNET_1_58
-        val itemInBlockBitNetB = flatIndexInBitNetB % io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+        val blockIndexBitNetB = flatIndexInBitNetB / io.github.kotlinmania.llama.core.QK_BITNET_1_58
+        val itemInBlockBitNetB = flatIndexInBitNetB % io.github.kotlinmania.llama.core.QK_BITNET_1_58
         val scaleB = tensorBitNetB.getBitNet158BlockScale(graphAllocator, blockIndexBitNetB)
         val ternaryWeightB = tensorBitNetB.getBitNet158TernaryWeight(graphAllocator, blockIndexBitNetB, itemInBlockBitNetB)
 
@@ -1037,7 +1037,7 @@ internal fun computeDotProductBitNet158BitNet158(
 }
 
 // Helper to iterate N-dimensionally
-internal fun applyNDIter(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
+internal fun applyNDIter(tensor: io.github.kotlinmania.llama.core.GGMLTensor, totalSize: Int, actionPerElement: (flatIdx: Int, indices: IntArray) -> Unit) {
     val n0 = tensor.ne[0].toInt(); val n1 = tensor.ne[1].toInt()
     val n2 = tensor.ne[2].toInt(); val n3 = tensor.ne[3].toInt()
     var currentFlatIdx = 0
@@ -1072,15 +1072,15 @@ internal fun applyNDIter(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, tot
  * Adds two tensors element-wise.
  */
 fun computeAdd(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    a: io.github.kotlinmania.llama.ore.GGMLTensor,
-    b: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    a: io.github.kotlinmania.llama.core.GGMLTensor,
+    b: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != b.ne[i]) throw IllegalArgumentException("Incompatible dimensions for addition")
     }
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -1088,8 +1088,8 @@ fun computeAdd(
     val totalSize = dst.numElements().toInt()
 
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(
                 a,
                 totalSize
             ) { _, indices -> // Iterate based on 'a' which has same shape as dst
@@ -1098,8 +1098,8 @@ fun computeAdd(
                 dst.setFloat(graphAllocator, v0 + v1, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(
                 a,
                 totalSize
             ) { _, indices -> // Iterate based on 'a'
@@ -1109,15 +1109,15 @@ fun computeAdd(
                 dst.setHalf(graphAllocator, v0 + v1, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getInt(graphAllocator, *indices)
                 val valB = b.getInt(graphAllocator, *indices)
                 dst.setInt(graphAllocator, valA + valB, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getShort(graphAllocator, *indices).toInt()
                 val valB = b.getShort(graphAllocator, *indices).toInt()
                 dst.setShort(
@@ -1127,8 +1127,8 @@ fun computeAdd(
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I8 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getByte(graphAllocator, *indices).toInt()
                 val valB = b.getByte(graphAllocator, *indices).toInt()
                 dst.setByte(
@@ -1138,34 +1138,34 @@ fun computeAdd(
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I64 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getLong(graphAllocator, *indices)
                 val valB = b.getLong(graphAllocator, *indices)
                 dst.setLong(graphAllocator, valA + valB, *indices)
             }
     }
     // For quantized types, dequantize, compute, and re-quantize
-    io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-    io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-    io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-    io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-    io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-    io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-    io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-    io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
-            val aF32 = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a)
-            val bF32 = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, b)
+    io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+    io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+    io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+    io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+    io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+    io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+    io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
+            val aF32 = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a)
+            val bF32 = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, b)
             val tempF32 =
-                io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb =
-            io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+                io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb =
+            io.github.kotlinmania.llama.core.calculateContiguousStrides(
                 tempF32.ne,
-                io.github.kotlinmania.llama.ore.GGMLType.F32,
+                io.github.kotlinmania.llama.core.GGMLType.F32,
                 tempF32.ne.size
             )
             computeAdd(graphAllocator, aF32, bF32, tempF32)
             val quantizedResult =
-                io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tempF32, dst.type)
+                io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tempF32, dst.type)
             // Copy quantized data to destination
             dst.data = quantizedResult.data
         }
@@ -1174,15 +1174,15 @@ fun computeAdd(
 }
 
 fun computeMul(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    a: io.github.kotlinmania.llama.ore.GGMLTensor,
-    b: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    a: io.github.kotlinmania.llama.core.GGMLTensor,
+    b: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != b.ne[i]) throw IllegalArgumentException("Incompatible dimensions for multiplication")
     }
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -1190,29 +1190,29 @@ fun computeMul(
     val totalSize = dst.numElements().toInt()
 
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val v0 = a.getFloat(graphAllocator, *indices)
                 val v1 = b.getFloat(graphAllocator, *indices)
                 dst.setFloat(graphAllocator, v0 * v1, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val v0 = a.getHalf(graphAllocator, *indices)
                 val v1 = b.getHalf(graphAllocator, *indices)
                 dst.setHalf(graphAllocator, v0 * v1, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getInt(graphAllocator, *indices)
                 val valB = b.getInt(graphAllocator, *indices)
                 dst.setInt(graphAllocator, valA * valB, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getShort(graphAllocator, *indices).toInt()
                 val valB = b.getShort(graphAllocator, *indices).toInt()
                 dst.setShort(
@@ -1222,8 +1222,8 @@ fun computeMul(
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I8 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getByte(graphAllocator, *indices).toInt()
                 val valB = b.getByte(graphAllocator, *indices).toInt()
                 dst.setByte(
@@ -1233,34 +1233,34 @@ fun computeMul(
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, totalSize) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I64 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, totalSize) { _, indices ->
                 val valA = a.getLong(graphAllocator, *indices)
                 val valB = b.getLong(graphAllocator, *indices)
                 dst.setLong(graphAllocator, valA * valB, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS,
-        io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58 -> {
-            val aF32 = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a)
-            val bF32 = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, b)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS,
+        io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58 -> {
+            val aF32 = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a)
+            val bF32 = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, b)
             val tempF32 =
-                io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb =
-                io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+                io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb =
+                io.github.kotlinmania.llama.core.calculateContiguousStrides(
                     tempF32.ne,
-                    io.github.kotlinmania.llama.ore.GGMLType.F32,
+                    io.github.kotlinmania.llama.core.GGMLType.F32,
                     tempF32.ne.size
                 )
             computeMul(graphAllocator, aF32, bF32, tempF32)
             val quantizedResult =
-                io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tempF32, dst.type)
+                io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tempF32, dst.type)
             dst.data = quantizedResult.data
         }
         else -> error("fatal error")
@@ -1268,12 +1268,12 @@ fun computeMul(
 }
 
 fun computeRepeatBack(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     require(src.type == dst.type) { "REPEAT_BACK requires matching tensor types" }
-    for (d in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (d in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         val srcDim = src.ne[d]
         val dstDim = dst.ne[d]
         if (srcDim == dstDim) continue
@@ -1288,8 +1288,8 @@ fun computeRepeatBack(
     val dstRank = dst.rank().coerceAtLeast(1)
 
     when (dst.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(dst, dstTotal) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(dst, dstTotal) { _, indices ->
                 dst.setFloat(
                     graphAllocator,
                     0f,
@@ -1298,7 +1298,7 @@ fun computeRepeatBack(
             }
             val srcTotal = src.numElements().toInt()
             if (srcTotal == 0) return
-            io.github.kotlinmania.llama.ore.applyNDIter(src, srcTotal) { _, srcIndices ->
+            io.github.kotlinmania.llama.core.applyNDIter(src, srcTotal) { _, srcIndices ->
                 val target = IntArray(dstRank) { dim ->
                     val dstDimSize = dst.ne[dim].toInt().coerceAtLeast(1)
                     val srcIndexVal = if (dim < srcIndices.size) srcIndices[dim] else 0
@@ -1309,8 +1309,8 @@ fun computeRepeatBack(
                 dst.setFloat(graphAllocator, current + addition, *target)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(dst, dstTotal) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(dst, dstTotal) { _, indices ->
                 dst.setHalf(
                     graphAllocator,
                     0f,
@@ -1319,7 +1319,7 @@ fun computeRepeatBack(
             }
             val srcTotal = src.numElements().toInt()
             if (srcTotal == 0) return
-            io.github.kotlinmania.llama.ore.applyNDIter(src, srcTotal) { _, srcIndices ->
+            io.github.kotlinmania.llama.core.applyNDIter(src, srcTotal) { _, srcIndices ->
                 val target = IntArray(dstRank) { dim ->
                     val dstDimSize = dst.ne[dim].toInt().coerceAtLeast(1)
                     val srcIndexVal = if (dim < srcIndices.size) srcIndices[dim] else 0
@@ -1334,55 +1334,55 @@ fun computeRepeatBack(
     }
 }
 
-fun dequantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.GGMLTensor {
+fun dequantizeTensor(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.GGMLTensor {
     val result =
-        io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32)
+        io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32)
     result.ne = tensor.ne.copyOf()
     if (result.type.byteSize > 0uL) {
         result.nb[0] = result.type.byteSize
-        for (d in 1 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { result.nb[d] = result.ne[d-1].toULong() * result.nb[d-1] }
+        for (d in 1 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { result.nb[d] = result.ne[d-1].toULong() * result.nb[d-1] }
     } else {
-        for(d in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) result.nb[d] = 0uL
+        for(d in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) result.nb[d] = 0uL
     }
     val numElements = tensor.numElements().toInt()
     val resultDataArray = FloatArray(numElements)
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             tensor,
             numElements
         ) { flatIdx, indices ->
             if (flatIdx < numElements) resultDataArray[flatIdx] = tensor.getHalf(graphAllocator, *indices)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             tensor,
             numElements
         ) { flatIdx, indices ->
             if (flatIdx < numElements) resultDataArray[flatIdx] = tensor.getFloat(graphAllocator, *indices)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q8_0 -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q8_0 -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
                 val scale = tensor.getQ8_0BlockScale(graphAllocator, blockIdx)
-                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.ore.QK8_0) { if (fidx < numElements) resultDataArray[fidx++] = scale * tensor.getQ8_0Weight(graphAllocator, blockIdx, itemIdxInBlock).toFloat() else break }
+                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.core.QK8_0) { if (fidx < numElements) resultDataArray[fidx++] = scale * tensor.getQ8_0Weight(graphAllocator, blockIdx, itemIdxInBlock).toFloat() else break }
                 if (fidx >= numElements && blockIdx < numBlocks -1) { println("Warn: Q8_0 dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q8_0 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0 -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0 -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
                 val scale = tensor.getQ4_0BlockScale(graphAllocator, blockIdx)
-                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.ore.QK4_0) { if (fidx < numElements) resultDataArray[fidx++] = scale * (tensor.getQ4_0NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock).toFloat() - 8.0f) else break }
+                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.core.QK4_0) { if (fidx < numElements) resultDataArray[fidx++] = scale * (tensor.getQ4_0NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock).toFloat() - 8.0f) else break }
                 if (fidx >= numElements && blockIdx < numBlocks -1) { println("Warn: Q4_0 dequant filled array early for ${tensor.name}"); break }
             }
              if (fidx != numElements && numElements > 0) println("Warn: Q4_0 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_1 -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q4_1 -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
                 val dScale = tensor.getQ4_1BlockScale(graphAllocator, blockIdx)
                 val mMin = tensor.getQ4_1BlockMin(graphAllocator, blockIdx)
-                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.ore.QK4_1) {
+                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.core.QK4_1) {
                     if (fidx < numElements) {
                         val qNibble = tensor.getQ4_1NibbleWeight(graphAllocator, blockIdx, itemIdxInBlock)
                         resultDataArray[fidx++] = dScale * qNibble.toFloat() + mMin
@@ -1393,102 +1393,102 @@ fun dequantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAl
             if (fidx != numElements && numElements > 0) println("Warn: Q4_1 dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
         // K-Quant dequantization
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
-                io.github.kotlinmania.llama.ore.dequantizeQ2_KBlock(
+                io.github.kotlinmania.llama.core.dequantizeQ2_KBlock(
                     graphAllocator,
                     tensor,
                     blockIdx,
                     resultDataArray,
                     fidx
                 )
-                fidx += io.github.kotlinmania.llama.ore.QK_K
+                fidx += io.github.kotlinmania.llama.core.QK_K
                 if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q2_K dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q2_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q3_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q3_K -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
-                io.github.kotlinmania.llama.ore.dequantizeQ3_KBlock(
+                io.github.kotlinmania.llama.core.dequantizeQ3_KBlock(
                     graphAllocator,
                     tensor,
                     blockIdx,
                     resultDataArray,
                     fidx
                 )
-                fidx += io.github.kotlinmania.llama.ore.QK_K
+                fidx += io.github.kotlinmania.llama.core.QK_K
                 if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q3_K dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q3_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q4_K -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
-                io.github.kotlinmania.llama.ore.dequantizeQ4_KBlock(
+                io.github.kotlinmania.llama.core.dequantizeQ4_KBlock(
                     graphAllocator,
                     tensor,
                     blockIdx,
                     resultDataArray,
                     fidx
                 )
-                fidx += io.github.kotlinmania.llama.ore.QK_K
+                fidx += io.github.kotlinmania.llama.core.QK_K
                 if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q4_K dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q4_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q5_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q5_K -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
-                io.github.kotlinmania.llama.ore.dequantizeQ5_KBlock(
+                io.github.kotlinmania.llama.core.dequantizeQ5_KBlock(
                     graphAllocator,
                     tensor,
                     blockIdx,
                     resultDataArray,
                     fidx
                 )
-                fidx += io.github.kotlinmania.llama.ore.QK_K
+                fidx += io.github.kotlinmania.llama.core.QK_K
                 if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q5_K dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q5_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q6_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q6_K -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
-                io.github.kotlinmania.llama.ore.dequantizeQ6_KBlock(
+                io.github.kotlinmania.llama.core.dequantizeQ6_KBlock(
                     graphAllocator,
                     tensor,
                     blockIdx,
                     resultDataArray,
                     fidx
                 )
-                fidx += io.github.kotlinmania.llama.ore.QK_K
+                fidx += io.github.kotlinmania.llama.core.QK_K
                 if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q6_K dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q6_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q8_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q8_K -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
-                io.github.kotlinmania.llama.ore.dequantizeQ8_KBlock(
+                io.github.kotlinmania.llama.core.dequantizeQ8_KBlock(
                     graphAllocator,
                     tensor,
                     blockIdx,
                     resultDataArray,
                     fidx
                 )
-                fidx += io.github.kotlinmania.llama.ore.QK_K
+                fidx += io.github.kotlinmania.llama.core.QK_K
                 if (fidx >= numElements && blockIdx < numBlocks - 1) { println("Warn: Q8_K dequant filled array early for ${tensor.name}"); break }
             }
             if (fidx != numElements && numElements > 0) println("Warn: Q8_K dequant element count mismatch for ${tensor.name}: $fidx vs $numElements")
         }
         // BitNet 1.58 dequantization
-        io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58 -> {
+        io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58 -> {
             val numBlocks = tensor.getNumBlocks().toInt(); var fidx = 0
             for (blockIdx in 0 until numBlocks) {
                 val scale = tensor.getBitNet158BlockScale(graphAllocator, blockIdx)
-                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.ore.QK_BITNET_1_58) {
+                for (itemIdxInBlock in 0 until io.github.kotlinmania.llama.core.QK_BITNET_1_58) {
                     if (fidx < numElements) {
                         val ternaryWeight = tensor.getBitNet158TernaryWeight(graphAllocator, blockIdx, itemIdxInBlock)
                         resultDataArray[fidx++] = scale * ternaryWeight.toFloat()
@@ -1503,24 +1503,24 @@ fun dequantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAl
     result.data = resultDataArray; return result
 }
 
-fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensorF32: io.github.kotlinmania.llama.ore.GGMLTensor, targetType: io.github.kotlinmania.llama.ore.GGMLType): io.github.kotlinmania.llama.ore.GGMLTensor {
-    if (tensorF32.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("quantizeTensor expects F32 input, got ${tensorF32.type}")
-    val result = io.github.kotlinmania.llama.ore.GGMLTensor(type = targetType); result.ne = tensorF32.ne.copyOf()
+fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensorF32: io.github.kotlinmania.llama.core.GGMLTensor, targetType: io.github.kotlinmania.llama.core.GGMLType): io.github.kotlinmania.llama.core.GGMLTensor {
+    if (tensorF32.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("quantizeTensor expects F32 input, got ${tensorF32.type}")
+    val result = io.github.kotlinmania.llama.core.GGMLTensor(type = targetType); result.ne = tensorF32.ne.copyOf()
     if (targetType.byteSize > 0uL) {
         result.nb[0] = targetType.byteSize
-        for (d in 1 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { result.nb[d] = result.ne[d-1].toULong() * result.nb[d-1] }
+        for (d in 1 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { result.nb[d] = result.ne[d-1].toULong() * result.nb[d-1] }
     } else {
-        if (targetType != io.github.kotlinmania.llama.ore.GGMLType.COUNT && !targetType.description.startsWith("Q", ignoreCase = true)) println("Warn: Stride calc for ${targetType.name} in quantizeTensor may be incomplete.")
-        for(d in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) result.nb[d] = 0uL
+        if (targetType != io.github.kotlinmania.llama.core.GGMLType.COUNT && !targetType.description.startsWith("Q", ignoreCase = true)) println("Warn: Stride calc for ${targetType.name} in quantizeTensor may be incomplete.")
+        for(d in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) result.nb[d] = 0uL
     }
     val numElements = tensorF32.numElements().toInt()
     when (targetType) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            val resArr = ShortArray(numElements); io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            val resArr = ShortArray(numElements); io.github.kotlinmania.llama.core.applyNDIter(
                 tensorF32,
                 numElements
             ) { fid, ind ->
-                if (fid < numElements) resArr[fid] = io.github.kotlinmania.llama.ore.floatToHalf(
+                if (fid < numElements) resArr[fid] = io.github.kotlinmania.llama.core.floatToHalf(
                     tensorF32.getFloat(
                         graphAllocator,
                         *ind
@@ -1528,52 +1528,52 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 )
             }; result.data = resArr
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
-            val resArr = FloatArray(numElements); io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
+            val resArr = FloatArray(numElements); io.github.kotlinmania.llama.core.applyNDIter(
                 tensorF32,
                 numElements
             ) { fid, ind -> if (fid < numElements) resArr[fid] = tensorF32.getFloat(graphAllocator, *ind) }; result.data = resArr
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q8_0 -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK8_0 == 0) { "Q8_0 numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK8_0}" }
-            val nBlk = numElements / io.github.kotlinmania.llama.ore.QK8_0; val blkSize = targetType.byteSize.toInt(); require(blkSize == SHORT_SIZE_BYTES + io.github.kotlinmania.llama.ore.QK8_0) { "Q8_0 block size mismatch" }
-            val resArr = ByteArray(nBlk * blkSize); val f32Blk = FloatArray(io.github.kotlinmania.llama.ore.QK8_0); var curIdx = 0; var boff = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensorF32, numElements) { _, ind ->
-                val itemInBlk = curIdx % io.github.kotlinmania.llama.ore.QK8_0; f32Blk[itemInBlk] =
+        io.github.kotlinmania.llama.core.GGMLType.Q8_0 -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK8_0 == 0) { "Q8_0 numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK8_0}" }
+            val nBlk = numElements / io.github.kotlinmania.llama.core.QK8_0; val blkSize = targetType.byteSize.toInt(); require(blkSize == SHORT_SIZE_BYTES + io.github.kotlinmania.llama.core.QK8_0) { "Q8_0 block size mismatch" }
+            val resArr = ByteArray(nBlk * blkSize); val f32Blk = FloatArray(io.github.kotlinmania.llama.core.QK8_0); var curIdx = 0; var boff = 0
+            io.github.kotlinmania.llama.core.applyNDIter(tensorF32, numElements) { _, ind ->
+                val itemInBlk = curIdx % io.github.kotlinmania.llama.core.QK8_0; f32Blk[itemInBlk] =
                 tensorF32.getFloat(graphAllocator, *ind)
-                if (itemInBlk == io.github.kotlinmania.llama.ore.QK8_0 - 1) {
+                if (itemInBlk == io.github.kotlinmania.llama.core.QK8_0 - 1) {
                     var amax = 0.0f; for (v in f32Blk) amax = maxOf(amax, abs(v));
                     val scale = if (amax == 0.0f) 1.0f else amax / 127.0f;
                     val invS = 1.0f / scale
-                    resArr.setShortLe(boff, io.github.kotlinmania.llama.ore.floatToHalf(scale));
+                    resArr.setShortLe(boff, io.github.kotlinmania.llama.core.floatToHalf(scale));
                     val qOff = boff + SHORT_SIZE_BYTES
-                    for (k in 0 until io.github.kotlinmania.llama.ore.QK8_0) resArr[qOff + k] =
+                    for (k in 0 until io.github.kotlinmania.llama.core.QK8_0) resArr[qOff + k] =
                         round(f32Blk[k] * invS).toInt().coerceIn(-128, 127).toByte()
                     boff += blkSize
                 }; curIdx++
             }; result.data = resArr
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0 -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK4_0 == 0) { "Q4_0 numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK4_0}" }
-            val nBlk = numElements / io.github.kotlinmania.llama.ore.QK4_0; val blkSize = targetType.byteSize.toInt(); require(blkSize == SHORT_SIZE_BYTES + io.github.kotlinmania.llama.ore.QK4_0 / 2) { "Q4_0 block size mismatch" }
-            val resArr = ByteArray(nBlk * blkSize); val f32Blk = FloatArray(io.github.kotlinmania.llama.ore.QK4_0); var curIdx = 0; var boff = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensorF32, numElements) { _, ind ->
-                val itemInBlk = curIdx % io.github.kotlinmania.llama.ore.QK4_0; f32Blk[itemInBlk] =
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0 -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK4_0 == 0) { "Q4_0 numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK4_0}" }
+            val nBlk = numElements / io.github.kotlinmania.llama.core.QK4_0; val blkSize = targetType.byteSize.toInt(); require(blkSize == SHORT_SIZE_BYTES + io.github.kotlinmania.llama.core.QK4_0 / 2) { "Q4_0 block size mismatch" }
+            val resArr = ByteArray(nBlk * blkSize); val f32Blk = FloatArray(io.github.kotlinmania.llama.core.QK4_0); var curIdx = 0; var boff = 0
+            io.github.kotlinmania.llama.core.applyNDIter(tensorF32, numElements) { _, ind ->
+                val itemInBlk = curIdx % io.github.kotlinmania.llama.core.QK4_0; f32Blk[itemInBlk] =
                 tensorF32.getFloat(graphAllocator, *ind)
-                if (itemInBlk == io.github.kotlinmania.llama.ore.QK4_0 - 1) {
+                if (itemInBlk == io.github.kotlinmania.llama.core.QK4_0 - 1) {
                     var amax = 0.0f; for (v in f32Blk) amax = maxOf(amax, abs(v));
                     val scale = if (amax == 0.0f) 1.0f else amax / 8.0f;
                     val invS = if (scale == 0.0f) 0.0f else 1.0f / scale
-                    resArr.setShortLe(boff, io.github.kotlinmania.llama.ore.floatToHalf(scale));
+                    resArr.setShortLe(boff, io.github.kotlinmania.llama.core.floatToHalf(scale));
                     val qOff = boff + SHORT_SIZE_BYTES
-                    for (j in 0 until io.github.kotlinmania.llama.ore.QK4_0 / 2) {
+                    for (j in 0 until io.github.kotlinmania.llama.core.QK4_0 / 2) {
                         val q1 = round(f32Blk[j * 2] * invS + 8.0f).toInt().coerceIn(0, 15);
                         val q2 = round(f32Blk[j * 2 + 1] * invS + 8.0f).toInt().coerceIn(0, 15)
-                        resArr[qOff + j] = (io.github.kotlinmania.llama.ore.maskLowBits32(
+                        resArr[qOff + j] = (io.github.kotlinmania.llama.core.maskLowBits32(
                             q1,
                             4
-                        ) or (io.github.kotlinmania.llama.ore.logicalLeft32(
-                            io.github.kotlinmania.llama.ore.maskLowBits32(
+                        ) or (io.github.kotlinmania.llama.core.logicalLeft32(
+                            io.github.kotlinmania.llama.core.maskLowBits32(
                                 q2,
                                 4
                             ), 4
@@ -1582,20 +1582,20 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }; curIdx++
             }; result.data = resArr
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q8_1 -> { result.data = ByteArray(numElements); println("Warn: Quant F32 to ${targetType.name} NI") }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_1 -> {
-            require(tensorF32.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "Input tensor for Q4_1 quantization must be F32. Got ${tensorF32.type}" } // Already checked at function start, but good for clarity
-            require(numElements % io.github.kotlinmania.llama.ore.QK4_1 == 0) { "For Q4_1 quantization, total elements ($numElements) must be divisible by QK4_1 (${io.github.kotlinmania.llama.ore.QK4_1})" }
+        io.github.kotlinmania.llama.core.GGMLType.Q8_1 -> { result.data = ByteArray(numElements); println("Warn: Quant F32 to ${targetType.name} NI") }
+        io.github.kotlinmania.llama.core.GGMLType.Q4_1 -> {
+            require(tensorF32.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "Input tensor for Q4_1 quantization must be F32. Got ${tensorF32.type}" } // Already checked at function start, but good for clarity
+            require(numElements % io.github.kotlinmania.llama.core.QK4_1 == 0) { "For Q4_1 quantization, total elements ($numElements) must be divisible by QK4_1 (${io.github.kotlinmania.llama.core.QK4_1})" }
 
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK4_1
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK4_1
             val q4_1BlockByteSize = targetType.byteSize.toInt()
-            val expectedBlockSize = (2 * SHORT_SIZE_BYTES) + (io.github.kotlinmania.llama.ore.QK4_1 / 2)
+            val expectedBlockSize = (2 * SHORT_SIZE_BYTES) + (io.github.kotlinmania.llama.core.QK4_1 / 2)
             require(q4_1BlockByteSize == expectedBlockSize) { "Q4_1 block byte size mismatch. Expected $expectedBlockSize, got $q4_1BlockByteSize. Type says: ${targetType.byteSize}" }
 
             val q4_1DataArray = ByteArray(numBlocks * q4_1BlockByteSize)
             result.data = q4_1DataArray // Assign the data array to the result tensor prepared at the start of the function
 
-            val f32BlockValues = FloatArray(io.github.kotlinmania.llama.ore.QK4_1)
+            val f32BlockValues = FloatArray(io.github.kotlinmania.llama.core.QK4_1)
             var currentF32ElementIndex = 0
             var q4_1ByteArrayWriteOffset = 0
 
@@ -1611,12 +1611,12 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
 
                 // Simplified block population:
                 var f32BlockReadCount = 0
-                io.github.kotlinmania.llama.ore.applyNDIter(
+                io.github.kotlinmania.llama.core.applyNDIter(
                     tensorF32,
                     numElements
                 ) { flatIdx, indices ->
-                    if (flatIdx >= blockNum * io.github.kotlinmania.llama.ore.QK4_1 && flatIdx < (blockNum + 1) * io.github.kotlinmania.llama.ore.QK4_1) {
-                        if (f32BlockReadCount < io.github.kotlinmania.llama.ore.QK4_1) { // Ensure we don't write out of bounds
+                    if (flatIdx >= blockNum * io.github.kotlinmania.llama.core.QK4_1 && flatIdx < (blockNum + 1) * io.github.kotlinmania.llama.core.QK4_1) {
+                        if (f32BlockReadCount < io.github.kotlinmania.llama.core.QK4_1) { // Ensure we don't write out of bounds
                             f32BlockValues[f32BlockReadCount++] = tensorF32.getFloat(graphAllocator, *indices)
                         }
                     }
@@ -1632,7 +1632,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 // The `currentF32ElementIndex` will track our position in the flat F32 data.
                 // This will be simpler than trying to make applyNDIter fill just one block at a time.
 
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK4_1) {
+                for (i in 0 until io.github.kotlinmania.llama.core.QK4_1) {
                     // This assumes getFloat can handle a flat index or we convert blockNum*QK4_1 + i to ND-indices.
                     // Given applyNDIter exists, it's better to use it once over all elements
                     // and then process them in blocks, as done for Q8_0 and Q4_0.
@@ -1658,15 +1658,15 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
             // --- Re-writing the loop structure based on Q8_0/Q4_0 pattern ---
-            val f32BlockBuffer = FloatArray(io.github.kotlinmania.llama.ore.QK4_1) // Temporary buffer for one block of F32 values
+            val f32BlockBuffer = FloatArray(io.github.kotlinmania.llama.core.QK4_1) // Temporary buffer for one block of F32 values
             var currentElementInF32 = 0
             var byteArrayWriteOffset = 0
 
-            io.github.kotlinmania.llama.ore.applyNDIter(tensorF32, numElements) { _, indices ->
-                val itemInBlockIndex = currentElementInF32 % io.github.kotlinmania.llama.ore.QK4_1
+            io.github.kotlinmania.llama.core.applyNDIter(tensorF32, numElements) { _, indices ->
+                val itemInBlockIndex = currentElementInF32 % io.github.kotlinmania.llama.core.QK4_1
                 f32BlockBuffer[itemInBlockIndex] = tensorF32.getFloat(graphAllocator, *indices)
 
-                if (itemInBlockIndex == io.github.kotlinmania.llama.ore.QK4_1 - 1) { // Block is full, process it
+                if (itemInBlockIndex == io.github.kotlinmania.llama.core.QK4_1 - 1) { // Block is full, process it
                     val f_min = f32BlockBuffer.minOrNull() ?: 0.0f
                     val f_max = f32BlockBuffer.maxOrNull() ?: 0.0f
 
@@ -1678,25 +1678,25 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     // invDScaleF32 is guaranteed to be valid as d_scaleF32 is non-zero.
                     val invDScaleF32 = 1.0f / d_scaleF32
 
-                    val d_scaleF16Short = io.github.kotlinmania.llama.ore.floatToHalf(d_scaleF32)
-                    val m_minF16Short = io.github.kotlinmania.llama.ore.floatToHalf(m_minF32)
+                    val d_scaleF16Short = io.github.kotlinmania.llama.core.floatToHalf(d_scaleF32)
+                    val m_minF16Short = io.github.kotlinmania.llama.core.floatToHalf(m_minF32)
 
                     q4_1DataArray.setShortLe(byteArrayWriteOffset, d_scaleF16Short)
                     q4_1DataArray.setShortLe(byteArrayWriteOffset + SHORT_SIZE_BYTES, m_minF16Short)
 
                     val qsDataWriteStartOffsetInBlock = byteArrayWriteOffset + (2 * SHORT_SIZE_BYTES)
-                    for (j in 0 until io.github.kotlinmania.llama.ore.QK4_1 / 2) {
+                    for (j in 0 until io.github.kotlinmania.llama.core.QK4_1 / 2) {
                         val f32Val1 = f32BlockBuffer[j * 2]
                         val f32Val2 = f32BlockBuffer[j * 2 + 1]
 
                         val quantVal1 = round((f32Val1 - m_minF32) * invDScaleF32).toInt().coerceIn(0, 15)
                         val quantVal2 = round((f32Val2 - m_minF32) * invDScaleF32).toInt().coerceIn(0, 15)
 
-                        val packedByte = io.github.kotlinmania.llama.ore.maskLowBits32(
+                        val packedByte = io.github.kotlinmania.llama.core.maskLowBits32(
                             quantVal1,
                             4
-                        ) or (io.github.kotlinmania.llama.ore.logicalLeft32(
-                            io.github.kotlinmania.llama.ore.maskLowBits32(
+                        ) or (io.github.kotlinmania.llama.core.logicalLeft32(
+                            io.github.kotlinmania.llama.core.maskLowBits32(
                                 quantVal2,
                                 4
                             ), 4
@@ -1710,23 +1710,23 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
             result.data = q4_1DataArray
         }
         // K-Quant quantization implementations
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_K == 0) { "Q2_K numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_K}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_K
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_K == 0) { "Q2_K numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_K}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_K
             val blockByteSize = targetType.byteSize.toInt()
             val resArr = ByteArray(numBlocks * blockByteSize)
             result.data = resArr
 
-            val scratch = io.github.kotlinmania.llama.ore.Q2KScratch()
-            val blockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_K)
+            val scratch = io.github.kotlinmania.llama.core.Q2KScratch()
+            val blockValues = FloatArray(io.github.kotlinmania.llama.core.QK_K)
             var destOffset = 0
             var filled = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensorF32, numElements) { _, indices ->
-                val idx = filled % io.github.kotlinmania.llama.ore.QK_K
+            io.github.kotlinmania.llama.core.applyNDIter(tensorF32, numElements) { _, indices ->
+                val idx = filled % io.github.kotlinmania.llama.core.QK_K
                 blockValues[idx] = tensorF32.getFloat(graphAllocator, *indices)
                 filled++
-                if (idx == io.github.kotlinmania.llama.ore.QK_K - 1) {
-                    io.github.kotlinmania.llama.ore.quantizeQ2KBlock(
+                if (idx == io.github.kotlinmania.llama.core.QK_K - 1) {
+                    io.github.kotlinmania.llama.core.quantizeQ2KBlock(
                         blockValues,
                         resArr,
                         destOffset,
@@ -1736,22 +1736,22 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q3_K -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_K == 0) { "Q3_K numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_K}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_K
+        io.github.kotlinmania.llama.core.GGMLType.Q3_K -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_K == 0) { "Q3_K numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_K}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_K
             val blockByteSize = targetType.byteSize.toInt()
             val resArr = ByteArray(numBlocks * blockByteSize)
             result.data = resArr
             
             var currentElementIndex = 0
-            val q3Scratch = io.github.kotlinmania.llama.ore.Q3KScratch()
+            val q3Scratch = io.github.kotlinmania.llama.core.Q3KScratch()
             for (blockNum in 0 until numBlocks) {
-                val blockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_K)
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+                val blockValues = FloatArray(io.github.kotlinmania.llama.core.QK_K)
+                for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
                     val flatIdx = currentElementIndex++
                     var tempIdx = flatIdx.toLong()
-                    val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                    for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                    val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                    for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                         if (tensorF32.ne[dim] > 0) {
                             indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
                             tempIdx /= tensorF32.ne[dim]
@@ -1760,7 +1760,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
                 }
 
-                io.github.kotlinmania.llama.ore.quantizeQ3_KBlock(
+                io.github.kotlinmania.llama.core.quantizeQ3_KBlock(
                     blockValues,
                     resArr,
                     blockNum * blockByteSize,
@@ -1768,22 +1768,22 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_K -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_K == 0) { "Q4_K numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_K}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_K
+        io.github.kotlinmania.llama.core.GGMLType.Q4_K -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_K == 0) { "Q4_K numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_K}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_K
             val blockByteSize = targetType.byteSize.toInt()
             val resArr = ByteArray(numBlocks * blockByteSize)
             result.data = resArr
             
             var currentElementIndex = 0
-            val q4Scratch = io.github.kotlinmania.llama.ore.Q4KScratch()
+            val q4Scratch = io.github.kotlinmania.llama.core.Q4KScratch()
             for (blockNum in 0 until numBlocks) {
-                val blockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_K)
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+                val blockValues = FloatArray(io.github.kotlinmania.llama.core.QK_K)
+                for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
                     val flatIdx = currentElementIndex++
                     var tempIdx = flatIdx.toLong()
-                    val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                    for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                    val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                    for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                         if (tensorF32.ne[dim] > 0) {
                             indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
                             tempIdx /= tensorF32.ne[dim]
@@ -1792,7 +1792,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
                 }
 
-                io.github.kotlinmania.llama.ore.quantizeQ4_KBlock(
+                io.github.kotlinmania.llama.core.quantizeQ4_KBlock(
                     blockValues,
                     resArr,
                     blockNum * blockByteSize,
@@ -1800,22 +1800,22 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q5_K -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_K == 0) { "Q5_K numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_K}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_K
+        io.github.kotlinmania.llama.core.GGMLType.Q5_K -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_K == 0) { "Q5_K numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_K}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_K
             val blockByteSize = targetType.byteSize.toInt()
             val resArr = ByteArray(numBlocks * blockByteSize)
             result.data = resArr
             
             var currentElementIndex = 0
-            val q5Scratch = io.github.kotlinmania.llama.ore.Q5KScratch()
+            val q5Scratch = io.github.kotlinmania.llama.core.Q5KScratch()
             for (blockNum in 0 until numBlocks) {
-                val blockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_K)
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+                val blockValues = FloatArray(io.github.kotlinmania.llama.core.QK_K)
+                for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
                     val flatIdx = currentElementIndex++
                     var tempIdx = flatIdx.toLong()
-                    val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                    for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                    val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                    for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                         if (tensorF32.ne[dim] > 0) {
                             indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
                             tempIdx /= tensorF32.ne[dim]
@@ -1824,7 +1824,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
                 }
 
-                io.github.kotlinmania.llama.ore.quantizeQ5_KBlock(
+                io.github.kotlinmania.llama.core.quantizeQ5_KBlock(
                     blockValues,
                     resArr,
                     blockNum * blockByteSize,
@@ -1832,22 +1832,22 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q6_K -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_K == 0) { "Q6_K numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_K}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_K
+        io.github.kotlinmania.llama.core.GGMLType.Q6_K -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_K == 0) { "Q6_K numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_K}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_K
             val blockByteSize = targetType.byteSize.toInt()
             val resArr = ByteArray(numBlocks * blockByteSize)
             result.data = resArr
             
             var currentElementIndex = 0
-            val q6Scratch = io.github.kotlinmania.llama.ore.Q6KScratch()
+            val q6Scratch = io.github.kotlinmania.llama.core.Q6KScratch()
             for (blockNum in 0 until numBlocks) {
-                val blockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_K)
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+                val blockValues = FloatArray(io.github.kotlinmania.llama.core.QK_K)
+                for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
                     val flatIdx = currentElementIndex++
                     var tempIdx = flatIdx.toLong()
-                    val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                    for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                    val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                    for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                         if (tensorF32.ne[dim] > 0) {
                             indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
                             tempIdx /= tensorF32.ne[dim]
@@ -1856,7 +1856,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
                 }
 
-                io.github.kotlinmania.llama.ore.quantizeQ6_KBlock(
+                io.github.kotlinmania.llama.core.quantizeQ6_KBlock(
                     blockValues,
                     resArr,
                     blockNum * blockByteSize,
@@ -1864,21 +1864,21 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q8_K -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_K == 0) { "Q8_K numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_K}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_K
+        io.github.kotlinmania.llama.core.GGMLType.Q8_K -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_K == 0) { "Q8_K numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_K}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_K
             val blockByteSize = targetType.byteSize.toInt()
             val resArr = ByteArray(numBlocks * blockByteSize)
             result.data = resArr
             
             var currentElementIndex = 0
             for (blockNum in 0 until numBlocks) {
-                val blockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_K)
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+                val blockValues = FloatArray(io.github.kotlinmania.llama.core.QK_K)
+                for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
                     val flatIdx = currentElementIndex++
                     var tempIdx = flatIdx.toLong()
-                    val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                    for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                    val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                    for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                         if (tensorF32.ne[dim] > 0) {
                             indices[dim] = (tempIdx % tensorF32.ne[dim]).toInt()
                             tempIdx /= tensorF32.ne[dim]
@@ -1887,7 +1887,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     blockValues[i] = tensorF32.getFloat(graphAllocator, *indices)
                 }
 
-                io.github.kotlinmania.llama.ore.quantizeQ8_KBlock(
+                io.github.kotlinmania.llama.core.quantizeQ8_KBlock(
                     blockValues,
                     resArr,
                     blockNum * blockByteSize
@@ -1895,27 +1895,27 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
             }
         }
         // BitNet 1.58 quantization
-        io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58 -> {
-            require(numElements % io.github.kotlinmania.llama.ore.QK_BITNET_1_58 == 0) { "BitNet 1.58 numElements $numElements not div by ${io.github.kotlinmania.llama.ore.QK_BITNET_1_58}" }
-            val numBlocks = numElements / io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+        io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58 -> {
+            require(numElements % io.github.kotlinmania.llama.core.QK_BITNET_1_58 == 0) { "BitNet 1.58 numElements $numElements not div by ${io.github.kotlinmania.llama.core.QK_BITNET_1_58}" }
+            val numBlocks = numElements / io.github.kotlinmania.llama.core.QK_BITNET_1_58
             val blockByteSize = targetType.byteSize.toInt()
             require(blockByteSize == Short.SIZE_BYTES + 8) { "BitNet 1.58 block size mismatch. Expected ${Short.SIZE_BYTES + 8}, got $blockByteSize" }
             
             val bitNet158DataArray = ByteArray(numBlocks * blockByteSize)
             result.data = bitNet158DataArray
             
-            val f32BlockValues = FloatArray(io.github.kotlinmania.llama.ore.QK_BITNET_1_58)
+            val f32BlockValues = FloatArray(io.github.kotlinmania.llama.core.QK_BITNET_1_58)
             var currentF32ElementIndex = 0
             var blockByteWriteOffset = 0
             
             // Process each block
             for (blockNum in 0 until numBlocks) {
                 // Fill f32BlockValues for this block
-                io.github.kotlinmania.llama.ore.applyNDIter(
+                io.github.kotlinmania.llama.core.applyNDIter(
                     tensorF32,
-                    io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+                    io.github.kotlinmania.llama.core.QK_BITNET_1_58
                 ) { idx, ind ->
-                    if (currentF32ElementIndex < numElements && idx < io.github.kotlinmania.llama.ore.QK_BITNET_1_58) {
+                    if (currentF32ElementIndex < numElements && idx < io.github.kotlinmania.llama.core.QK_BITNET_1_58) {
                         f32BlockValues[idx] = tensorF32.getFloat(graphAllocator, *ind)
                         currentF32ElementIndex++
                     }
@@ -1931,12 +1931,12 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 
                 // Store scale as F16
                 bitNet158DataArray.setShortLe(blockByteWriteOffset,
-                    io.github.kotlinmania.llama.ore.floatToHalf(scale)
+                    io.github.kotlinmania.llama.core.floatToHalf(scale)
                 )
                 
                 // Quantize values to ternary (-1, 0, +1) and pack them
-                val ternaryValues = IntArray(io.github.kotlinmania.llama.ore.QK_BITNET_1_58)
-                for (i in 0 until io.github.kotlinmania.llama.ore.QK_BITNET_1_58) {
+                val ternaryValues = IntArray(io.github.kotlinmania.llama.core.QK_BITNET_1_58)
+                for (i in 0 until io.github.kotlinmania.llama.core.QK_BITNET_1_58) {
                     val normalizedValue = f32BlockValues[i] * invScale
                     ternaryValues[i] = when {
                         normalizedValue > 0.5f -> 2  // +1 -> encoded as 2
@@ -1953,7 +1953,7 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                     var packedValue = 0
                     for (posInGroup in 0 until 5) {
                         val valueIdx = groupIdx * 5 + posInGroup
-                        if (valueIdx < io.github.kotlinmania.llama.ore.QK_BITNET_1_58) {
+                        if (valueIdx < io.github.kotlinmania.llama.core.QK_BITNET_1_58) {
                             packedValue += ternaryValues[valueIdx] * powers[posInGroup]
                         }
                         // If valueIdx >= QK_BITNET_1_58, the value remains 0 (encoded as -1), which is fine
@@ -1964,13 +1964,13 @@ fun quantizeTensor(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 blockByteWriteOffset += blockByteSize
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1 -> { result.data = ByteArray((numElements * 5 + 7) / 8); println("Warn: Quant F32 to ${targetType.name} NI") }
+        io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1 -> { result.data = ByteArray((numElements * 5 + 7) / 8); println("Warn: Quant F32 to ${targetType.name} NI") }
         else -> { println("Error: Unsupp target quant type $targetType"); result.data = null }
     }
     return result
 }
 
-fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, b: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, b: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val M = a.ne[1].toInt()
     val K_a = a.ne[0].toInt()
     val N = b.ne[0].toInt()
@@ -1983,14 +1983,14 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
         throw IllegalArgumentException("Result tensor dimensions must match expected output size: expected [${N}, ${M}], got [${dst.ne[0]}, ${dst.ne[1]}]")
     }
 
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0 && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_0 x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q4_0 && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_0 x F32 matmul")
         
         // Write results directly into destination tensor using graph allocator
         var flatIdx = 0
         for(i in 0 until M){ 
             for(j in 0 until N){ 
-                val result = io.github.kotlinmania.llama.ore.computeDotProductQ40F32(
+                val result = io.github.kotlinmania.llama.core.computeDotProductQ40F32(
                     graphAllocator,
                     a,
                     b,
@@ -2004,13 +2004,13 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
         }
         return
     }
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1 && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_1 x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q4_1 && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_1 x F32 matmul")
 
         // Write results directly into destination tensor
         for (i in 0 until M) { // Iterate output rows (M)
             for (j in 0 until N) { // Iterate output columns (N)
-                val dotProduct = io.github.kotlinmania.llama.ore.computeDotProductQ41F32(
+                val dotProduct = io.github.kotlinmania.llama.core.computeDotProductQ41F32(
                     graphAllocator,
                     a,    // Q4_1 tensor (src0)
                     b,    // F32 tensor (src1)
@@ -2025,11 +2025,11 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
     }
     
     // K-Quant optimized matrix multiplication paths
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q2_K && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q2_K x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q2_K && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q2_K x F32 matmul")
         for (i in 0 until M) {
             for (j in 0 until N) {
-                val dot = io.github.kotlinmania.llama.ore.computeDotProductQ2_KF32(
+                val dot = io.github.kotlinmania.llama.core.computeDotProductQ2_KF32(
                     graphAllocator,
                     a,
                     b,
@@ -2043,11 +2043,11 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
         return
     }
     
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_K x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_K x F32 matmul")
         for (i in 0 until M) {
             for (j in 0 until N) {
-                val dot = io.github.kotlinmania.llama.ore.computeDotProductQ4_KF32(
+                val dot = io.github.kotlinmania.llama.core.computeDotProductQ4_KF32(
                     graphAllocator,
                     a,
                     b,
@@ -2062,11 +2062,11 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
     }
     
     // F32 x Q4_K matrix multiplication (symmetric case)
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.F32 && b.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for F32 x Q4_K matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.F32 && b.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for F32 x Q4_K matmul")
         for (i in 0 until M) {
             for (j in 0 until N) {
-                val dot = io.github.kotlinmania.llama.ore.computeDotProductF32Q4_K(
+                val dot = io.github.kotlinmania.llama.core.computeDotProductF32Q4_K(
                     graphAllocator,
                     a,
                     b,
@@ -2081,11 +2081,11 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
     }
     
     // Q4_K x Q4_K matrix multiplication (direct quantized-to-quantized)
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K && b.type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_K x Q4_K matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K && b.type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q4_K x Q4_K matmul")
         for (i in 0 until M) {
             for (j in 0 until N) {
-                val dot = io.github.kotlinmania.llama.ore.computeDotProductQ4_KQ4_K(
+                val dot = io.github.kotlinmania.llama.core.computeDotProductQ4_KQ4_K(
                     graphAllocator,
                     a,
                     b,
@@ -2099,11 +2099,11 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
         return
     }
     
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_K && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q8_K x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q8_K && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q8_K x F32 matmul")
         for (i in 0 until M) {
             for (j in 0 until N) {
-                val dot = io.github.kotlinmania.llama.ore.computeDotProductQ8_KF32(
+                val dot = io.github.kotlinmania.llama.core.computeDotProductQ8_KF32(
                     graphAllocator,
                     a,
                     b,
@@ -2117,13 +2117,13 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
         return
     }
     
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0 && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q8_0 x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.Q8_0 && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for Q8_0 x F32 matmul")
         
         // Write results directly into destination tensor
         for(i in 0 until M){ 
             for(j in 0 until N){ 
-                val result = io.github.kotlinmania.llama.ore.computeDotProductQ80F32(
+                val result = io.github.kotlinmania.llama.core.computeDotProductQ80F32(
                     graphAllocator,
                     a,
                     b,
@@ -2137,11 +2137,11 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
         return
     }
 
-    if (a.type == io.github.kotlinmania.llama.ore.GGMLType.F32 && b.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-        if (dst.type != io.github.kotlinmania.llama.ore.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for F32 x F32 matmul")
+    if (a.type == io.github.kotlinmania.llama.core.GGMLType.F32 && b.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+        if (dst.type != io.github.kotlinmania.llama.core.GGMLType.F32) throw IllegalArgumentException("Result tensor type must be F32 for F32 x F32 matmul")
         for (i in 0 until M) {
             for (j in 0 until N) {
-                val dot = io.github.kotlinmania.llama.ore.computeDotProductF32F32(
+                val dot = io.github.kotlinmania.llama.core.computeDotProductF32F32(
                     graphAllocator,
                     a,
                     b,
@@ -2158,12 +2158,12 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
     // General matrix multiplication fallback (dst-arg only)
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match first input type for general matmul")
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            val effA=a; val effB=if(b.type== io.github.kotlinmania.llama.ore.GGMLType.F16)b else io.github.kotlinmania.llama.ore.dequantizeTensor(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            val effA=a; val effB=if(b.type== io.github.kotlinmania.llama.core.GGMLType.F16)b else io.github.kotlinmania.llama.core.dequantizeTensor(
                 graphAllocator,
                 b
             )
-            if(effB.type!= io.github.kotlinmania.llama.ore.GGMLType.F16) error("fatal error")
+            if(effB.type!= io.github.kotlinmania.llama.core.GGMLType.F16) error("fatal error")
             for(i in 0 until M){
                 for(j in 0 until N){
                     var sum=0.0f
@@ -2174,41 +2174,41 @@ fun computeMatMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS,
-        io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58 -> {
-            val aF32= io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a); val bF32=
-                io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, b)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS,
+        io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58 -> {
+            val aF32= io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a); val bF32=
+                io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, b)
             val tempF32 =
-                io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb =
-                io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+                io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32); tempF32.ne = dst.ne.copyOf(); tempF32.nb =
+                io.github.kotlinmania.llama.core.calculateContiguousStrides(
                     tempF32.ne,
-                    io.github.kotlinmania.llama.ore.GGMLType.F32,
+                    io.github.kotlinmania.llama.core.GGMLType.F32,
                     tempF32.ne.size
                 )
             computeMatMul(graphAllocator,aF32,bF32,tempF32)
             val qRes=
-                io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tempF32, dst.type); dst.data=qRes.data
+                io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tempF32, dst.type); dst.data=qRes.data
         }
         else -> error("fatal error")
     }
 }
 
-fun computeRelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeRelu(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
     
     val totalSize = dst.numElements().toInt()
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             totalSize
         ) { _, ind ->
@@ -2218,7 +2218,7 @@ fun computeRelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
                 *ind
             )
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             totalSize
         ) { _, ind ->
@@ -2232,8 +2232,8 @@ fun computeRelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     }
 }
 
-fun computeGelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeGelu(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -2241,11 +2241,11 @@ fun computeGelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     val totalSize = dst.numElements().toInt()
     val gelu = {x:Float -> x*0.5f*(1.0f+kotlin.math.tanh(0.797885f*(x+0.044715f*x*x*x)))}
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             totalSize
         ) { _, ind -> dst.setFloat(graphAllocator, gelu(a.getFloat(graphAllocator, *ind)), *ind) }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             totalSize
         ) { _, ind -> dst.setHalf(graphAllocator, gelu(a.getHalf(graphAllocator, *ind)), *ind) }
@@ -2253,8 +2253,8 @@ fun computeGelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     }
 }
 
-fun computeSilu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeSilu(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -2262,14 +2262,14 @@ fun computeSilu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     val totalSize = dst.numElements().toInt()
     val sigmoid = {x:Float -> 1.0f / (1.0f + exp(-x))}
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             totalSize
         ) { _, ind ->
             val v = a.getFloat(graphAllocator, *ind)
             dst.setFloat(graphAllocator, v * sigmoid(v), *ind)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             totalSize
         ) { _, ind ->
@@ -2280,8 +2280,8 @@ fun computeSilu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     }
 }
 
-fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -2292,7 +2292,7 @@ fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
     val baseIndices = IntArray(rank)
 
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             for (row in 0 until nRows) {
                 var tmp = row
                 for (d in 1 until rank) {
@@ -2321,7 +2321,7 @@ fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
             for (row in 0 until nRows) {
                 var tmp = row
                 for (d in 1 until rank) {
@@ -2354,8 +2354,8 @@ fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
     }
 }
 
-fun computeRMSNorm(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, eps: Float, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeRMSNorm(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, eps: Float, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -2365,7 +2365,7 @@ fun computeRMSNorm(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
     val ne2 = a.ne.getOrElse(2) { 1L }.toInt()
     val ne3 = a.ne.getOrElse(3) { 1L }.toInt()
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             for (i3 in 0 until ne3) for (i2 in 0 until ne2) for (i1 in 0 until ne1) {
                 var sumSq = 0.0f
                 for (i0 in 0 until ne0) {
@@ -2379,7 +2379,7 @@ fun computeRMSNorm(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
             for (i3 in 0 until ne3) for (i2 in 0 until ne2) for (i1 in 0 until ne1) {
                 var sumSq = 0.0f
                 for (i0 in 0 until ne0) {
@@ -2397,17 +2397,17 @@ fun computeRMSNorm(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
     }
 }
 
-fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, b: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for(i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeSub(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, b: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for(i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
     
     val ts=dst.numElements().toInt()
     when(a.type){
-        io.github.kotlinmania.llama.ore.GGMLType.F32-> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, ind ->
+        io.github.kotlinmania.llama.core.GGMLType.F32-> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, ind ->
                 dst.setFloat(
                     graphAllocator,
                     a.getFloat(graphAllocator, *ind) - b.getFloat(graphAllocator, *ind),
@@ -2415,8 +2415,8 @@ fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16-> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, ind ->
+        io.github.kotlinmania.llama.core.GGMLType.F16-> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, ind ->
                 dst.setHalf(
                     graphAllocator,
                     a.getHalf(graphAllocator, *ind) - b.getHalf(graphAllocator, *ind),
@@ -2424,8 +2424,8 @@ fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 dst.setInt(
                     graphAllocator,
                     a.getInt(graphAllocator, *indices) - b.getInt(graphAllocator, *indices),
@@ -2433,8 +2433,8 @@ fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 val valA = a.getShort(graphAllocator, *indices).toInt()
                 val valB = b.getShort(graphAllocator, *indices).toInt()
                 dst.setShort(
@@ -2444,8 +2444,8 @@ fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I8 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 val valA = a.getByte(graphAllocator, *indices).toInt()
                 val valB = b.getByte(graphAllocator, *indices).toInt()
                 dst.setByte(
@@ -2455,8 +2455,8 @@ fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I64 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 dst.setLong(
                     graphAllocator,
                     a.getLong(graphAllocator, *indices) - b.getLong(graphAllocator, *indices),
@@ -2464,78 +2464,78 @@ fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
-            val af = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a)
-            val bf = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, b)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
+            val af = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a)
+            val bf = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, b)
             val tempF32 =
-                io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32)
+                io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32)
             tempF32.ne = dst.ne.copyOf()
-            tempF32.nb = io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+            tempF32.nb = io.github.kotlinmania.llama.core.calculateContiguousStrides(
                 tempF32.ne,
-                io.github.kotlinmania.llama.ore.GGMLType.F32,
+                io.github.kotlinmania.llama.core.GGMLType.F32,
                 tempF32.ne.size
             )
             computeSub(graphAllocator, af, bf, tempF32)
             val qr =
-                io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tempF32, dst.type)
+                io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tempF32, dst.type)
             dst.data = qr.data
         }
         else -> error("fatal error")
     }
 }
 
-fun computeNeg(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeNeg(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
     
     val ts=dst.numElements().toInt()
     when(a.type){
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             ts
         ) { _, ind -> dst.setFloat(graphAllocator, -a.getFloat(graphAllocator, *ind), *ind) }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             ts
         ) { _, ind -> dst.setHalf(graphAllocator, -a.getHalf(graphAllocator, *ind), *ind) }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
-            val af = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
+            val af = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a)
             val tempF32 =
-                io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32)
+                io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32)
             tempF32.ne = dst.ne.copyOf(); tempF32.nb =
-                io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+                io.github.kotlinmania.llama.core.calculateContiguousStrides(
                     tempF32.ne,
-                    io.github.kotlinmania.llama.ore.GGMLType.F32,
+                    io.github.kotlinmania.llama.core.GGMLType.F32,
                     tempF32.ne.size
                 )
             computeNeg(graphAllocator, af, tempF32)
             val qr =
-                io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tempF32, dst.type)
+                io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tempF32, dst.type)
             dst.data = qr.data
         }
         else -> error("fatal error")
     }
 }
 
-fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, b: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    for(i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+fun computeDiv(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, b: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
+    for(i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS){if(a.ne[i]!=b.ne[i])throw IllegalArgumentException("Dims mismatch")}
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         if (a.ne[i] != dst.ne[i]) throw IllegalArgumentException("Result tensor dimensions must match input dimensions")
     }
     if (dst.type != a.type) throw IllegalArgumentException("Result tensor type must match input type")
@@ -2543,8 +2543,8 @@ fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
     val ts=dst.numElements().toInt()
     val div={vA:Float,vB:Float->if(vB==0.0f){if(vA==0.0f)Float.NaN else if(vA>0.0f)Float.POSITIVE_INFINITY else Float.NEGATIVE_INFINITY}else{vA/vB}}
     when(a.type){
-        io.github.kotlinmania.llama.ore.GGMLType.F32-> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, ind ->
+        io.github.kotlinmania.llama.core.GGMLType.F32-> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, ind ->
                 dst.setFloat(
                     graphAllocator,
                     div(a.getFloat(graphAllocator, *ind), b.getFloat(graphAllocator, *ind)),
@@ -2552,8 +2552,8 @@ fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16-> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, ind ->
+        io.github.kotlinmania.llama.core.GGMLType.F16-> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, ind ->
                 dst.setHalf(
                     graphAllocator,
                     div(a.getHalf(graphAllocator, *ind), b.getHalf(graphAllocator, *ind)),
@@ -2561,16 +2561,16 @@ fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 val valA = a.getInt(graphAllocator, *indices)
                 val valB = b.getInt(graphAllocator, *indices)
                 if (valB == 0) throw ArithmeticException("Division by zero for I32")
                 dst.setInt(graphAllocator, valA / valB, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 val valA = a.getShort(graphAllocator, *indices).toInt()
                 val valB = b.getShort(graphAllocator, *indices).toInt()
                 if (valB == 0) throw ArithmeticException("Division by zero for I16")
@@ -2581,8 +2581,8 @@ fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I8 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 val valA = a.getByte(graphAllocator, *indices).toInt()
                 val valB = b.getByte(graphAllocator, *indices).toInt()
                 if (valB == 0) throw ArithmeticException("Division by zero for I8")
@@ -2593,35 +2593,35 @@ fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { _, indices ->
+        io.github.kotlinmania.llama.core.GGMLType.I64 -> {
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { _, indices ->
                 val valA = a.getLong(graphAllocator, *indices)
                 val valB = b.getLong(graphAllocator, *indices)
                 if (valB == 0L) throw ArithmeticException("Division by zero for I64")
                 dst.setLong(graphAllocator, valA / valB, *indices)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
-            val af = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a); val bf =
-                io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, b)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
+            val af = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a); val bf =
+                io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, b)
             val tempF32 =
-                io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32)
+                io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32)
             tempF32.ne = dst.ne.copyOf(); tempF32.nb =
-                io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+                io.github.kotlinmania.llama.core.calculateContiguousStrides(
                     tempF32.ne,
-                    io.github.kotlinmania.llama.ore.GGMLType.F32,
+                    io.github.kotlinmania.llama.core.GGMLType.F32,
                     tempF32.ne.size
                 )
             computeDiv(graphAllocator, af, bf, tempF32)
             val qr =
-                io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tempF32, dst.type)
+                io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tempF32, dst.type)
             dst.data = qr.data
         }
         else -> error("fatal error")
@@ -2638,24 +2638,24 @@ fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
 private const val GROUP_MAX_EPS_F = 1e-15f
 
 private class Q2KScratch(
-    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K),
+    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K),
     val aux: ByteArray = ByteArray(16),
     val weights: FloatArray = FloatArray(16),
-    val mins: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16),
-    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val mins: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16),
+    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 )
 
 private class Q3KScratch(
-    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K),
-    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K),
+    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 )
 
 private class Q4KScratch(
-    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K),
+    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K),
     val aux: ByteArray = ByteArray(32),
     val weights: FloatArray = FloatArray(32),
-    val mins: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32),
-    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val mins: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32),
+    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
 )
 
 private fun logicalLeft32(value: Int, bits: Int): Int = value shl bits
@@ -2667,23 +2667,23 @@ private fun maskLowBits32(value: Int, bits: Int): Int =
 
 private fun mergeBits32(base: Int, addition: Int): Int = base or addition
 
-private fun lowNibble(value: Int): Int = io.github.kotlinmania.llama.ore.maskLowBits32(value, 4)
+private fun lowNibble(value: Int): Int = io.github.kotlinmania.llama.core.maskLowBits32(value, 4)
 
-private fun highNibble(value: Int): Int = io.github.kotlinmania.llama.ore.maskLowBits32(
-    io.github.kotlinmania.llama.ore.logicalRight32(
+private fun highNibble(value: Int): Int = io.github.kotlinmania.llama.core.maskLowBits32(
+    io.github.kotlinmania.llama.core.logicalRight32(
         value,
         4
     ), 4
 )
 
 private fun packNibbles(low: Int, high: Int): Int =
-    io.github.kotlinmania.llama.ore.mergeBits32(
-        io.github.kotlinmania.llama.ore.maskLowBits32(
+    io.github.kotlinmania.llama.core.mergeBits32(
+        io.github.kotlinmania.llama.core.maskLowBits32(
             low,
             4
         ),
-        io.github.kotlinmania.llama.ore.logicalLeft32(
-            io.github.kotlinmania.llama.ore.maskLowBits32(
+        io.github.kotlinmania.llama.core.logicalLeft32(
+            io.github.kotlinmania.llama.core.maskLowBits32(
                 high,
                 4
             ), 4
@@ -2691,63 +2691,63 @@ private fun packNibbles(low: Int, high: Int): Int =
     )
 
 private fun extractBits(value: Int, shift: Int, count: Int): Int =
-    io.github.kotlinmania.llama.ore.maskLowBits32(
-        io.github.kotlinmania.llama.ore.logicalRight32(
+    io.github.kotlinmania.llama.core.maskLowBits32(
+        io.github.kotlinmania.llama.core.logicalRight32(
             value,
             shift
         ), count
     )
 
 private fun unsignedByte(value: Byte): Int =
-    io.github.kotlinmania.llama.ore.maskLowBits32(value.toInt(), 8)
+    io.github.kotlinmania.llama.core.maskLowBits32(value.toInt(), 8)
 
 private fun extractBitsFromByte(value: Byte, shift: Int, count: Int): Int =
-    io.github.kotlinmania.llama.ore.extractBits(
-        io.github.kotlinmania.llama.ore.unsignedByte(
+    io.github.kotlinmania.llama.core.extractBits(
+        io.github.kotlinmania.llama.core.unsignedByte(
             value
         ), shift, count
     )
 
 private fun combineNibbleIntoByte(base: Byte, highNibble: Int): Byte =
-    io.github.kotlinmania.llama.ore.maskLowBits32(
-        io.github.kotlinmania.llama.ore.packNibbles(
-            io.github.kotlinmania.llama.ore.maskLowBits32(base.toInt(), 4),
+    io.github.kotlinmania.llama.core.maskLowBits32(
+        io.github.kotlinmania.llama.core.packNibbles(
+            io.github.kotlinmania.llama.core.maskLowBits32(base.toInt(), 4),
             highNibble
         ), 8
     ).toByte()
 
 private fun nibbleFromByte(value: Byte, index: Int): Int {
-    val unsigned = io.github.kotlinmania.llama.ore.unsignedByte(value)
-    return if (index == 0) io.github.kotlinmania.llama.ore.lowNibble(unsigned) else io.github.kotlinmania.llama.ore.highNibble(
+    val unsigned = io.github.kotlinmania.llama.core.unsignedByte(value)
+    return if (index == 0) io.github.kotlinmania.llama.core.lowNibble(unsigned) else io.github.kotlinmania.llama.core.highNibble(
         unsigned
     )
 }
 
-private fun Byte.toUnsignedInt(): Int = io.github.kotlinmania.llama.ore.unsignedByte(this)
+private fun Byte.toUnsignedInt(): Int = io.github.kotlinmania.llama.core.unsignedByte(this)
 
 private fun Byte.getBits(offset: Int, width: Int): Int =
-    io.github.kotlinmania.llama.ore.extractBits(toUnsignedInt(), offset, width)
+    io.github.kotlinmania.llama.core.extractBits(toUnsignedInt(), offset, width)
 
 private fun Byte.withBits(value: Int, offset: Int, width: Int): Byte =
-    io.github.kotlinmania.llama.ore.mergeIntoByte(this, value, offset, width)
+    io.github.kotlinmania.llama.core.mergeIntoByte(this, value, offset, width)
 
 private fun Int.lowBits(width: Int): Int =
-    io.github.kotlinmania.llama.ore.maskLowBits32(this, width)
+    io.github.kotlinmania.llama.core.maskLowBits32(this, width)
 
 private fun Int.getBits(offset: Int, width: Int): Int =
-    io.github.kotlinmania.llama.ore.extractBits(this, offset, width)
+    io.github.kotlinmania.llama.core.extractBits(this, offset, width)
 
 private fun mergeIntoByte(base: Byte, value: Int, shift: Int, width: Int): Byte {
-    val clearedAddition = io.github.kotlinmania.llama.ore.logicalLeft32(
-        io.github.kotlinmania.llama.ore.maskLowBits32(
+    val clearedAddition = io.github.kotlinmania.llama.core.logicalLeft32(
+        io.github.kotlinmania.llama.core.maskLowBits32(
             value,
             width
         ), shift
     )
-    val merged = io.github.kotlinmania.llama.ore.mergeBits32(
-        io.github.kotlinmania.llama.ore.unsignedByte(base), clearedAddition
+    val merged = io.github.kotlinmania.llama.core.mergeBits32(
+        io.github.kotlinmania.llama.core.unsignedByte(base), clearedAddition
     )
-    return io.github.kotlinmania.llama.ore.maskLowBits32(merged, 8).toByte()
+    return io.github.kotlinmania.llama.core.maskLowBits32(merged, 8).toByte()
 }
 
 /** Pack two 4-bit nibbles into a single byte (low in bits 0-3, high in bits 4-7). */
@@ -2761,8 +2761,8 @@ private fun bitplaneWriteInt(base: Int, value: Int, bitIndex: Int, width: Int): 
     return (cleared or toWrite) and 0xFF
 }
 
-private fun quantizeQ2KBlock(values: FloatArray, dest: ByteArray, destOffset: Int, scratch: io.github.kotlinmania.llama.ore.Q2KScratch) {
-    require(values.size == io.github.kotlinmania.llama.ore.QK_K) { "Q2_K block must have ${io.github.kotlinmania.llama.ore.QK_K} values" }
+private fun quantizeQ2KBlock(values: FloatArray, dest: ByteArray, destOffset: Int, scratch: io.github.kotlinmania.llama.core.Q2KScratch) {
+    require(values.size == io.github.kotlinmania.llama.core.QK_K) { "Q2_K block must have ${io.github.kotlinmania.llama.core.QK_K} values" }
 
     val l = scratch.quants
     val lAux = scratch.aux
@@ -2773,12 +2773,12 @@ private fun quantizeQ2KBlock(values: FloatArray, dest: ByteArray, destOffset: In
     var maxScale = 0.0f
     var maxMin = 0.0f
 
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
         val base = subBlock * 16
         for (i in 0 until 16) {
             weights[i] = abs(values[base + i])
         }
-        val stats = io.github.kotlinmania.llama.ore.makeQKX2Quants(
+        val stats = io.github.kotlinmania.llama.core.makeQKX2Quants(
             n = 16,
             nmax = 3,
             values = values,
@@ -2802,52 +2802,52 @@ private fun quantizeQ2KBlock(values: FloatArray, dest: ByteArray, destOffset: In
     }
 
     val scalesOffset = destOffset
-    val quantsOffset = destOffset + io.github.kotlinmania.llama.ore.QK_K / 16
-    val dOffset = quantsOffset + io.github.kotlinmania.llama.ore.QK_K / 4
+    val quantsOffset = destOffset + io.github.kotlinmania.llama.core.QK_K / 16
+    val dOffset = quantsOffset + io.github.kotlinmania.llama.core.QK_K / 4
     val dminOffset = dOffset + SHORT_SIZE_BYTES
 
     val dHalf = if (maxScale > 0.0f) {
         val iscale = 15.0f / maxScale
-        for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val quantized = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * scales[subBlock])
+        for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val quantized = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * scales[subBlock])
                 .coerceIn(0, 15)
             dest[scalesOffset + subBlock] = quantized.toByte()
         }
-        io.github.kotlinmania.llama.ore.floatToHalf(maxScale / 15.0f)
+        io.github.kotlinmania.llama.core.floatToHalf(maxScale / 15.0f)
     } else {
-        for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) dest[scalesOffset + subBlock] = 0
-        io.github.kotlinmania.llama.ore.floatToHalf(0.0f)
+        for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 16) dest[scalesOffset + subBlock] = 0
+        io.github.kotlinmania.llama.core.floatToHalf(0.0f)
     }
     dest.setShortLe(dOffset, dHalf)
 
     val dminHalf = if (maxMin > 0.0f) {
         val iscale = 15.0f / maxMin
-        for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val existing = io.github.kotlinmania.llama.ore.maskLowBits32(
+        for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val existing = io.github.kotlinmania.llama.core.maskLowBits32(
                 dest[scalesOffset + subBlock].toInt(),
                 4
             )
-            val quantized = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * mins[subBlock])
+            val quantized = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * mins[subBlock])
                 .coerceIn(0, 15)
-            dest[scalesOffset + subBlock] = io.github.kotlinmania.llama.ore.packNibbles(
+            dest[scalesOffset + subBlock] = io.github.kotlinmania.llama.core.packNibbles(
                 existing,
                 quantized
             ).toByte()
         }
-        io.github.kotlinmania.llama.ore.floatToHalf(maxMin / 15.0f)
+        io.github.kotlinmania.llama.core.floatToHalf(maxMin / 15.0f)
     } else {
-        io.github.kotlinmania.llama.ore.floatToHalf(0.0f)
+        io.github.kotlinmania.llama.core.floatToHalf(0.0f)
     }
     dest.setShortLe(dminOffset, dminHalf)
 
-    val dBase = io.github.kotlinmania.llama.ore.halfToFloat(dHalf)
-    val dmBase = io.github.kotlinmania.llama.ore.halfToFloat(dminHalf)
+    val dBase = io.github.kotlinmania.llama.core.halfToFloat(dHalf)
+    val dmBase = io.github.kotlinmania.llama.core.halfToFloat(dminHalf)
 
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
         val scaleByte =
-            io.github.kotlinmania.llama.ore.maskLowBits32(dest[scalesOffset + subBlock].toInt(), 8)
-        val scaleLow = io.github.kotlinmania.llama.ore.lowNibble(scaleByte)
-        val scaleHigh = io.github.kotlinmania.llama.ore.highNibble(scaleByte)
+            io.github.kotlinmania.llama.core.maskLowBits32(dest[scalesOffset + subBlock].toInt(), 8)
+        val scaleLow = io.github.kotlinmania.llama.core.lowNibble(scaleByte)
+        val scaleHigh = io.github.kotlinmania.llama.core.highNibble(scaleByte)
         val dScale = dBase * scaleLow
         val base = subBlock * 16
         if (dScale == 0.0f) {
@@ -2857,31 +2857,31 @@ private fun quantizeQ2KBlock(values: FloatArray, dest: ByteArray, destOffset: In
         val dm = dmBase * scaleHigh
         for (lane in 0 until 16) {
             val value = values[base + lane]
-            val quantized = io.github.kotlinmania.llama.ore.nearestIntFloat((value + dm) / dScale)
+            val quantized = io.github.kotlinmania.llama.core.nearestIntFloat((value + dm) / dScale)
                 .coerceIn(0, 3)
             l[base + lane] = quantized.toByte()
         }
 
-        for (group in 0 until io.github.kotlinmania.llama.ore.QK_K / 64) {
+        for (group in 0 until io.github.kotlinmania.llama.core.QK_K / 64) {
             val idx0 = base + group * 4
-            val v0 = io.github.kotlinmania.llama.ore.maskLowBits32(l[idx0].toInt() and 0xFF, 2)
-            val v1 = io.github.kotlinmania.llama.ore.maskLowBits32(l[idx0 + 1].toInt() and 0xFF, 2)
-            val v2 = io.github.kotlinmania.llama.ore.maskLowBits32(l[idx0 + 2].toInt() and 0xFF, 2)
-            val v3 = io.github.kotlinmania.llama.ore.maskLowBits32(l[idx0 + 3].toInt() and 0xFF, 2)
+            val v0 = io.github.kotlinmania.llama.core.maskLowBits32(l[idx0].toInt() and 0xFF, 2)
+            val v1 = io.github.kotlinmania.llama.core.maskLowBits32(l[idx0 + 1].toInt() and 0xFF, 2)
+            val v2 = io.github.kotlinmania.llama.core.maskLowBits32(l[idx0 + 2].toInt() and 0xFF, 2)
+            val v3 = io.github.kotlinmania.llama.core.maskLowBits32(l[idx0 + 3].toInt() and 0xFF, 2)
 
-            val combined = io.github.kotlinmania.llama.ore.mergeBits32(
-                io.github.kotlinmania.llama.ore.mergeBits32(
+            val combined = io.github.kotlinmania.llama.core.mergeBits32(
+                io.github.kotlinmania.llama.core.mergeBits32(
                     v0,
-                    io.github.kotlinmania.llama.ore.logicalLeft32(v1, 2)
+                    io.github.kotlinmania.llama.core.logicalLeft32(v1, 2)
                 ),
-                io.github.kotlinmania.llama.ore.mergeBits32(
-                    io.github.kotlinmania.llama.ore.logicalLeft32(
+                io.github.kotlinmania.llama.core.mergeBits32(
+                    io.github.kotlinmania.llama.core.logicalLeft32(
                         v2,
                         4
-                    ), io.github.kotlinmania.llama.ore.logicalLeft32(v3, 6)
+                    ), io.github.kotlinmania.llama.core.logicalLeft32(v3, 6)
                 )
             )
-            dest[quantsOffset + subBlock * (io.github.kotlinmania.llama.ore.QK_K / 64) + group] = io.github.kotlinmania.llama.ore.maskLowBits32(
+            dest[quantsOffset + subBlock * (io.github.kotlinmania.llama.core.QK_K / 64) + group] = io.github.kotlinmania.llama.core.maskLowBits32(
                 combined,
                 8
             ).toByte()
@@ -2898,19 +2898,19 @@ private fun quantizeQ3_KBlock(
     blockValues: FloatArray,
     dest: ByteArray,
     destOffset: Int,
-    scratch: io.github.kotlinmania.llama.ore.Q3KScratch
+    scratch: io.github.kotlinmania.llama.core.Q3KScratch
 ) {
-    require(blockValues.size == io.github.kotlinmania.llama.ore.QK_K) { "Q3_K block must have ${io.github.kotlinmania.llama.ore.QK_K} values" }
+    require(blockValues.size == io.github.kotlinmania.llama.core.QK_K) { "Q3_K block must have ${io.github.kotlinmania.llama.core.QK_K} values" }
 
     val quants = scratch.quants
     val scales = scratch.scales
 
-    val subBlocks = io.github.kotlinmania.llama.ore.QK_K / 16
+    val subBlocks = io.github.kotlinmania.llama.core.QK_K / 16
     var maxScale = 0.0f
     var maxAbsScale = 0.0f
     for (sub in 0 until subBlocks) {
         val base = sub * 16
-        val scale = io.github.kotlinmania.llama.ore.makeQ3Quants(
+        val scale = io.github.kotlinmania.llama.core.makeQ3Quants(
             n = 16,
             nmax = 4,
             values = blockValues,
@@ -2928,47 +2928,47 @@ private fun quantizeQ3_KBlock(
     }
 
     val hmaskOffset = destOffset
-    val qsOffset = hmaskOffset + io.github.kotlinmania.llama.ore.QK_K / 8
-    val scalesOffset = qsOffset + io.github.kotlinmania.llama.ore.QK_K / 4
+    val qsOffset = hmaskOffset + io.github.kotlinmania.llama.core.QK_K / 8
+    val scalesOffset = qsOffset + io.github.kotlinmania.llama.core.QK_K / 4
     val dOffset = scalesOffset + 12
 
-    dest.fill(0.toByte(), hmaskOffset, hmaskOffset + io.github.kotlinmania.llama.ore.QK_K / 8)
-    dest.fill(0.toByte(), qsOffset, qsOffset + io.github.kotlinmania.llama.ore.QK_K / 4)
+    dest.fill(0.toByte(), hmaskOffset, hmaskOffset + io.github.kotlinmania.llama.core.QK_K / 8)
+    dest.fill(0.toByte(), qsOffset, qsOffset + io.github.kotlinmania.llama.core.QK_K / 4)
     dest.fill(0.toByte(), scalesOffset, scalesOffset + 12)
 
-    if (maxAbsScale < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS_F) {
-        dest.setShortLe(dOffset, io.github.kotlinmania.llama.ore.floatToHalf(0f))
+    if (maxAbsScale < io.github.kotlinmania.llama.core.GROUP_MAX_EPS_F) {
+        dest.setShortLe(dOffset, io.github.kotlinmania.llama.core.floatToHalf(0f))
         return
     }
 
     val iscale = -32.0f / maxScale
-    dest.setShortLe(dOffset, io.github.kotlinmania.llama.ore.floatToHalf(1f / iscale))
-    val dBase = io.github.kotlinmania.llama.ore.halfToFloat(dest.getShortLe(dOffset))
+    dest.setShortLe(dOffset, io.github.kotlinmania.llama.core.floatToHalf(1f / iscale))
+    val dBase = io.github.kotlinmania.llama.core.halfToFloat(dest.getShortLe(dOffset))
 
     for (sub in 0 until subBlocks) {
-        var qScale = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * scales[sub])
+        var qScale = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * scales[sub])
             .coerceIn(-32, 31)
         qScale += 32
         val lowIndex = scalesOffset + if (sub < 8) sub else sub - 8
         val lowShift = if (sub < 8) 0 else 4
-        val lowBits = io.github.kotlinmania.llama.ore.maskLowBits32(qScale, 4)
+        val lowBits = io.github.kotlinmania.llama.core.maskLowBits32(qScale, 4)
         dest[lowIndex] =
-            io.github.kotlinmania.llama.ore.mergeIntoByte(dest[lowIndex], lowBits, lowShift, 4)
+            io.github.kotlinmania.llama.core.mergeIntoByte(dest[lowIndex], lowBits, lowShift, 4)
 
         val highIndex = scalesOffset + 8 + (sub % 4)
         val bitOffset = (sub / 4) * 2
-        val highBits = io.github.kotlinmania.llama.ore.logicalRight32(qScale, 4)
+        val highBits = io.github.kotlinmania.llama.core.logicalRight32(qScale, 4)
         dest[highIndex] =
-            io.github.kotlinmania.llama.ore.mergeIntoByte(dest[highIndex], highBits, bitOffset, 2)
+            io.github.kotlinmania.llama.core.mergeIntoByte(dest[highIndex], highBits, bitOffset, 2)
     }
 
     for (sub in 0 until subBlocks) {
-        val scaleInt = io.github.kotlinmania.llama.ore.readQ3Scale(dest, scalesOffset, sub)
+        val scaleInt = io.github.kotlinmania.llama.core.readQ3Scale(dest, scalesOffset, sub)
         val scaleValue = dBase * scaleInt
         if (scaleValue == 0.0f) continue
         val base = sub * 16
         for (lane in 0 until 16) {
-            val q = io.github.kotlinmania.llama.ore.nearestIntFloat(blockValues[base + lane] / scaleValue)
+            val q = io.github.kotlinmania.llama.core.nearestIntFloat(blockValues[base + lane] / scaleValue)
                 .coerceIn(-4, 3) + 4
             quants[base + lane] = q.toByte()
         }
@@ -2976,32 +2976,32 @@ private fun quantizeQ3_KBlock(
 
     var maskIndex = 0
     var bitPlane = 0
-    for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+    for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
         var q = quants[i].toInt()
         if (q > 3) {
             q -= 4
             quants[i] = q.toByte()
             val maskPos = hmaskOffset + maskIndex
             dest[maskPos] =
-                io.github.kotlinmania.llama.ore.mergeIntoByte(dest[maskPos], 1, bitPlane, 1)
+                io.github.kotlinmania.llama.core.mergeIntoByte(dest[maskPos], 1, bitPlane, 1)
         }
         maskIndex++
-        if (maskIndex == io.github.kotlinmania.llama.ore.QK_K / 8) {
+        if (maskIndex == io.github.kotlinmania.llama.core.QK_K / 8) {
             maskIndex = 0
             bitPlane++
         }
     }
 
     var qsIndex = qsOffset
-    for (chunk in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+    for (chunk in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
         for (l in 0 until 32) {
-            val q0 = io.github.kotlinmania.llama.ore.maskLowBits32(quants[chunk + l].toInt(), 2)
+            val q0 = io.github.kotlinmania.llama.core.maskLowBits32(quants[chunk + l].toInt(), 2)
             val q1 =
-                io.github.kotlinmania.llama.ore.maskLowBits32(quants[chunk + l + 32].toInt(), 2)
+                io.github.kotlinmania.llama.core.maskLowBits32(quants[chunk + l + 32].toInt(), 2)
             val q2 =
-                io.github.kotlinmania.llama.ore.maskLowBits32(quants[chunk + l + 64].toInt(), 2)
+                io.github.kotlinmania.llama.core.maskLowBits32(quants[chunk + l + 64].toInt(), 2)
             val q3 =
-                io.github.kotlinmania.llama.ore.maskLowBits32(quants[chunk + l + 96].toInt(), 2)
+                io.github.kotlinmania.llama.core.maskLowBits32(quants[chunk + l + 96].toInt(), 2)
             dest[qsIndex + l] = (((q3 and 3) shl 6) or ((q2 and 3) shl 4) or ((q1 and 3) shl 2) or (q0 and 3)).toByte()
         }
         qsIndex += 32
@@ -3011,32 +3011,32 @@ private fun quantizeQ3_KBlock(
 private fun readQ3Scale(dest: ByteArray, scalesOffset: Int, index: Int): Int {
     val lowIndex = scalesOffset + if (index < 8) index else index - 8
     val lowShift = if (index < 8) 0 else 4
-    val low = io.github.kotlinmania.llama.ore.extractBits(
-        io.github.kotlinmania.llama.ore.unsignedByte(dest[lowIndex]), lowShift, 4
+    val low = io.github.kotlinmania.llama.core.extractBits(
+        io.github.kotlinmania.llama.core.unsignedByte(dest[lowIndex]), lowShift, 4
     )
     val highIndex = scalesOffset + 8 + (index % 4)
     val highShift = (index / 4) * 2
-    val high = io.github.kotlinmania.llama.ore.extractBits(
-        io.github.kotlinmania.llama.ore.unsignedByte(dest[highIndex]), highShift, 2
+    val high = io.github.kotlinmania.llama.core.extractBits(
+        io.github.kotlinmania.llama.core.unsignedByte(dest[highIndex]), highShift, 2
     )
-    return io.github.kotlinmania.llama.ore.mergeBits32(
+    return io.github.kotlinmania.llama.core.mergeBits32(
         low,
-        io.github.kotlinmania.llama.ore.logicalLeft32(high, 4)
+        io.github.kotlinmania.llama.core.logicalLeft32(high, 4)
     ) - 32
 }
 
 /**
  * Quantizes a block of QK_K float values to Q4_K format.
- * Q4_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.ore.K_SCALE_SIZE], qs[QK_K/2]
+ * Q4_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.core.K_SCALE_SIZE], qs[QK_K/2]
  * Effectively 4.5 bits per weight
  */
 private fun quantizeQ4_KBlock(
     blockValues: FloatArray,
     dest: ByteArray,
     destOffset: Int,
-    scratch: io.github.kotlinmania.llama.ore.Q4KScratch
+    scratch: io.github.kotlinmania.llama.core.Q4KScratch
 ) {
-    require(blockValues.size == io.github.kotlinmania.llama.ore.QK_K) { "Q4_K block must have ${io.github.kotlinmania.llama.ore.QK_K} values" }
+    require(blockValues.size == io.github.kotlinmania.llama.core.QK_K) { "Q4_K block must have ${io.github.kotlinmania.llama.core.QK_K} values" }
 
     val quants = scratch.quants
     val aux = scratch.aux
@@ -3047,7 +3047,7 @@ private fun quantizeQ4_KBlock(
     var maxScale = 0.0f
     var maxMin = 0.0f
 
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
         val base = subBlock * 32
         var sumX2 = 0.0f
         for (i in 0 until 32) {
@@ -3058,7 +3058,7 @@ private fun quantizeQ4_KBlock(
         for (i in 0 until 32) {
             weights[i] = avX + abs(blockValues[base + i])
         }
-        val stats = io.github.kotlinmania.llama.ore.makeQKX2Quants(
+        val stats = io.github.kotlinmania.llama.core.makeQKX2Quants(
             n = 32,
             nmax = 15,
             values = blockValues,
@@ -3082,40 +3082,40 @@ private fun quantizeQ4_KBlock(
     }
 
     val scalesOffset = destOffset + 4
-    for (i in scalesOffset until scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE) {
+    for (i in scalesOffset until scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE) {
         dest[i] = 0
     }
 
     val dHalf =
-        io.github.kotlinmania.llama.ore.floatToHalf(if (maxScale > 0.0f) maxScale / 63.0f else 0.0f)
+        io.github.kotlinmania.llama.core.floatToHalf(if (maxScale > 0.0f) maxScale / 63.0f else 0.0f)
     dest.setShortLe(destOffset, dHalf)
-    val d = io.github.kotlinmania.llama.ore.halfToFloat(dHalf)
+    val d = io.github.kotlinmania.llama.core.halfToFloat(dHalf)
 
     val dminHalf =
-        io.github.kotlinmania.llama.ore.floatToHalf(if (maxMin > 0.0f) maxMin / 63.0f else 0.0f)
+        io.github.kotlinmania.llama.core.floatToHalf(if (maxMin > 0.0f) maxMin / 63.0f else 0.0f)
     dest.setShortLe(destOffset + 2, dminHalf)
-    val dmin = io.github.kotlinmania.llama.ore.halfToFloat(dminHalf)
+    val dmin = io.github.kotlinmania.llama.core.halfToFloat(dminHalf)
 
     val scaleQuantizer = if (maxScale > 0.0f) 63.0f / maxScale else 0.0f
     val minQuantizer = if (maxMin > 0.0f) 63.0f / maxMin else 0.0f
 
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-        val ls = io.github.kotlinmania.llama.ore.nearestIntFloat(scaleQuantizer * scales[subBlock])
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+        val ls = io.github.kotlinmania.llama.core.nearestIntFloat(scaleQuantizer * scales[subBlock])
             .coerceIn(0, 63)
-        val lm = io.github.kotlinmania.llama.ore.nearestIntFloat(minQuantizer * mins[subBlock])
+        val lm = io.github.kotlinmania.llama.core.nearestIntFloat(minQuantizer * mins[subBlock])
             .coerceIn(0, 63)
         if (subBlock < 4) {
             dest[scalesOffset + subBlock] = ls.toByte()
             dest[scalesOffset + subBlock + 4] = lm.toByte()
         } else {
             val packedIndex = scalesOffset + subBlock + 4
-            dest[packedIndex] = io.github.kotlinmania.llama.ore.packNibblesInt(
+            dest[packedIndex] = io.github.kotlinmania.llama.core.packNibblesInt(
                 ls and 0xF,
                 lm and 0xF
             ).toByte()
 
             val scaleHighIdx = scalesOffset + subBlock - 4
-            dest[scaleHighIdx] = io.github.kotlinmania.llama.ore.bitplaneWriteInt(
+            dest[scaleHighIdx] = io.github.kotlinmania.llama.core.bitplaneWriteInt(
                 dest[scaleHighIdx].toInt() and 0xFF,
                 ls ushr 4,
                 6,
@@ -3123,7 +3123,7 @@ private fun quantizeQ4_KBlock(
             ).toByte()
 
             val minHighIdx = scalesOffset + subBlock
-            dest[minHighIdx] = io.github.kotlinmania.llama.ore.bitplaneWriteInt(
+            dest[minHighIdx] = io.github.kotlinmania.llama.core.bitplaneWriteInt(
                 dest[minHighIdx].toInt() and 0xFF,
                 lm ushr 4,
                 6,
@@ -3132,12 +3132,12 @@ private fun quantizeQ4_KBlock(
         }
     }
 
-    for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+    for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
         quants[i] = 0
     }
 
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-        val (scaleInt, minInt) = io.github.kotlinmania.llama.ore.getScaleMinK4(
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+        val (scaleInt, minInt) = io.github.kotlinmania.llama.core.getScaleMinK4(
             dest,
             scalesOffset,
             subBlock
@@ -3150,18 +3150,18 @@ private fun quantizeQ4_KBlock(
         }
         for (lane in 0 until 32) {
             val value = blockValues[base + lane]
-            val q = io.github.kotlinmania.llama.ore.nearestIntFloat((value + minValue) / scaleValue)
+            val q = io.github.kotlinmania.llama.core.nearestIntFloat((value + minValue) / scaleValue)
                 .coerceIn(0, 15)
             quants[base + lane] = q.toByte()
         }
     }
 
-    var writeOffset = scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE
-    for (chunkStart in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
+    var writeOffset = scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE
+    for (chunkStart in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
         for (l in 0 until 32) {
             val low = quants[chunkStart + l].toInt() and 0xF
             val high = quants[chunkStart + l + 32].toInt() and 0xF
-            dest[writeOffset + l] = io.github.kotlinmania.llama.ore.packNibblesInt(low, high).toByte()
+            dest[writeOffset + l] = io.github.kotlinmania.llama.core.packNibblesInt(low, high).toByte()
         }
         writeOffset += 32
     }
@@ -3169,33 +3169,33 @@ private fun quantizeQ4_KBlock(
 
 private fun getScaleMinK4(scales: ByteArray, scalesOffset: Int, index: Int): Pair<Int, Int> {
     return if (index < 4) {
-        val scale = io.github.kotlinmania.llama.ore.maskLowBits32(
-            io.github.kotlinmania.llama.ore.unsignedByte(scales[scalesOffset + index]), 6
+        val scale = io.github.kotlinmania.llama.core.maskLowBits32(
+            io.github.kotlinmania.llama.core.unsignedByte(scales[scalesOffset + index]), 6
         )
-        val min = io.github.kotlinmania.llama.ore.maskLowBits32(
-            io.github.kotlinmania.llama.ore.unsignedByte(scales[scalesOffset + index + 4]), 6
+        val min = io.github.kotlinmania.llama.core.maskLowBits32(
+            io.github.kotlinmania.llama.core.unsignedByte(scales[scalesOffset + index + 4]), 6
         )
         scale to min
     } else {
-        val packed = io.github.kotlinmania.llama.ore.unsignedByte(scales[scalesOffset + index + 4])
-        val scaleHigh = io.github.kotlinmania.llama.ore.extractBits(
-            io.github.kotlinmania.llama.ore.unsignedByte(scales[scalesOffset + index - 4]), 6, 2
+        val packed = io.github.kotlinmania.llama.core.unsignedByte(scales[scalesOffset + index + 4])
+        val scaleHigh = io.github.kotlinmania.llama.core.extractBits(
+            io.github.kotlinmania.llama.core.unsignedByte(scales[scalesOffset + index - 4]), 6, 2
         )
-        val minHigh = io.github.kotlinmania.llama.ore.extractBits(
-            io.github.kotlinmania.llama.ore.unsignedByte(scales[scalesOffset + index]), 6, 2
+        val minHigh = io.github.kotlinmania.llama.core.extractBits(
+            io.github.kotlinmania.llama.core.unsignedByte(scales[scalesOffset + index]), 6, 2
         )
-        val scale = io.github.kotlinmania.llama.ore.mergeBits32(
-            io.github.kotlinmania.llama.ore.maskLowBits32(
+        val scale = io.github.kotlinmania.llama.core.mergeBits32(
+            io.github.kotlinmania.llama.core.maskLowBits32(
                 packed,
                 4
-            ), io.github.kotlinmania.llama.ore.logicalLeft32(scaleHigh, 4)
+            ), io.github.kotlinmania.llama.core.logicalLeft32(scaleHigh, 4)
         )
-        val min = io.github.kotlinmania.llama.ore.mergeBits32(
-            io.github.kotlinmania.llama.ore.extractBits(
+        val min = io.github.kotlinmania.llama.core.mergeBits32(
+            io.github.kotlinmania.llama.core.extractBits(
                 packed,
                 4,
                 4
-            ), io.github.kotlinmania.llama.ore.logicalLeft32(minHigh, 4)
+            ), io.github.kotlinmania.llama.core.logicalLeft32(minHigh, 4)
         )
         scale to min
     }
@@ -3203,28 +3203,28 @@ private fun getScaleMinK4(scales: ByteArray, scalesOffset: Int, index: Int): Pai
 
 /**
  * Quantizes a block of QK_K float values to Q5_K format.
- * Q5_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.ore.K_SCALE_SIZE], qh[QK_K/8], qs[QK_K/2]
+ * Q5_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.core.K_SCALE_SIZE], qh[QK_K/8], qs[QK_K/2]
  * Effectively 5.5 bits per weight
  */
 
 private class Q5KScratch(
-    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K),
+    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K),
     val aux: ByteArray = ByteArray(32),
     val weights: FloatArray = FloatArray(32),
-    val mins: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32),
-    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32),
-    val sw: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32),
-    val ls: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K / 32),
-    val lm: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val mins: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32),
+    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32),
+    val sw: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32),
+    val ls: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K / 32),
+    val lm: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K / 32)
 )
 
 private fun quantizeQ5_KBlock(
     blockValues: FloatArray,
     dest: ByteArray,
     destOffset: Int,
-    scratch: io.github.kotlinmania.llama.ore.Q5KScratch
+    scratch: io.github.kotlinmania.llama.core.Q5KScratch
 ) {
-    require(blockValues.size == io.github.kotlinmania.llama.ore.QK_K) { "Q5_K block must have ${io.github.kotlinmania.llama.ore.QK_K} values" }
+    require(blockValues.size == io.github.kotlinmania.llama.core.QK_K) { "Q5_K block must have ${io.github.kotlinmania.llama.core.QK_K} values" }
 
     val quants = scratch.quants
     val aux = scratch.aux
@@ -3238,8 +3238,8 @@ private fun quantizeQ5_KBlock(
     sw.fill(0f)
     var sumX2 = 0.0f
     for (value in blockValues) sumX2 += value * value
-    val sigma2 = sumX2 / io.github.kotlinmania.llama.ore.QK_K
-    val subBlocks = io.github.kotlinmania.llama.ore.QK_K / 32
+    val sigma2 = sumX2 / io.github.kotlinmania.llama.core.QK_K
+    val subBlocks = io.github.kotlinmania.llama.core.QK_K / 32
     for (sub in 0 until subBlocks) {
         val base = sub * 32
         var sumW = 0.0f
@@ -3250,7 +3250,7 @@ private fun quantizeQ5_KBlock(
             sumW += w
         }
         sw[sub] = sumW
-        val stats = io.github.kotlinmania.llama.ore.makeQKX3Quants(
+        val stats = io.github.kotlinmania.llama.core.makeQKX3Quants(
             n = 32,
             nmax = 31,
             values = blockValues,
@@ -3271,7 +3271,7 @@ private fun quantizeQ5_KBlock(
         scales[sub] = stats.scale
     }
 
-    var dm = io.github.kotlinmania.llama.ore.makeQPQuants(
+    var dm = io.github.kotlinmania.llama.core.makeQPQuants(
         n = subBlocks,
         nmax = 15,
         values = scales,
@@ -3281,7 +3281,7 @@ private fun quantizeQ5_KBlock(
         quantWeights = sw,
         weightsOffset = 0
     )
-    var mm = io.github.kotlinmania.llama.ore.makeQPQuants(
+    var mm = io.github.kotlinmania.llama.core.makeQPQuants(
         n = subBlocks,
         nmax = 15,
         values = mins,
@@ -3292,13 +3292,13 @@ private fun quantizeQ5_KBlock(
         weightsOffset = 0
     )
 
-    dest.setShortLe(destOffset, io.github.kotlinmania.llama.ore.floatToHalf(dm))
-    dest.setShortLe(destOffset + 2, io.github.kotlinmania.llama.ore.floatToHalf(mm))
-    dm = io.github.kotlinmania.llama.ore.halfToFloat(dest.getShortLe(destOffset))
-    mm = io.github.kotlinmania.llama.ore.halfToFloat(dest.getShortLe(destOffset + 2))
+    dest.setShortLe(destOffset, io.github.kotlinmania.llama.core.floatToHalf(dm))
+    dest.setShortLe(destOffset + 2, io.github.kotlinmania.llama.core.floatToHalf(mm))
+    dm = io.github.kotlinmania.llama.core.halfToFloat(dest.getShortLe(destOffset))
+    mm = io.github.kotlinmania.llama.core.halfToFloat(dest.getShortLe(destOffset + 2))
 
     val scalesOffset = destOffset + 4
-    for (i in 0 until io.github.kotlinmania.llama.ore.K_SCALE_SIZE) dest[scalesOffset + i] = 0
+    for (i in 0 until io.github.kotlinmania.llama.core.K_SCALE_SIZE) dest[scalesOffset + i] = 0
 
     for (sub in 0 until subBlocks) {
         val lsInt = ls[sub].toInt() and 0xFF
@@ -3307,19 +3307,19 @@ private fun quantizeQ5_KBlock(
             dest[scalesOffset + sub] = lsInt.toByte()
             dest[scalesOffset + sub + 4] = lmInt.toByte()
         } else {
-            dest[scalesOffset + sub + 4] = io.github.kotlinmania.llama.ore.packNibblesInt(
+            dest[scalesOffset + sub + 4] = io.github.kotlinmania.llama.core.packNibblesInt(
                 lsInt and 0xF,
                 lmInt and 0xF
             ).toByte()
             val scaleHighIdx = scalesOffset + sub - 4
-            dest[scaleHighIdx] = io.github.kotlinmania.llama.ore.bitplaneWriteInt(
+            dest[scaleHighIdx] = io.github.kotlinmania.llama.core.bitplaneWriteInt(
                 dest[scaleHighIdx].toInt() and 0xFF,
                 lsInt ushr 4,
                 6,
                 2
             ).toByte()
             val minHighIdx = scalesOffset + sub
-            dest[minHighIdx] = io.github.kotlinmania.llama.ore.bitplaneWriteInt(
+            dest[minHighIdx] = io.github.kotlinmania.llama.core.bitplaneWriteInt(
                 dest[minHighIdx].toInt() and 0xFF,
                 lmInt ushr 4,
                 6,
@@ -3328,14 +3328,14 @@ private fun quantizeQ5_KBlock(
         }
     }
 
-    dest.fill(0.toByte(), scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE, scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + io.github.kotlinmania.llama.ore.QK_K / 8)
-    dest.fill(0.toByte(), scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + io.github.kotlinmania.llama.ore.QK_K / 8, scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + io.github.kotlinmania.llama.ore.QK_K / 8 + io.github.kotlinmania.llama.ore.QK_K / 2)
+    dest.fill(0.toByte(), scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE, scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE + io.github.kotlinmania.llama.core.QK_K / 8)
+    dest.fill(0.toByte(), scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE + io.github.kotlinmania.llama.core.QK_K / 8, scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE + io.github.kotlinmania.llama.core.QK_K / 8 + io.github.kotlinmania.llama.core.QK_K / 2)
 
-    val qhOffset = scalesOffset + io.github.kotlinmania.llama.ore.K_SCALE_SIZE
-    val qsOffset = qhOffset + io.github.kotlinmania.llama.ore.QK_K / 8
+    val qhOffset = scalesOffset + io.github.kotlinmania.llama.core.K_SCALE_SIZE
+    val qsOffset = qhOffset + io.github.kotlinmania.llama.core.QK_K / 8
 
     for (sub in 0 until subBlocks) {
-        val (scaleInt, minInt) = io.github.kotlinmania.llama.ore.getScaleMinK4(
+        val (scaleInt, minInt) = io.github.kotlinmania.llama.core.getScaleMinK4(
             dest,
             scalesOffset,
             sub
@@ -3345,7 +3345,7 @@ private fun quantizeQ5_KBlock(
         val minValue = mm * minInt
         val base = sub * 32
         for (lane in 0 until 32) {
-            val q = io.github.kotlinmania.llama.ore.nearestIntFloat((blockValues[base + lane] + minValue) / scaleValue)
+            val q = io.github.kotlinmania.llama.core.nearestIntFloat((blockValues[base + lane] + minValue) / scaleValue)
                 .coerceIn(0, 31)
             quants[base + lane] = q.toByte()
         }
@@ -3354,7 +3354,7 @@ private fun quantizeQ5_KBlock(
     var mask1 = 1
     var mask2 = 2
     var qsIndex = qsOffset
-    for (chunk in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
+    for (chunk in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
         for (j in 0 until 32) {
             var q1 = quants[chunk + j].toInt() and 0x1F
             var q2 = quants[chunk + j + 32].toInt() and 0x1F
@@ -3366,7 +3366,7 @@ private fun quantizeQ5_KBlock(
                 q2 -= 16
                 dest[qhOffset + j] = (dest[qhOffset + j].toInt() or mask2).toByte()
             }
-            dest[qsIndex + j] = io.github.kotlinmania.llama.ore.packNibblesInt(q1, q2).toByte()
+            dest[qsIndex + j] = io.github.kotlinmania.llama.core.packNibblesInt(q1, q2).toByte()
         }
         mask1 = (mask1 shl 2) and 0xFF
         mask2 = (mask2 shl 2) and 0xFF
@@ -3381,27 +3381,27 @@ private fun quantizeQ5_KBlock(
  */
 
 private class Q6KScratch(
-    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.ore.QK_K),
-    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val quants: ByteArray = ByteArray(io.github.kotlinmania.llama.core.QK_K),
+    val scales: FloatArray = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 )
 
 private fun quantizeQ6_KBlock(
     blockValues: FloatArray,
     dest: ByteArray,
     destOffset: Int,
-    scratch: io.github.kotlinmania.llama.ore.Q6KScratch
+    scratch: io.github.kotlinmania.llama.core.Q6KScratch
 ) {
-    require(blockValues.size == io.github.kotlinmania.llama.ore.QK_K) { "Q6_K block must have ${io.github.kotlinmania.llama.ore.QK_K} values" }
+    require(blockValues.size == io.github.kotlinmania.llama.core.QK_K) { "Q6_K block must have ${io.github.kotlinmania.llama.core.QK_K} values" }
 
     val quants = scratch.quants
     val scales = scratch.scales
 
-    val subBlocks = io.github.kotlinmania.llama.ore.QK_K / 16
+    val subBlocks = io.github.kotlinmania.llama.core.QK_K / 16
     var maxScale = 0.0f
     var maxAbsScale = 0.0f
     for (sub in 0 until subBlocks) {
         val base = sub * 16
-        val scale = io.github.kotlinmania.llama.ore.makeQXQuants(
+        val scale = io.github.kotlinmania.llama.core.makeQXQuants(
             n = 16,
             nmax = 32,
             values = blockValues,
@@ -3421,25 +3421,25 @@ private fun quantizeQ6_KBlock(
     }
 
     val qlOffset = destOffset
-    val qhOffset = destOffset + io.github.kotlinmania.llama.ore.QK_K / 2
-    val scalesOffset = qhOffset + io.github.kotlinmania.llama.ore.QK_K / 4
-    val dOffset = scalesOffset + io.github.kotlinmania.llama.ore.QK_K / 16
+    val qhOffset = destOffset + io.github.kotlinmania.llama.core.QK_K / 2
+    val scalesOffset = qhOffset + io.github.kotlinmania.llama.core.QK_K / 4
+    val dOffset = scalesOffset + io.github.kotlinmania.llama.core.QK_K / 16
 
-    dest.fill(0.toByte(), qlOffset, qlOffset + io.github.kotlinmania.llama.ore.QK_K / 2)
-    dest.fill(0.toByte(), qhOffset, qhOffset + io.github.kotlinmania.llama.ore.QK_K / 4)
-    dest.fill(0.toByte(), scalesOffset, scalesOffset + io.github.kotlinmania.llama.ore.QK_K / 16)
+    dest.fill(0.toByte(), qlOffset, qlOffset + io.github.kotlinmania.llama.core.QK_K / 2)
+    dest.fill(0.toByte(), qhOffset, qhOffset + io.github.kotlinmania.llama.core.QK_K / 4)
+    dest.fill(0.toByte(), scalesOffset, scalesOffset + io.github.kotlinmania.llama.core.QK_K / 16)
 
-    if (maxAbsScale < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS_F) {
-        dest.setShortLe(dOffset, io.github.kotlinmania.llama.ore.floatToHalf(0f))
+    if (maxAbsScale < io.github.kotlinmania.llama.core.GROUP_MAX_EPS_F) {
+        dest.setShortLe(dOffset, io.github.kotlinmania.llama.core.floatToHalf(0f))
         return
     }
 
     val iscale = -128f / maxScale
-    dest.setShortLe(dOffset, io.github.kotlinmania.llama.ore.floatToHalf(1f / iscale))
-    val dBase = io.github.kotlinmania.llama.ore.halfToFloat(dest.getShortLe(dOffset))
+    dest.setShortLe(dOffset, io.github.kotlinmania.llama.core.floatToHalf(1f / iscale))
+    val dBase = io.github.kotlinmania.llama.core.halfToFloat(dest.getShortLe(dOffset))
 
     for (sub in 0 until subBlocks) {
-        val qScale = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * scales[sub])
+        val qScale = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * scales[sub])
             .coerceIn(-128, 127)
         dest[scalesOffset + sub] = qScale.toByte()
     }
@@ -3450,7 +3450,7 @@ private fun quantizeQ6_KBlock(
         if (scaleValue == 0.0f) continue
         val base = sub * 16
         for (lane in 0 until 16) {
-            val q = io.github.kotlinmania.llama.ore.nearestIntFloat(blockValues[base + lane] / scaleValue)
+            val q = io.github.kotlinmania.llama.core.nearestIntFloat(blockValues[base + lane] / scaleValue)
                 .coerceIn(-32, 31)
             quants[base + lane] = (q + 32).toByte()
         }
@@ -3458,18 +3458,18 @@ private fun quantizeQ6_KBlock(
 
     var qlIndex = qlOffset
     var qhIndex = qhOffset
-    for (chunk in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+    for (chunk in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
         for (l in 0 until 32) {
             val q1 = quants[chunk + l].toInt() and 0x3F
             val q2 = quants[chunk + l + 32].toInt() and 0x3F
             val q3 = quants[chunk + l + 64].toInt() and 0x3F
             val q4 = quants[chunk + l + 96].toInt() and 0x3F
 
-            dest[qlIndex + l] = io.github.kotlinmania.llama.ore.packNibblesInt(
+            dest[qlIndex + l] = io.github.kotlinmania.llama.core.packNibblesInt(
                 q1 and 0xF,
                 q3 and 0xF
             ).toByte()
-            dest[qlIndex + l + 32] = io.github.kotlinmania.llama.ore.packNibblesInt(
+            dest[qlIndex + l + 32] = io.github.kotlinmania.llama.core.packNibblesInt(
                 q2 and 0xF,
                 q4 and 0xF
             ).toByte()
@@ -3484,11 +3484,11 @@ private fun quantizeQ6_KBlock(
 
 /**
  * Quantizes a block of QK_K float values to Q8_K format.
- * Q8_K structure: d (F32), qs[io.github.kotlinmania.llama.ore.QK_K], bsums[QK_K/16]
+ * Q8_K structure: d (F32), qs[io.github.kotlinmania.llama.core.QK_K], bsums[QK_K/16]
  * This is used for intermediate quantization and dot products
  */
 private fun quantizeQ8_KBlock(blockValues: FloatArray, dest: ByteArray, destOffset: Int) {
-    require(blockValues.size == io.github.kotlinmania.llama.ore.QK_K) { "Q8_K block must have ${io.github.kotlinmania.llama.ore.QK_K} values" }
+    require(blockValues.size == io.github.kotlinmania.llama.core.QK_K) { "Q8_K block must have ${io.github.kotlinmania.llama.core.QK_K} values" }
     
     // Find absolute maximum
     var amax = 0.0f
@@ -3503,20 +3503,20 @@ private fun quantizeQ8_KBlock(blockValues: FloatArray, dest: ByteArray, destOffs
     dest.setFloatLe(destOffset, d)
     
     // Quantize all values to 8 bits
-    for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+    for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
         val quantizedValue = round(blockValues[i] * invD).toInt().coerceIn(-128, 127)
         dest[destOffset + 4 + i] = quantizedValue.toByte()
     }
     
     // Calculate block sums for each group of 16
-    for (group in 0 until io.github.kotlinmania.llama.ore.QK_K /16) {
+    for (group in 0 until io.github.kotlinmania.llama.core.QK_K /16) {
         var sum = 0
         for (i in 0 until 16) {
             val idx = group * 16 + i
             sum += dest[destOffset + 4 + idx].toInt()
         }
         // Store sum as 16-bit integer
-        dest.setShortLe(destOffset + 4 + io.github.kotlinmania.llama.ore.QK_K + group * 2, sum.toShort())
+        dest.setShortLe(destOffset + 4 + io.github.kotlinmania.llama.core.QK_K + group * 2, sum.toShort())
     }
 }
 
@@ -3525,7 +3525,7 @@ private fun quantizeQ8_KBlock(blockValues: FloatArray, dest: ByteArray, destOffs
 /**
  * Dequantizes a Q2_K block to float values.
  */
-private fun dequantizeQ2_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+private fun dequantizeQ2_KBlock(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
     val d = tensor.getQ2_KBlockScale(graphAllocator, blockIndex)
     val dmin = tensor.getQ2_KBlockScaleMin(graphAllocator, blockIndex)
     
@@ -3535,7 +3535,7 @@ private fun dequantizeQ2_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
     for (subBlock in 0 until 16) {
         // Get quantized scale for this sub-block
         val scaleAndMin = tensor.getQ2_KScale(graphAllocator, blockIndex, subBlock)
-        val quantizedScale = io.github.kotlinmania.llama.ore.maskLowBits32(scaleAndMin.toInt(), 4)
+        val quantizedScale = io.github.kotlinmania.llama.core.maskLowBits32(scaleAndMin.toInt(), 4)
         
         // Reconstruct scale (Q2_K uses simple scale mapping)
         val scale = (quantizedScale.toFloat() / 15.0f) * d
@@ -3546,8 +3546,8 @@ private fun dequantizeQ2_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
             
             for (j in 0 until 4) {
                 if (elementIdx < dest.size) {
-                    val quantizedValue = io.github.kotlinmania.llama.ore.extractBits(
-                        io.github.kotlinmania.llama.ore.unsignedByte(packedByte), j * 2, 2
+                    val quantizedValue = io.github.kotlinmania.llama.core.extractBits(
+                        io.github.kotlinmania.llama.core.unsignedByte(packedByte), j * 2, 2
                     )
                     val dequantizedValue = (quantizedValue.toFloat() / 3.0f) * scale + dmin
                     dest[elementIdx++] = dequantizedValue
@@ -3560,21 +3560,21 @@ private fun dequantizeQ2_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
 /**
  * Dequantizes a Q3_K block to float values.
  */
-private fun dequantizeQ3_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+private fun dequantizeQ3_KBlock(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
     val d = tensor.getQ3_KBlockScale(graphAllocator, blockIndex)
     
     var elementIdx = destOffset
     
     // Process 16-element sub-blocks
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K /16) {
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K /16) {
         // Get quantized scale for this sub-block (stored in scales array)
         val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
-        val scaleOffset = blockByteOffset + io.github.kotlinmania.llama.ore.QK_K /8 + io.github.kotlinmania.llama.ore.QK_K /4 + subBlock
+        val scaleOffset = blockByteOffset + io.github.kotlinmania.llama.core.QK_K /8 + io.github.kotlinmania.llama.core.QK_K /4 + subBlock
         val buffer = graphAllocator.buffers[tensor.bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
         val quantizedScale = buffer[(tensor.dataOffset + scaleOffset.toULong()).toInt()]
         
         // Reconstruct scale
-        val scale = ((io.github.kotlinmania.llama.ore.maskLowBits32(quantizedScale.toInt(), 6)).toFloat() / 63.0f) * d
+        val scale = ((io.github.kotlinmania.llama.core.maskLowBits32(quantizedScale.toInt(), 6)).toFloat() / 63.0f) * d
         
         // Dequantize 16 values
         val subBlockStart = subBlock * 16
@@ -3585,9 +3585,9 @@ private fun dequantizeQ3_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
                 // Get low 2 bits from qs
                 val qsByteIdx = globalIdx / 4
                 val qsBitPos = (globalIdx % 4) * 2
-                val qsOffset = blockByteOffset + io.github.kotlinmania.llama.ore.QK_K /8 + qsByteIdx
-                val qsValue = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(buffer[(tensor.dataOffset + qsOffset.toULong()).toInt()]),
+                val qsOffset = blockByteOffset + io.github.kotlinmania.llama.core.QK_K /8 + qsByteIdx
+                val qsValue = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(buffer[(tensor.dataOffset + qsOffset.toULong()).toInt()]),
                     qsBitPos,
                     2
                 )
@@ -3596,14 +3596,14 @@ private fun dequantizeQ3_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
                 val hmaskByteIdx = globalIdx / 8
                 val hmaskBitPos = globalIdx % 8
                 val hmaskOffset = blockByteOffset + hmaskByteIdx
-                val hmaskValue = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(buffer[(tensor.dataOffset + hmaskOffset.toULong()).toInt()]),
+                val hmaskValue = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(buffer[(tensor.dataOffset + hmaskOffset.toULong()).toInt()]),
                     hmaskBitPos,
                     1
                 )
                 
                 // Combine to get 3-bit value
-                val quantizedValue = qsValue or (io.github.kotlinmania.llama.ore.logicalLeft32(
+                val quantizedValue = qsValue or (io.github.kotlinmania.llama.core.logicalLeft32(
                     hmaskValue,
                     2
                 ))
@@ -3618,7 +3618,7 @@ private fun dequantizeQ3_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
 /**
  * Dequantizes a Q4_K block to float values.
  */
-private fun dequantizeQ4_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+private fun dequantizeQ4_KBlock(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
     val d = tensor.getQ4_KBlockScale(graphAllocator, blockIndex)
     val dmin = tensor.getQ4_KBlockScaleMin(graphAllocator, blockIndex)
     
@@ -3635,19 +3635,19 @@ private fun dequantizeQ4_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
         val scaleByte = buffer[(tensor.dataOffset + scaleByteOffset.toULong()).toInt()]
         val quantizedScale = scaleByte.toUnsignedInt().lowBits(6)
         val quantizedMinLow =
-            io.github.kotlinmania.llama.ore.extractBits(scaleByte.toUnsignedInt(), 6, 2)
+            io.github.kotlinmania.llama.core.extractBits(scaleByte.toUnsignedInt(), 6, 2)
         
         val minByteOffset = blockByteOffset + 4 + subBlock * 2 + 1
-        val quantizedMinHigh = if (minByteOffset < blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE) {
-            io.github.kotlinmania.llama.ore.maskLowBits32(
-                io.github.kotlinmania.llama.ore.unsignedByte(
+        val quantizedMinHigh = if (minByteOffset < blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE) {
+            io.github.kotlinmania.llama.core.maskLowBits32(
+                io.github.kotlinmania.llama.core.unsignedByte(
                     buffer[(tensor.dataOffset + minByteOffset.toULong()).toInt()]
                 ), 4
             )
         } else 0
-        val quantizedMin = io.github.kotlinmania.llama.ore.mergeBits32(
+        val quantizedMin = io.github.kotlinmania.llama.core.mergeBits32(
             quantizedMinLow,
-            io.github.kotlinmania.llama.ore.logicalLeft32(quantizedMinHigh, 2)
+            io.github.kotlinmania.llama.core.logicalLeft32(quantizedMinHigh, 2)
         )
         
         // Reconstruct scale and min
@@ -3655,7 +3655,7 @@ private fun dequantizeQ4_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
         val min = (quantizedMin.toFloat() / 63.0f) * d + dmin
         
         // Dequantize 32 values (2 values per byte, 4 bits each)
-        val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + subBlock * 16
+        val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + subBlock * 16
         for (i in 0 until 32 step 2) {
             if (elementIdx < dest.size) {
                 val qsByte = buffer[(tensor.dataOffset + qsBaseOffset.toULong() + (i / 2).toULong()).toInt()]
@@ -3675,7 +3675,7 @@ private fun dequantizeQ4_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
 /**
  * Dequantizes a Q5_K block to float values.
  */
-private fun dequantizeQ5_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+private fun dequantizeQ5_KBlock(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
     val d = tensor.getQ5_KBlockScale(graphAllocator, blockIndex)
     val buffer = graphAllocator.buffers[tensor.bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
     val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
@@ -3689,13 +3689,13 @@ private fun dequantizeQ5_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
         val scaleByte = buffer[(tensor.dataOffset + scaleByteOffset.toULong()).toInt()]
         val quantizedScale = scaleByte.toUnsignedInt().lowBits(6)
         val quantizedMin =
-            io.github.kotlinmania.llama.ore.extractBits(scaleByte.toUnsignedInt(), 6, 2)
+            io.github.kotlinmania.llama.core.extractBits(scaleByte.toUnsignedInt(), 6, 2)
         
         val scale = (quantizedScale.toFloat() / 63.0f) * d
         
         // Dequantize 32 values (5-bit: 4 bits in qs, 1 bit in qh)
-        val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE + io.github.kotlinmania.llama.ore.QK_K /8 + subBlock * 16
-        val qhBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.ore.K_SCALE_SIZE
+        val qsBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE + io.github.kotlinmania.llama.core.QK_K /8 + subBlock * 16
+        val qhBaseOffset = blockByteOffset + 4 + io.github.kotlinmania.llama.core.K_SCALE_SIZE
         
         for (i in 0 until 32 step 2) {
             if (elementIdx < dest.size) {
@@ -3710,21 +3710,21 @@ private fun dequantizeQ5_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
                 val qhByte1 = buffer[(tensor.dataOffset + qhBaseOffset.toULong() + (globalIdx1 / 8).toULong()).toInt()]
                 val qhByte2 = buffer[(tensor.dataOffset + qhBaseOffset.toULong() + (globalIdx2 / 8).toULong()).toInt()]
                 
-                val qh1 = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(qhByte1), globalIdx1 % 8, 1
+                val qh1 = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(qhByte1), globalIdx1 % 8, 1
                 )
-                val qh2 = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(qhByte2), globalIdx2 % 8, 1
+                val qh2 = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(qhByte2), globalIdx2 % 8, 1
                 )
                 
                 // Combine to get 5-bit values
-                val q1 = io.github.kotlinmania.llama.ore.mergeBits32(
+                val q1 = io.github.kotlinmania.llama.core.mergeBits32(
                     qs1,
-                    io.github.kotlinmania.llama.ore.logicalLeft32(qh1, 4)
+                    io.github.kotlinmania.llama.core.logicalLeft32(qh1, 4)
                 )
-                val q2 = io.github.kotlinmania.llama.ore.mergeBits32(
+                val q2 = io.github.kotlinmania.llama.core.mergeBits32(
                     qs2,
-                    io.github.kotlinmania.llama.ore.logicalLeft32(qh2, 4)
+                    io.github.kotlinmania.llama.core.logicalLeft32(qh2, 4)
                 )
                 
                 dest[elementIdx++] = (q1.toFloat() / 31.0f) * scale
@@ -3739,7 +3739,7 @@ private fun dequantizeQ5_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
 /**
  * Dequantizes a Q6_K block to float values.
  */
-private fun dequantizeQ6_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+private fun dequantizeQ6_KBlock(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
     val d = tensor.getQ6_KBlockScale(graphAllocator, blockIndex)
     val buffer = graphAllocator.buffers[tensor.bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
     val blockByteOffset = blockIndex * tensor.type.byteSize.toInt()
@@ -3747,45 +3747,45 @@ private fun dequantizeQ6_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
     var elementIdx = destOffset
     
     // Process 16-element sub-blocks
-    for (subBlock in 0 until io.github.kotlinmania.llama.ore.QK_K /16) {
+    for (subBlock in 0 until io.github.kotlinmania.llama.core.QK_K /16) {
         // Get 8-bit scale for this sub-block
-        val scaleOffset = blockByteOffset + io.github.kotlinmania.llama.ore.QK_K /2 + io.github.kotlinmania.llama.ore.QK_K /4 + subBlock
+        val scaleOffset = blockByteOffset + io.github.kotlinmania.llama.core.QK_K /2 + io.github.kotlinmania.llama.core.QK_K /4 + subBlock
         val quantizedScale = buffer[(tensor.dataOffset + scaleOffset.toULong()).toInt()]
         val scale = (quantizedScale.toFloat() / 127.0f) * d
         
         // Dequantize 16 values (6-bit: 4 bits in ql, 2 bits in qh)
         val qlBaseOffset = blockByteOffset + subBlock * 8
-        val qhBaseOffset = blockByteOffset + io.github.kotlinmania.llama.ore.QK_K /2 + subBlock * 4
+        val qhBaseOffset = blockByteOffset + io.github.kotlinmania.llama.core.QK_K /2 + subBlock * 4
         
         for (i in 0 until 16 step 2) {
             if (elementIdx < dest.size) {
                 // Get 4-bit values from ql
                 val qlByte = buffer[(tensor.dataOffset + qlBaseOffset.toULong() + (i / 2).toULong()).toInt()]
-                val ql1 = io.github.kotlinmania.llama.ore.maskLowBits32(
-                    io.github.kotlinmania.llama.ore.unsignedByte(qlByte), 4
+                val ql1 = io.github.kotlinmania.llama.core.maskLowBits32(
+                    io.github.kotlinmania.llama.core.unsignedByte(qlByte), 4
                 )
-                val ql2 = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(qlByte), 4, 4
+                val ql2 = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(qlByte), 4, 4
                 )
                 
                 // Get 2-bit values from qh
                 val qhByte = buffer[(tensor.dataOffset + qhBaseOffset.toULong() + (i / 4).toULong()).toInt()]
                 val qhBitPos = (i % 4) * 2
-                val qh1 = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(qhByte), qhBitPos, 2
+                val qh1 = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(qhByte), qhBitPos, 2
                 )
-                val qh2 = io.github.kotlinmania.llama.ore.extractBits(
-                    io.github.kotlinmania.llama.ore.unsignedByte(qhByte), qhBitPos + 2, 2
+                val qh2 = io.github.kotlinmania.llama.core.extractBits(
+                    io.github.kotlinmania.llama.core.unsignedByte(qhByte), qhBitPos + 2, 2
                 )
                 
                 // Combine to get 6-bit values
-                val q1 = io.github.kotlinmania.llama.ore.mergeBits32(
+                val q1 = io.github.kotlinmania.llama.core.mergeBits32(
                     ql1,
-                    io.github.kotlinmania.llama.ore.logicalLeft32(qh1, 4)
+                    io.github.kotlinmania.llama.core.logicalLeft32(qh1, 4)
                 )
-                val q2 = io.github.kotlinmania.llama.ore.mergeBits32(
+                val q2 = io.github.kotlinmania.llama.core.mergeBits32(
                     ql2,
-                    io.github.kotlinmania.llama.ore.logicalLeft32(qh2, 4)
+                    io.github.kotlinmania.llama.core.logicalLeft32(qh2, 4)
                 )
                 
                 dest[elementIdx++] = ((q1.toFloat() - 32.0f) / 63.0f) * scale
@@ -3800,13 +3800,13 @@ private fun dequantizeQ6_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
 /**
  * Dequantizes a Q8_K block to float values.
  */
-private fun dequantizeQ8_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
+private fun dequantizeQ8_KBlock(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, tensor: io.github.kotlinmania.llama.core.GGMLTensor, blockIndex: Int, dest: FloatArray, destOffset: Int) {
     val d = tensor.getQ8_KBlockScale(graphAllocator, blockIndex)
     
     var elementIdx = destOffset
     
     // Simple 8-bit dequantization
-    for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+    for (i in 0 until io.github.kotlinmania.llama.core.QK_K) {
         if (elementIdx < dest.size) {
             val quantizedValue = tensor.getQ8_KWeight(graphAllocator, blockIndex, i)
             dest[elementIdx++] = quantizedValue.toFloat() * d
@@ -3817,31 +3817,31 @@ private fun dequantizeQ8_KBlock(graphAllocator: io.github.kotlinmania.llama.ore.
 /**
  * Compute element-wise square (SQR) into destination tensor (dst-arg only).
  */
-fun computeSqr(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeSqr(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     dst.type = a.type
     a.ne.copyInto(dst.ne); a.nb.copyInto(dst.nb)
     val ts = a.numElements().toInt()
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             val resultData = FloatArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, ind ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getFloat(graphAllocator, *ind)
                 resultData[flatIdx] = value * value
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
             val resultData = ShortArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, ind ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getHalf(graphAllocator, *ind)
-                resultData[flatIdx] = io.github.kotlinmania.llama.ore.floatToHalf(value * value)
+                resultData[flatIdx] = io.github.kotlinmania.llama.core.floatToHalf(value * value)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
             val resultData = IntArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getInt(graphAllocator, *indices).toLong()
                 val squared = value * value
                 resultData[flatIdx] = when {
@@ -3851,19 +3851,19 @@ fun computeSqr(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
             val resultData = ShortArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getShort(graphAllocator, *indices).toInt()
                 val squared = value * value
                 resultData[flatIdx] = squared.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I64 -> {
             val resultData = LongArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getLong(graphAllocator, *indices)
                 // Avoid overflow for Long
                 dst.data as LongArray
@@ -3874,19 +3874,19 @@ fun computeSqr(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
-            val af = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a)
-            val tmp = io.github.kotlinmania.llama.ore.GGMLTensor(af.type)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
+            val af = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a)
+            val tmp = io.github.kotlinmania.llama.core.GGMLTensor(af.type)
                 .also { it.ne = a.ne.copyOf(); it.nb = a.nb.copyOf() }
             computeSqr(graphAllocator, af, tmp)
-            val qr = io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tmp, a.type)
+            val qr = io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tmp, a.type)
             dst.data = qr.data
         }
         else -> error("fatal error")
@@ -3896,69 +3896,69 @@ fun computeSqr(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocato
 /**
  * Compute element-wise square root (SQRT) into destination tensor (dst-arg only).
  */
-fun computeSqrt(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeSqrt(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     dst.type = a.type
     a.ne.copyInto(dst.ne); a.nb.copyInto(dst.nb)
     val ts = a.numElements().toInt()
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             val resultData = FloatArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, ind ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getFloat(graphAllocator, *ind)
                 resultData[flatIdx] = if (value < 0.0f) Float.NaN else kotlin.math.sqrt(value)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
             val resultData = ShortArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, ind ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, ind ->
                 val value = a.getHalf(graphAllocator, *ind)
                 val sqrtValue = if (value < 0.0f) Float.NaN else kotlin.math.sqrt(value)
-                resultData[flatIdx] = io.github.kotlinmania.llama.ore.floatToHalf(sqrtValue)
+                resultData[flatIdx] = io.github.kotlinmania.llama.core.floatToHalf(sqrtValue)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
             val resultData = IntArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getInt(graphAllocator, *indices)
                 require(value >= 0) { "Cannot compute square root of negative integer: $value" }
                 resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toInt()
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
             val resultData = ShortArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getShort(graphAllocator, *indices).toInt()
                 require(value >= 0) { "Cannot compute square root of negative integer: $value" }
                 resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toInt()
                     .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I64 -> {
             val resultData = LongArray(ts)
             dst.data = resultData
-            io.github.kotlinmania.llama.ore.applyNDIter(a, ts) { flatIdx, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(a, ts) { flatIdx, indices ->
                 val value = a.getLong(graphAllocator, *indices)
                 require(value >= 0) { "Cannot compute square root of negative long: $value" }
                 resultData[flatIdx] = kotlin.math.sqrt(value.toDouble()).toLong()
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
-            val af = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, a)
-            val tmp = io.github.kotlinmania.llama.ore.GGMLTensor(af.type)
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
+            val af = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, a)
+            val tmp = io.github.kotlinmania.llama.core.GGMLTensor(af.type)
                 .also { it.ne = a.ne.copyOf(); it.nb = a.nb.copyOf() }
             computeSqrt(graphAllocator, af, tmp)
-            val qr = io.github.kotlinmania.llama.ore.quantizeTensor(graphAllocator, tmp, a.type)
+            val qr = io.github.kotlinmania.llama.core.quantizeTensor(graphAllocator, tmp, a.type)
             dst.data = qr.data
         }
         else -> error("fatal error")
@@ -3970,14 +3970,14 @@ fun computeSqrt(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
  * Swaps the last two dimensions of a tensor (for 2D case, transposes rows and columns).
  * For higher-dimensional tensors, transposes the last two dimensions while preserving others.
  */
-fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, a: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, a: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     // Validate dimensions - dst should have swapped last two dimensions compared to src
     require(a.ne[0] == dst.ne[1] && a.ne[1] == dst.ne[0]) {
         "Transpose dimensions mismatch: src(${a.ne[0]}, ${a.ne[1]}) vs dst(${dst.ne[0]}, ${dst.ne[1]})"
     }
     
     // For dimensions beyond the first two, they should match
-    for (i in 2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (i in 2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         require(a.ne[i] == dst.ne[i]) {
             "Higher dimensions must match for transpose: src.ne[$i]=${a.ne[i]} vs dst.ne[$i]=${dst.ne[i]}"
         }
@@ -3988,26 +3988,26 @@ fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAl
     }
     
     when (a.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             val rows = a.ne[1].toInt()
             val cols = a.ne[0].toInt()
-            val batches = (2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS).fold(1L) { acc, dim -> acc * a.ne[dim] }.toInt()
+            val batches = (2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS).fold(1L) { acc, dim -> acc * a.ne[dim] }.toInt()
             
             for (batch in 0 until batches) {
-                val batchOffset = io.github.kotlinmania.llama.ore.calculateBatchOffset(a, batch)
+                val batchOffset = io.github.kotlinmania.llama.core.calculateBatchOffset(a, batch)
                 for (i in 0 until rows) {
                     for (j in 0 until cols) {
-                        val srcIndices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { dim ->
+                        val srcIndices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { dim ->
                             when (dim) {
                                 0 -> j
                                 1 -> i
-                                else -> (batchOffset / io.github.kotlinmania.llama.ore.calculateStrideFactor(
+                                else -> (batchOffset / io.github.kotlinmania.llama.core.calculateStrideFactor(
                                     a,
                                     dim
                                 )) % a.ne[dim].toInt()
                             }
                         }
-                        val dstIndices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { dim ->
+                        val dstIndices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { dim ->
                             when (dim) {
                                 0 -> i  // Swapped
                                 1 -> j  // Swapped
@@ -4020,26 +4020,26 @@ fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAl
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
             val rows = a.ne[1].toInt()
             val cols = a.ne[0].toInt()
-            val batches = (2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS).fold(1L) { acc, dim -> acc * a.ne[dim] }.toInt()
+            val batches = (2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS).fold(1L) { acc, dim -> acc * a.ne[dim] }.toInt()
             
             for (batch in 0 until batches) {
-                val batchOffset = io.github.kotlinmania.llama.ore.calculateBatchOffset(a, batch)
+                val batchOffset = io.github.kotlinmania.llama.core.calculateBatchOffset(a, batch)
                 for (i in 0 until rows) {
                     for (j in 0 until cols) {
-                        val srcIndices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { dim ->
+                        val srcIndices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { dim ->
                             when (dim) {
                                 0 -> j
                                 1 -> i
-                                else -> (batchOffset / io.github.kotlinmania.llama.ore.calculateStrideFactor(
+                                else -> (batchOffset / io.github.kotlinmania.llama.core.calculateStrideFactor(
                                     a,
                                     dim
                                 )) % a.ne[dim].toInt()
                             }
                         }
-                        val dstIndices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { dim ->
+                        val dstIndices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { dim ->
                             when (dim) {
                                 0 -> i  // Swapped
                                 1 -> j  // Swapped
@@ -4059,10 +4059,10 @@ fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAl
 /**
  * Helper function to calculate batch offset for higher-dimensional transpose
  */
-private fun calculateBatchOffset(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, batchIndex: Int): Int {
+private fun calculateBatchOffset(tensor: io.github.kotlinmania.llama.core.GGMLTensor, batchIndex: Int): Int {
     var offset = batchIndex
     var stride = 1
-    for (dim in 2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+    for (dim in 2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
         stride *= tensor.ne[dim].toInt()
     }
     return offset * tensor.ne[0].toInt() * tensor.ne[1].toInt()
@@ -4071,7 +4071,7 @@ private fun calculateBatchOffset(tensor: io.github.kotlinmania.llama.ore.GGMLTen
 /**
  * Helper function to calculate stride factor for dimension calculations
  */
-private fun calculateStrideFactor(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, dim: Int): Int {
+private fun calculateStrideFactor(tensor: io.github.kotlinmania.llama.core.GGMLTensor, dim: Int): Int {
     var factor = 1
     for (i in 0 until dim) {
         factor *= tensor.ne[i].toInt()
@@ -4097,11 +4097,11 @@ private fun calculateStrideFactor(tensor: io.github.kotlinmania.llama.ore.GGMLTe
  *
  * Ported from `ggml_compute_forward_concat_f32` and the generic path.
  */
-fun computeConcat(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeConcat(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("CONCAT requires src0")
     val src1 = dst.src[1] ?: error("CONCAT requires src1")
 
-    val dim = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
+    val dim = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
     require(dim in 0..3) { "concat dim must be 0..3, got $dim" }
 
     val o = LongArray(4)
@@ -4147,10 +4147,10 @@ fun computeConcat(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
  *
  * Ported from `ggml_compute_forward_sum_rows_f32`.
  */
-fun computeSumRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeSumRows(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("SUM_ROWS requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "SUM_ROWS only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "SUM_ROWS only supports F32, got ${src0.type}" }
 
     val ne00 = src0.ne[0].toInt()
     val ne01 = src0.ne[1].toInt()
@@ -4179,10 +4179,10 @@ fun computeSumRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
  *
  * Ported from `ggml_compute_forward_cumsum_f32`.
  */
-fun computeCumsum(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeCumsum(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("CUMSUM requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "CUMSUM only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "CUMSUM only supports F32, got ${src0.type}" }
 
     val ne00 = src0.ne[0].toInt()
     val ne01 = src0.ne[1].toInt()
@@ -4212,10 +4212,10 @@ fun computeCumsum(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
  *
  * Ported from `ggml_compute_forward_argmax_f32`.
  */
-fun computeArgmax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeArgmax(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("ARGMAX requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "ARGMAX only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "ARGMAX only supports F32, got ${src0.type}" }
 
     val ne00 = src0.ne[0].toInt()
     val ne01 = src0.ne[1].toInt()
@@ -4241,12 +4241,12 @@ fun computeArgmax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
  *
  * Ported from `ggml_compute_forward_count_equal_i32` (single-thread path).
  */
-fun computeCountEqual(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeCountEqual(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("COUNT_EQUAL requires src0")
     val src1 = dst.src[1] ?: error("COUNT_EQUAL requires src1")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.I32) { "COUNT_EQUAL only supports I32, got ${src0.type}" }
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.I32) { "COUNT_EQUAL only supports I32, got ${src1.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.I32) { "COUNT_EQUAL only supports I32, got ${src0.type}" }
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.I32) { "COUNT_EQUAL only supports I32, got ${src1.type}" }
 
     val ne0 = src0.ne[0].toInt()
     val ne1 = src0.ne[1].toInt()
@@ -4279,7 +4279,7 @@ fun computeCountEqual(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphA
  *
  * Ported from `ggml_compute_forward_get_rows_f32` / `_f16` (scalar paths).
  */
-fun computeGetRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeGetRows(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("GET_ROWS requires src0")
     val src1 = dst.src[1] ?: error("GET_ROWS requires src1 (indices)")
 
@@ -4300,29 +4300,29 @@ fun computeGetRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
         }
 
         when (src0.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                 for (j in 0 until nc) {
                     val v = src0.getFloat(graphAllocator, j, i01, i11, i12)
                     dst.setFloat(graphAllocator, v, j, i10, i11, i12)
                 }
             }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                 for (j in 0 until nc) {
                     val v = src0.getHalf(graphAllocator, j, i01, i11, i12)
                     dst.setFloat(graphAllocator, v, j, i10, i11, i12)
                 }
             }
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-            io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-            io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-            io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-            io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-            io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-            io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-            io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
+            io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+            io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+            io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+            io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+            io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+            io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+            io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+            io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
                 // Dequantize source row to F32, then copy to dst
                 val dequantized =
-                    io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, src0)
+                    io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, src0)
                 for (j in 0 until nc) {
                     val v = dequantized.getFloat(graphAllocator, j, i01, i11, i12)
                     dst.setFloat(graphAllocator, v, j, i10, i11, i12)
@@ -4344,7 +4344,7 @@ fun computeGetRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
  *
  * Ported from `ggml_compute_forward_get_rows_back_f32`.
  */
-fun computeGetRowsBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeGetRowsBack(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("GET_ROWS_BACK requires src0")
     val src1 = dst.src[1] ?: error("GET_ROWS_BACK requires src1 (indices)")
 
@@ -4358,7 +4358,7 @@ fun computeGetRowsBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraph
         dst.setFloat(graphAllocator, 0.0f, i0, i1, i2, i3)
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             for (i in 0 until nr) {
                 val r = src1.getInt(graphAllocator, i)
                 for (j in 0 until nc) {
@@ -4367,7 +4367,7 @@ fun computeGetRowsBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraph
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
             for (i in 0 until nr) {
                 val r = src1.getInt(graphAllocator, i)
                 for (j in 0 until nc) {
@@ -4392,11 +4392,11 @@ fun computeGetRowsBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraph
  *
  * Ported from `ggml_compute_forward_set_rows_f32` (scalar, I32 indices).
  */
-fun computeSetRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeSetRows(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("SET_ROWS requires src0")
     val src1 = dst.src[1] ?: error("SET_ROWS requires src1 (indices)")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "SET_ROWS: src0 must be F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "SET_ROWS: src0 must be F32, got ${src0.type}" }
 
     val nc = src0.ne[0].toInt()
     val nr = src0.ne[1].toInt()
@@ -4436,10 +4436,10 @@ fun computeSetRows(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
  *
  * Ported from `ggml_compute_forward_diag_f32`.
  */
-fun computeDiag(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeDiag(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("DIAG requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "DIAG only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "DIAG only supports F32, got ${src0.type}" }
 
     val ne00 = src0.ne[0].toInt()
     val ne2 = dst.ne[2].toInt()
@@ -4470,12 +4470,12 @@ fun computeDiag(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
  *
  * @param maskValue The value written into masked positions.
  */
-fun computeDiagMask(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor, maskValue: Float) {
+fun computeDiagMask(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor, maskValue: Float) {
     val src0 = dst.src[0] ?: error("DIAG_MASK requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "DIAG_MASK only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "DIAG_MASK only supports F32, got ${src0.type}" }
 
-    val nPast = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
+    val nPast = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
     require(nPast >= 0) { "n_past must be >= 0, got $nPast" }
 
     val nc = src0.ne[0].toInt()
@@ -4501,8 +4501,8 @@ fun computeDiagMask(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAll
 }
 
 /** Convenience: applies causal mask with `-Infinity`. */
-fun computeDiagMaskInf(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) =
-    io.github.kotlinmania.llama.ore.computeDiagMask(
+fun computeDiagMaskInf(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) =
+    io.github.kotlinmania.llama.core.computeDiagMask(
         graphAllocator,
         params,
         dst,
@@ -4510,8 +4510,8 @@ fun computeDiagMaskInf(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraph
     )
 
 /** Convenience: applies causal mask with `0`. */
-fun computeDiagMaskZero(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) =
-    io.github.kotlinmania.llama.ore.computeDiagMask(graphAllocator, params, dst, 0.0f)
+fun computeDiagMaskZero(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) =
+    io.github.kotlinmania.llama.core.computeDiagMask(graphAllocator, params, dst, 0.0f)
 
 // ---------------------------------------------------------------------------
 // ggml_compute_forward_rope / rope_back  (RoPE – Rotary Position Embeddings)
@@ -4527,7 +4527,7 @@ private fun ropeYarnCorrDims(
     nDims: Int, nCtxOrig: Int, freqBase: Float, betaFast: Float, betaSlow: Float
 ): FloatArray {
     val start = floor(
-        io.github.kotlinmania.llama.ore.ropeYarnCorrDim(
+        io.github.kotlinmania.llama.core.ropeYarnCorrDim(
             nDims,
             nCtxOrig,
             betaFast,
@@ -4535,7 +4535,7 @@ private fun ropeYarnCorrDims(
         )
     ).coerceAtLeast(0.0f)
     val end = ceil(
-        io.github.kotlinmania.llama.ore.ropeYarnCorrDim(
+        io.github.kotlinmania.llama.core.ropeYarnCorrDim(
             nDims,
             nCtxOrig,
             betaSlow,
@@ -4563,7 +4563,7 @@ private fun ropeYarn(
     var theta = thetaInterp
     var ms = mscale
     if (extFactor != 0.0f) {
-        val rampMix = io.github.kotlinmania.llama.ore.ropeYarnRamp(corrDims[0], corrDims[1], i0) * extFactor
+        val rampMix = io.github.kotlinmania.llama.core.ropeYarnRamp(corrDims[0], corrDims[1], i0) * extFactor
         theta = thetaInterp * (1 - rampMix) + thetaExtrap * rampMix
         ms *= 1.0f + 0.1f * ln(1.0f / freqScale)
     }
@@ -4584,7 +4584,7 @@ private fun ropeCacheInit(
     var i0 = 0
     while (i0 < ne0) {
         val ff = freqFactors?.get(i0 / 2) ?: 1.0f
-        val (c, s) = io.github.kotlinmania.llama.ore.ropeYarn(
+        val (c, s) = io.github.kotlinmania.llama.core.ropeYarn(
             theta / ff,
             freqScale,
             corrDims,
@@ -4609,24 +4609,24 @@ private fun ropeCacheInit(
  *
  * Ported from `ggml_compute_forward_rope_flt<float>` (scalar path).
  */
-fun computeRope(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor, forward: Boolean = true) {
+fun computeRope(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor, forward: Boolean = true) {
     val src0 = dst.src[0] ?: error("ROPE requires src0")
     val src1 = dst.src[1] ?: error("ROPE requires src1 (positions)")
     val src2 = dst.src.getOrNull(2)  // optional freq_factors
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32 || src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16) {
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32 || src0.type == io.github.kotlinmania.llama.core.GGMLType.F16) {
         "ROPE only supports F32/F16, got ${src0.type}"
     }
 
-    val nDims   = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 1)
-    val mode    = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 2)
-    val nCtxOrig = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 4)
-    val freqBase    = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 5)
-    val freqScale   = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 6)
-    val extFactor   = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 7)
-    val attnFactor  = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 8)
-    val betaFast    = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 9)
-    val betaSlow    = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 10)
+    val nDims   = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 1)
+    val mode    = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 2)
+    val nCtxOrig = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 4)
+    val freqBase    = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 5)
+    val freqScale   = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 6)
+    val extFactor   = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 7)
+    val attnFactor  = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 8)
+    val betaFast    = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 9)
+    val betaSlow    = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 10)
 
     val ne0 = dst.ne[0].toInt(); val ne1 = dst.ne[1].toInt()
     val ne2 = dst.ne[2].toInt(); val ne3 = dst.ne[3].toInt()
@@ -4635,7 +4635,7 @@ fun computeRope(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     require(nDims % 2 == 0) { "n_dims must be even, got $nDims" }
 
     val thetaScale = freqBase.pow(-2.0f / nDims)
-    val corrDims = io.github.kotlinmania.llama.ore.ropeYarnCorrDims(
+    val corrDims = io.github.kotlinmania.llama.core.ropeYarnCorrDims(
         nDims,
         nCtxOrig,
         freqBase,
@@ -4644,21 +4644,21 @@ fun computeRope(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
     )
     val sinSign = if (forward) 1.0f else -1.0f
 
-    val isVision = mode == io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_VISION
-    val mropeUsed = (mode and io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_MROPE) != 0
+    val isVision = mode == io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_VISION
+    val mropeUsed = (mode and io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_MROPE) != 0
 
     val freqFactors: FloatArray? = if (src2 != null) {
         // Read freq factors from src2 (type F32)
         FloatArray(nDims / 2) { src2.getFloat(graphAllocator, it) }
     } else null
 
-    val isF16 = src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16
+    val isF16 = src0.type == io.github.kotlinmania.llama.core.GGMLType.F16
 
     for (i3 in 0 until ne3) {
         for (i2 in 0 until ne2) {
             // Build cache for this sequence position
             val p = src1.getInt(graphAllocator, i2).toLong()
-            val cache = io.github.kotlinmania.llama.ore.ropeCacheInit(
+            val cache = io.github.kotlinmania.llama.core.ropeCacheInit(
                 p.toFloat(), freqScale, freqFactors, corrDims, ne0,
                 extFactor, attnFactor, sinSign, thetaScale
             )
@@ -4669,13 +4669,13 @@ fun computeRope(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
                 val pairsN: Int
                 val scale: Int
                 when (mode) {
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_NORMAL -> {
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_NORMAL -> {
                         nOffset = 1; pairsN = nDims; scale = 1
                     }
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_NEOX, io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_MROPE, io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_IMROPE -> {
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_NEOX, io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_MROPE, io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_IMROPE -> {
                         nOffset = nDims / 2; pairsN = nDims; scale = 2
                     }
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_VISION -> {
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_VISION -> {
                         nOffset = nDims; pairsN = ne0; scale = 2
                     }
                     else -> error("Unsupported rope mode $mode")
@@ -4731,8 +4731,8 @@ fun computeRope(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocat
 }
 
 /** Backward pass for RoPE — identical computation with inverted sin sign. */
-fun computeRopeBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) =
-    io.github.kotlinmania.llama.ore.computeRope(graphAllocator, params, dst, forward = false)
+fun computeRopeBack(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) =
+    io.github.kotlinmania.llama.core.computeRope(graphAllocator, params, dst, forward = false)
 
 // ---------------------------------------------------------------------------
 // ggml_compute_forward_pad
@@ -4746,35 +4746,35 @@ fun computeRopeBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAll
  *
  * Ported from `ggml_compute_forward_pad_f32`.
  */
-fun computePad(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computePad(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("PAD requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "PAD only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "PAD only supports F32, got ${src0.type}" }
 
     val ne0 = dst.ne[0].toInt(); val ne1 = dst.ne[1].toInt()
     val ne2 = dst.ne[2].toInt(); val ne3 = dst.ne[3].toInt()
     val ne00 = src0.ne[0].toInt(); val ne01 = src0.ne[1].toInt()
     val ne02 = src0.ne[2].toInt(); val ne03 = src0.ne[3].toInt()
 
-    val lp0 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
-    val rp0 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 1)
-    val lp1 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 2)
-    val rp1 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 3)
-    val lp2 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 4)
-    val rp2 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 5)
-    val lp3 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 6)
-    val rp3 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 7)
-    val circular = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 8) != 0
+    val lp0 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
+    val rp0 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 1)
+    val lp1 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 2)
+    val rp1 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 3)
+    val lp2 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 4)
+    val rp2 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 5)
+    val lp3 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 6)
+    val rp3 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 7)
+    val circular = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 8) != 0
 
     for (i3 in 0 until ne3) {
         for (i2 in 0 until ne2) {
             for (i1 in 0 until ne1) {
                 for (i0 in 0 until ne0) {
                     val value: Float = if (circular) {
-                        val si0 = io.github.kotlinmania.llama.ore.wrapAround(i0 - lp0, ne00)
-                        val si1 = io.github.kotlinmania.llama.ore.wrapAround(i1 - lp1, ne01)
-                        val si2 = io.github.kotlinmania.llama.ore.wrapAround(i2 - lp2, ne02)
-                        val si3 = io.github.kotlinmania.llama.ore.wrapAround(i3 - lp3, ne03)
+                        val si0 = io.github.kotlinmania.llama.core.wrapAround(i0 - lp0, ne00)
+                        val si1 = io.github.kotlinmania.llama.core.wrapAround(i1 - lp1, ne01)
+                        val si2 = io.github.kotlinmania.llama.core.wrapAround(i2 - lp2, ne02)
+                        val si3 = io.github.kotlinmania.llama.core.wrapAround(i3 - lp3, ne03)
                         src0.getFloat(graphAllocator, si0, si1, si2, si3)
                     } else {
                         if (i0 in lp0 until (ne0 - rp0) &&
@@ -4807,13 +4807,13 @@ private fun wrapAround(coord: Int, size: Int): Int = ((coord % size) + size) % s
  *
  * Ported from `ggml_compute_forward_pad_reflect_1d`.
  */
-fun computePadReflect1D(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computePadReflect1D(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("PAD_REFLECT requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "PAD_REFLECT only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "PAD_REFLECT only supports F32, got ${src0.type}" }
 
-    val p0 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
-    val p1 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 1)
+    val p0 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
+    val p1 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 1)
     val ne00 = src0.ne[0].toInt()
     val ne0 = dst.ne[0].toInt(); val ne1 = dst.ne[1].toInt()
     val ne2 = dst.ne[2].toInt(); val ne3 = dst.ne[3].toInt()
@@ -4861,27 +4861,27 @@ fun computePadReflect1D(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGrap
  *
  * Ported from `ggml_compute_forward_roll_f32`.
  */
-fun computeRoll(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeRoll(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("ROLL requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "ROLL only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "ROLL only supports F32, got ${src0.type}" }
 
     val ne0 = dst.ne[0].toInt(); val ne1 = dst.ne[1].toInt()
     val ne2 = dst.ne[2].toInt(); val ne3 = dst.ne[3].toInt()
 
-    val s0 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
-    val s1 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 1)
-    val s2 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 2)
-    val s3 = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 3)
+    val s0 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
+    val s1 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 1)
+    val s2 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 2)
+    val s3 = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 3)
 
     for (i3 in 0 until ne3) {
-        val i03 = io.github.kotlinmania.llama.ore.wrapIndex(i3 - s3, ne3)
+        val i03 = io.github.kotlinmania.llama.core.wrapIndex(i3 - s3, ne3)
         for (i2 in 0 until ne2) {
-            val i02 = io.github.kotlinmania.llama.ore.wrapIndex(i2 - s2, ne2)
+            val i02 = io.github.kotlinmania.llama.core.wrapIndex(i2 - s2, ne2)
             for (i1 in 0 until ne1) {
-                val i01 = io.github.kotlinmania.llama.ore.wrapIndex(i1 - s1, ne1)
+                val i01 = io.github.kotlinmania.llama.core.wrapIndex(i1 - s1, ne1)
                 for (i0 in 0 until ne0) {
-                    val i00 = io.github.kotlinmania.llama.ore.wrapIndex(i0 - s0, ne0)
+                    val i00 = io.github.kotlinmania.llama.core.wrapIndex(i0 - s0, ne0)
                     dst.setFloat(
                         graphAllocator,
                         src0.getFloat(graphAllocator, i00, i01, i02, i03),
@@ -4909,13 +4909,13 @@ private fun wrapIndex(i: Int, ne: Int): Int {
  *
  * Ported from `ggml_compute_forward_arange_f32`.
  */
-fun computeArange(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeArange(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
 
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "ARANGE only supports F32, got ${dst.type}" }
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "ARANGE only supports F32, got ${dst.type}" }
 
-    val start = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 0)
-    val stop  = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 1)
-    val step  = io.github.kotlinmania.llama.ore.ggml_get_op_params_f32(dst, 2)
+    val start = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 0)
+    val stop  = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 1)
+    val step  = io.github.kotlinmania.llama.core.ggml_get_op_params_f32(dst, 2)
 
     val steps = ceil((stop - start) / step).toInt()
 
@@ -4935,13 +4935,13 @@ fun computeArange(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAlloc
  *
  * Ported from `ggml_compute_forward_timestep_embedding_f32`.
  */
-fun computeTimestepEmbedding(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeTimestepEmbedding(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("TIMESTEP_EMBEDDING requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "TIMESTEP_EMBEDDING only supports F32" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "TIMESTEP_EMBEDDING only supports F32" }
 
-    val dim = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
-    val maxPeriod = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 1)
+    val dim = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
+    val maxPeriod = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 1)
     val half = dim / 2
     val ne00 = src0.ne[0].toInt()
 
@@ -4974,14 +4974,14 @@ internal const val GGML_SORT_ORDER_DESC = 1
  *
  * Ported from `ggml_compute_forward_argsort_f32`.
  */
-fun computeArgsort(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeArgsort(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("ARGSORT requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "ARGSORT only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "ARGSORT only supports F32, got ${src0.type}" }
 
     val ne0 = src0.ne[0].toInt()
     val nr = (src0.numElements() / ne0).toInt()
-    val order = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
+    val order = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
 
     for (row in 0 until nr) {
         val i1 = row % src0.ne[1].toInt()
@@ -4994,7 +4994,7 @@ fun computeArgsort(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
         // Build index array and sort
         val indices = IntArray(ne0) { it }
         val sorted = indices.sortedWith(Comparator { a, b ->
-            if (order == io.github.kotlinmania.llama.ore.GGML_SORT_ORDER_ASC)
+            if (order == io.github.kotlinmania.llama.core.GGML_SORT_ORDER_ASC)
                 rowData[a].compareTo(rowData[b])
             else
                 rowData[b].compareTo(rowData[a])
@@ -5018,10 +5018,10 @@ fun computeArgsort(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
  *
  * Ported from `ggml_compute_forward_top_k_f32`.
  */
-fun computeTopK(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeTopK(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("TOP_K requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "TOP_K only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "TOP_K only supports F32, got ${src0.type}" }
 
     val ne00 = src0.ne[0].toInt()
     val topK = dst.ne[0].toInt()
@@ -5065,10 +5065,10 @@ internal const val GGML_SCALE_FLAG_ALIGN_CORNERS = 0x100
  *
  * Ported from `ggml_compute_forward_upscale_f32` (nearest + bilinear paths).
  */
-fun computeUpscale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeUpscale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("UPSCALE requires src0")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "UPSCALE only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "UPSCALE only supports F32, got ${src0.type}" }
 
     val ne0 = dst.ne[0].toInt(); val ne1 = dst.ne[1].toInt()
     val ne2 = dst.ne[2].toInt(); val ne3 = dst.ne[3].toInt()
@@ -5080,18 +5080,18 @@ fun computeUpscale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
     val sf2 = ne2.toFloat() / ne02
     val sf3 = ne3.toFloat() / ne03
 
-    val modeFlags = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
+    val modeFlags = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
     val mode = modeFlags and 0xFF
     var pixelOffset = 0.5f
 
-    if (modeFlags and io.github.kotlinmania.llama.ore.GGML_SCALE_FLAG_ALIGN_CORNERS != 0) {
+    if (modeFlags and io.github.kotlinmania.llama.core.GGML_SCALE_FLAG_ALIGN_CORNERS != 0) {
         pixelOffset = 0.0f
         if (ne0 > 1 && ne00 > 1) sf0 = (ne0 - 1).toFloat() / (ne00 - 1)
         if (ne1 > 1 && ne01 > 1) sf1 = (ne1 - 1).toFloat() / (ne01 - 1)
     }
 
     when (mode) {
-        io.github.kotlinmania.llama.ore.GGML_SCALE_MODE_NEAREST -> {
+        io.github.kotlinmania.llama.core.GGML_SCALE_MODE_NEAREST -> {
             for (i3 in 0 until ne3) {
                 val i03 = (i3 / sf3).toInt()
                 for (i2 in 0 until ne2) {
@@ -5110,7 +5110,7 @@ fun computeUpscale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGML_SCALE_MODE_BILINEAR -> {
+        io.github.kotlinmania.llama.core.GGML_SCALE_MODE_BILINEAR -> {
             for (i3 in 0 until ne3) {
                 val i03 = (i3 / sf3).toInt()
                 for (i2 in 0 until ne2) {
@@ -5155,11 +5155,11 @@ fun computeUpscale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
  *
  * Ported from `ggml_compute_forward_out_prod_f32`.
  */
-fun computeOutProd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeOutProd(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("OUT_PROD requires src0")
     val src1 = dst.src[1] ?: error("OUT_PROD requires src1")
 
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "OUT_PROD dst must be F32" }
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "OUT_PROD dst must be F32" }
 
     val ne0 = dst.ne[0].toInt(); val ne1 = dst.ne[1].toInt()
     val ne2 = dst.ne[2].toInt(); val ne3 = dst.ne[3].toInt()
@@ -5174,7 +5174,7 @@ fun computeOutProd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
         dst.setFloat(graphAllocator, 0.0f, i0, i1, i2, i3)
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             for (i3 in 0 until ne3) {
                 for (i2 in 0 until ne2) {
                     val i02 = i2 / dps2
@@ -5192,16 +5192,16 @@ fun computeOutProd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q5_0, io.github.kotlinmania.llama.ore.GGMLType.Q5_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ1_0, io.github.kotlinmania.llama.ore.GGMLType.TQ2_0,
-        io.github.kotlinmania.llama.ore.GGMLType.MXFP4, io.github.kotlinmania.llama.ore.GGMLType.NVFP4,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS, io.github.kotlinmania.llama.ore.GGMLType.IQ2_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.ore.GGMLType.IQ3_S,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M,
-        io.github.kotlinmania.llama.ore.GGMLType.IQ4_NL, io.github.kotlinmania.llama.ore.GGMLType.IQ4_XS -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q5_0, io.github.kotlinmania.llama.core.GGMLType.Q5_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.Q8_1,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K,
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0, io.github.kotlinmania.llama.core.GGMLType.TQ1_0, io.github.kotlinmania.llama.core.GGMLType.TQ2_0,
+        io.github.kotlinmania.llama.core.GGMLType.MXFP4, io.github.kotlinmania.llama.core.GGMLType.NVFP4,
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ2_XS, io.github.kotlinmania.llama.core.GGMLType.IQ2_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ3_XXS, io.github.kotlinmania.llama.core.GGMLType.IQ3_S,
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M,
+        io.github.kotlinmania.llama.core.GGMLType.IQ4_NL, io.github.kotlinmania.llama.core.GGMLType.IQ4_XS -> {
             // Dequantize src0 to F32 and compute outer product
-            val src0F32 = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, src0)
+            val src0F32 = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, src0)
             for (i3 in 0 until ne3) {
                 for (i2 in 0 until ne2) {
                     val i02 = i2 / dps2
@@ -5219,7 +5219,7 @@ fun computeOutProd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
                 }
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> error("fatal error") // C++: ggml_compute_forward_out_prod_f16_f32
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> error("fatal error") // C++: ggml_compute_forward_out_prod_f16_f32
         else -> error("fatal error")
     }
 }
@@ -5234,12 +5234,12 @@ fun computeOutProd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllo
  *
  * Ported from `ggml_compute_forward_cross_entropy_loss_f32` (single-thread).
  */
-fun computeCrossEntropyLoss(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeCrossEntropyLoss(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val src0 = dst.src[0] ?: error("CROSS_ENTROPY_LOSS requires src0")
     val src1 = dst.src[1] ?: error("CROSS_ENTROPY_LOSS requires src1")
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "Only F32 supported" }
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "Only F32 supported" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "Only F32 supported" }
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "Only F32 supported" }
 
     val nc = src0.ne[0].toInt()
     val nr = (src0.numElements() / nc).toInt()
@@ -5289,7 +5289,7 @@ fun computeCrossEntropyLoss(graphAllocator: io.github.kotlinmania.llama.ore.GGML
  *
  * Ported from `ggml_compute_forward_cross_entropy_loss_back_f32`.
  */
-fun computeCrossEntropyLossBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeCrossEntropyLossBack(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val grad  = dst.src[0] ?: error("CE_LOSS_BACK requires src0 (grad)")
     val src0f = dst.src[1] ?: error("CE_LOSS_BACK requires src1 (logits)")
     val src1f = dst.src[2] ?: error("CE_LOSS_BACK requires src2 (labels)")
@@ -5340,14 +5340,14 @@ fun computeCrossEntropyLossBack(graphAllocator: io.github.kotlinmania.llama.ore.
  *
  * Ported from `ggml_compute_forward_opt_step_adamw_f32`.
  */
-fun computeOptStepAdamw(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeOptStepAdamw(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val w     = dst.src[0] ?: error("ADAMW requires src0 (weights)")
     val g     = dst.src[1] ?: error("ADAMW requires src1 (grad)")
     val m     = dst.src[2] ?: error("ADAMW requires src2 (m)")
     val v     = dst.src[3] ?: error("ADAMW requires src3 (v)")
     val ap    = dst.src[4] ?: error("ADAMW requires src4 (params)")
 
-    require(w.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "ADAMW only supports F32 weights" }
+    require(w.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "ADAMW only supports F32 weights" }
 
     val alpha  = ap.getFloat(graphAllocator, 0)
     val beta1  = ap.getFloat(graphAllocator, 1)
@@ -5390,12 +5390,12 @@ fun computeOptStepAdamw(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGrap
  *
  * Ported from `ggml_compute_forward_opt_step_sgd_f32`.
  */
-fun computeOptStepSgd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, params: io.github.kotlinmania.llama.ore.GGMLComputeParams, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun computeOptStepSgd(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, params: io.github.kotlinmania.llama.core.GGMLComputeParams, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
     val w     = dst.src[0] ?: error("SGD requires src0 (weights)")
     val g     = dst.src[1] ?: error("SGD requires src1 (grad)")
     val sp    = dst.src[2] ?: error("SGD requires src2 (params)")
 
-    require(w.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "SGD only supports F32 weights" }
+    require(w.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "SGD only supports F32 weights" }
 
     val alpha = sp.getFloat(graphAllocator, 0)
     val keep  = 1.0f - alpha * sp.getFloat(graphAllocator, 1)
@@ -5419,7 +5419,7 @@ object GGMLComputeOps {
      * 
      * @param graph The computational graph to execute
      */
-    fun computeGraph(graph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+    fun computeGraph(graph: io.github.kotlinmania.llama.core.GGMLCGraph) {
         val graphAllocator = graph.allocator ?: throw IllegalStateException("Graph must have an allocator")
         val nodes = buildList {
             for (i in 0 until graph.nNodes) {
@@ -5429,127 +5429,127 @@ object GGMLComputeOps {
         computeGraphNodes(graphAllocator, nodes)
     }
 
-    internal fun computeGraphNodes(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, nodes: List<io.github.kotlinmania.llama.ore.GGMLTensor>) {
+    internal fun computeGraphNodes(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, nodes: List<io.github.kotlinmania.llama.core.GGMLTensor>) {
         nodes.forEach { computeNode(graphAllocator, it) }
     }
 
     /**
      * Compute a single node in the graph
      */
-    internal fun computeNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    internal fun computeNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         when (node.op) {
-            io.github.kotlinmania.llama.ore.GGMLOp.NONE -> { /* No operation */ }
-            io.github.kotlinmania.llama.ore.GGMLOp.DUP -> computeDup(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ADD -> computeAdd(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SUB -> computeSub(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.MUL -> computeMul(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.DIV -> computeDiv(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SQR -> computeSqr(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SQRT -> computeSqrt(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.NEG -> computeNeg(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.RELU -> computeRelu(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.GELU -> computeGelu(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SILU -> computeSilu(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SOFT_MAX -> computeSoftMax(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.RMS_NORM -> computeRmsNorm(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.MUL_MAT -> computeMulMat(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.TRANSPOSE -> computeTranspose(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SUM -> computeSum(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.MEAN -> computeMean(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.REPEAT -> computeRepeat(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.REPEAT_BACK -> computeRepeatBack(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ABS -> computeAbsNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SGN -> computeSgnNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.STEP -> computeStepNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CEIL -> computeCeilNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.FLOOR -> computeFloorNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ROUND -> computeRoundNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.TRUNC -> computeTruncNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.EXP -> computeExpNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SIGMOID -> computeSigmoidNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.TANH -> computeTanhNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.HARDSWISH -> computeHardswishNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.HARDSIGMOID -> computeHardsigmoidNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.GELU_QUICK -> computeGeluQuickNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.GELU_ERF -> computeGeluErfNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SILU_BACK -> computeSiluBackNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SOFTPLUS -> computeSoftplusNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ELU -> computeEluNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.LEAKY_RELU -> computeLeakyReluNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.NORM -> computeNormNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.RMS_NORM_BACK -> computeRmsNormBackNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.GROUP_NORM -> computeGroupNormNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ACC -> computeAccNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SCALE -> computeScaleNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CLAMP -> computeClampNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CONT -> computeContNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CPY -> computeCpyNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SET -> computeSetNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CONCAT -> computeConcatNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SUM_ROWS -> computeSumRowsNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CUMSUM -> computeCumsumNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ARGMAX -> computeArgmaxNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.COUNT_EQUAL -> computeCountEqualNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.GET_ROWS -> computeGetRowsNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.GET_ROWS_BACK -> computeGetRowsBackNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.SET_ROWS -> computeSetRowsNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.DIAG -> computeDiagNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.DIAG_MASK_INF -> computeDiagMaskInfNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.DIAG_MASK_ZERO -> computeDiagMaskZeroNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ROPE -> computeRopeNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ROPE_BACK -> computeRopeBackNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.PAD -> computePadNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.PAD_REFLECT_1D -> computePadReflect1DNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ROLL -> computeRollNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ARANGE -> computeArangeNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.TIMESTEP_EMBEDDING -> computeTimestepEmbeddingNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.ARGSORT -> computeArgsortNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.TOP_K -> computeTopKNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.UPSCALE -> computeUpscaleNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.OUT_PROD -> computeOutProdNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CROSS_ENTROPY_LOSS -> computeCrossEntropyLossNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.CROSS_ENTROPY_LOSS_BACK -> computeCrossEntropyLossBackNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.OPT_STEP_ADAMW -> computeOptStepAdamwNode(graphAllocator, node)
-            io.github.kotlinmania.llama.ore.GGMLOp.OPT_STEP_SGD -> computeOptStepSgdNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.NONE -> { /* No operation */ }
+            io.github.kotlinmania.llama.core.GGMLOp.DUP -> computeDup(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ADD -> computeAdd(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SUB -> computeSub(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.MUL -> computeMul(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.DIV -> computeDiv(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SQR -> computeSqr(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SQRT -> computeSqrt(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.NEG -> computeNeg(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.RELU -> computeRelu(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.GELU -> computeGelu(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SILU -> computeSilu(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SOFT_MAX -> computeSoftMax(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.RMS_NORM -> computeRmsNorm(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.MUL_MAT -> computeMulMat(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.TRANSPOSE -> computeTranspose(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SUM -> computeSum(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.MEAN -> computeMean(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.REPEAT -> computeRepeat(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.REPEAT_BACK -> computeRepeatBack(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ABS -> computeAbsNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SGN -> computeSgnNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.STEP -> computeStepNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CEIL -> computeCeilNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.FLOOR -> computeFloorNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ROUND -> computeRoundNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.TRUNC -> computeTruncNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.EXP -> computeExpNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SIGMOID -> computeSigmoidNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.TANH -> computeTanhNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.HARDSWISH -> computeHardswishNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.HARDSIGMOID -> computeHardsigmoidNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.GELU_QUICK -> computeGeluQuickNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.GELU_ERF -> computeGeluErfNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SILU_BACK -> computeSiluBackNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SOFTPLUS -> computeSoftplusNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ELU -> computeEluNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.LEAKY_RELU -> computeLeakyReluNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.NORM -> computeNormNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.RMS_NORM_BACK -> computeRmsNormBackNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.GROUP_NORM -> computeGroupNormNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ACC -> computeAccNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SCALE -> computeScaleNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CLAMP -> computeClampNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CONT -> computeContNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CPY -> computeCpyNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SET -> computeSetNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CONCAT -> computeConcatNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SUM_ROWS -> computeSumRowsNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CUMSUM -> computeCumsumNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ARGMAX -> computeArgmaxNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.COUNT_EQUAL -> computeCountEqualNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.GET_ROWS -> computeGetRowsNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.GET_ROWS_BACK -> computeGetRowsBackNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.SET_ROWS -> computeSetRowsNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.DIAG -> computeDiagNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.DIAG_MASK_INF -> computeDiagMaskInfNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.DIAG_MASK_ZERO -> computeDiagMaskZeroNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ROPE -> computeRopeNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ROPE_BACK -> computeRopeBackNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.PAD -> computePadNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.PAD_REFLECT_1D -> computePadReflect1DNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ROLL -> computeRollNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ARANGE -> computeArangeNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.TIMESTEP_EMBEDDING -> computeTimestepEmbeddingNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.ARGSORT -> computeArgsortNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.TOP_K -> computeTopKNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.UPSCALE -> computeUpscaleNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.OUT_PROD -> computeOutProdNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CROSS_ENTROPY_LOSS -> computeCrossEntropyLossNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.CROSS_ENTROPY_LOSS_BACK -> computeCrossEntropyLossBackNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.OPT_STEP_ADAMW -> computeOptStepAdamwNode(graphAllocator, node)
+            io.github.kotlinmania.llama.core.GGMLOp.OPT_STEP_SGD -> computeOptStepSgdNode(graphAllocator, node)
             else -> error("fatal error")
         }
     }
     
     // Helper methods for individual operations
     
-    private fun computeDup(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeDup(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("DUP operation requires source tensor")
         // Simple dup: copy element-wise based on type
         node.type = src.type
         node.ne = src.ne.copyOf(); node.nb =
-            io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+            io.github.kotlinmania.llama.core.calculateContiguousStrides(
                 node.ne,
                 node.type,
                 node.ne.size
             )
         val total = src.numElements().toInt()
         when (src.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src,
                 total
             ) { _, ind -> node.setFloat(graphAllocator, src.getFloat(graphAllocator, *ind), *ind) }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src,
                 total
             ) { _, ind -> node.setHalf(graphAllocator, src.getHalf(graphAllocator, *ind), *ind) }
-            io.github.kotlinmania.llama.ore.GGMLType.I32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I32 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src,
                 total
             ) { _, ind -> node.setInt(graphAllocator, src.getInt(graphAllocator, *ind), *ind) }
-            io.github.kotlinmania.llama.ore.GGMLType.I16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I16 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src,
                 total
             ) { _, ind -> node.setShort(graphAllocator, src.getShort(graphAllocator, *ind), *ind) }
-            io.github.kotlinmania.llama.ore.GGMLType.I8  -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I8  -> io.github.kotlinmania.llama.core.applyNDIter(
                 src,
                 total
             ) { _, ind -> node.setByte(graphAllocator, src.getByte(graphAllocator, *ind), *ind) }
-            io.github.kotlinmania.llama.ore.GGMLType.I64 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I64 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src,
                 total
             ) { _, ind -> node.setLong(graphAllocator, src.getLong(graphAllocator, *ind), *ind) }
@@ -5560,101 +5560,101 @@ object GGMLComputeOps {
         }
     }
     
-    private fun computeAdd(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeAdd(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("ADD operation requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("ADD operation requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0, src1, node)
     }
     
-    private fun computeSub(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSub(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("SUB operation requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("SUB operation requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeSub(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeSub(graphAllocator, src0, src1, node)
     }
     
-    private fun computeMul(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeMul(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("MUL operation requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("MUL operation requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0, src1, node)
     }
     
-    private fun computeDiv(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeDiv(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("DIV operation requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("DIV operation requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1, node)
     }
     
-    internal fun computeSqr(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    internal fun computeSqr(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SQR operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeSqr(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeSqr(graphAllocator, src, node)
     }
     
-    internal fun computeSqrt(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    internal fun computeSqrt(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SQRT operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeSqrt(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeSqrt(graphAllocator, src, node)
     }
     
-    private fun computeNeg(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeNeg(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("NEG operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeNeg(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeNeg(graphAllocator, src, node)
     }
     
-    private fun computeRelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeRelu(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("RELU operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeRelu(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeRelu(graphAllocator, src, node)
     }
     
-    private fun computeGelu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeGelu(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("GELU operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeGelu(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeGelu(graphAllocator, src, node)
     }
 
-    private fun computeSilu(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSilu(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SILU operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeSilu(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeSilu(graphAllocator, src, node)
     }
 
-    private fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSoftMax(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SOFT_MAX operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeSoftMax(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeSoftMax(graphAllocator, src, node)
     }
 
-    private fun computeRmsNorm(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeRmsNorm(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("RMS_NORM operation requires source tensor")
     val eps = Float.fromBits(node.opParams[0])
-        io.github.kotlinmania.llama.ore.computeRMSNorm(graphAllocator, src, eps, node)
+        io.github.kotlinmania.llama.core.computeRMSNorm(graphAllocator, src, eps, node)
     }
     
-    private fun computeMulMat(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeMulMat(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("MUL_MAT operation requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("MUL_MAT operation requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeMatMul(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeMatMul(graphAllocator, src0, src1, node)
     }
     
-    private fun computeSum(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSum(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SUM operation requires source tensor")
         // Simple sum over all elements into a scalar at [0,0]
         node.ne[0] = 1; node.ne[1] = 1; node.type = src.type
         var accF = 0.0f; var accI = 0L
         val total = src.numElements().toInt()
         when (src.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
-                io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> {
+                io.github.kotlinmania.llama.core.applyNDIter(
                     src,
                     total
                 ) { _, ind -> accF += src.getFloat(graphAllocator, *ind) }; node.setFloat(graphAllocator, accF, 0, 0) }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-                io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+                io.github.kotlinmania.llama.core.applyNDIter(
                     src,
                     total
                 ) { _, ind -> accF += src.getHalf(graphAllocator, *ind) }; node.setHalf(graphAllocator, accF, 0, 0) }
-            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
-                io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
+                io.github.kotlinmania.llama.core.applyNDIter(
                     src,
                     total
                 ) { _, ind -> accI += src.getInt(graphAllocator, *ind).toLong() }; node.setInt(graphAllocator, accI.toInt(), 0, 0) }
-            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
-                io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
+                io.github.kotlinmania.llama.core.applyNDIter(
                     src,
                     total
                 ) { _, ind -> accI += src.getLong(graphAllocator, *ind) }; node.setLong(graphAllocator, accI, 0, 0) }
@@ -5662,7 +5662,7 @@ object GGMLComputeOps {
         }
     }
     
-    private fun computeMean(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeMean(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("MEAN operation requires source tensor")
         // Mean using sum / N
         val n = src.numElements().toInt().coerceAtLeast(1)
@@ -5670,13 +5670,13 @@ object GGMLComputeOps {
         var accF = 0.0f; var accI = 0L
         val total = src.numElements().toInt()
         when (src.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
-                io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> {
+                io.github.kotlinmania.llama.core.applyNDIter(
                     src,
                     total
                 ) { _, ind -> accF += src.getFloat(graphAllocator, *ind) }; node.setFloat(graphAllocator, accF / n, 0, 0) }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-                io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+                io.github.kotlinmania.llama.core.applyNDIter(
                     src,
                     total
                 ) { _, ind -> accF += src.getHalf(graphAllocator, *ind) }; node.setHalf(graphAllocator, accF / n, 0, 0) }
@@ -5684,20 +5684,20 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeRepeat(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeRepeat(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("REPEAT operation requires source tensor")
         // Basic repeat assumes node.ne is set to desired output shape and src.ne divides node.ne
-        for (d in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) require(src.ne[d] == 0L || node.ne[d] % src.ne[d] == 0L) { "REPEAT shape mismatch" }
+        for (d in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) require(src.ne[d] == 0L || node.ne[d] % src.ne[d] == 0L) { "REPEAT shape mismatch" }
         val total = node.numElements().toInt()
         when (src.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
                 node,
                 total
             ) { _, ind ->
                 val srcIdx = IntArray(ind.size) { i -> if (src.ne[i] > 0) (ind[i] % src.ne[i].toInt()) else 0 }
                 node.setFloat(graphAllocator, src.getFloat(graphAllocator, *srcIdx), *ind)
             }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
                 node,
                 total
             ) { _, ind ->
@@ -5708,14 +5708,14 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeRepeatBack(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeRepeatBack(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("REPEAT_BACK operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeRepeatBack(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeRepeatBack(graphAllocator, src, node)
     }
 
-    private fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeTranspose(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("TRANSPOSE operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeTranspose(graphAllocator, src, node)
+        io.github.kotlinmania.llama.core.computeTranspose(graphAllocator, src, node)
     }
 
     // ---------------------------------------------------------------
@@ -5724,9 +5724,9 @@ object GGMLComputeOps {
 
     // --- Element-wise unary ops ---
 
-    private fun computeAbsNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeAbsNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("ABS operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5734,9 +5734,9 @@ object GGMLComputeOps {
         ) { x -> abs(x) }
     }
 
-    private fun computeSgnNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSgnNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SGN operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5744,9 +5744,9 @@ object GGMLComputeOps {
         ) { x -> sign(x) }
     }
 
-    private fun computeStepNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeStepNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("STEP operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5754,9 +5754,9 @@ object GGMLComputeOps {
         ) { x -> if (x > 0f) 1f else 0f }
     }
 
-    private fun computeCeilNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeCeilNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("CEIL operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5764,9 +5764,9 @@ object GGMLComputeOps {
         ) { x -> ceil(x) }
     }
 
-    private fun computeFloorNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeFloorNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("FLOOR operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5774,9 +5774,9 @@ object GGMLComputeOps {
         ) { x -> floor(x) }
     }
 
-    private fun computeRoundNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeRoundNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("ROUND operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5784,9 +5784,9 @@ object GGMLComputeOps {
         ) { x -> round(x) }
     }
 
-    private fun computeTruncNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeTruncNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("TRUNC operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5796,9 +5796,9 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeExpNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeExpNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("EXP operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5806,9 +5806,9 @@ object GGMLComputeOps {
         ) { x -> exp(x) }
     }
 
-    private fun computeSigmoidNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSigmoidNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SIGMOID operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5816,9 +5816,9 @@ object GGMLComputeOps {
         ) { x -> 1f / (1f + exp(-x)) }
     }
 
-    private fun computeTanhNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeTanhNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("TANH operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5826,9 +5826,9 @@ object GGMLComputeOps {
         ) { x -> tanh(x) }
     }
 
-    private fun computeHardswishNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeHardswishNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("HARDSWISH operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5838,9 +5838,9 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeHardsigmoidNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeHardsigmoidNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("HARDSIGMOID operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5850,33 +5850,33 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeGeluQuickNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeGeluQuickNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("GELU_QUICK operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
             "GELU_QUICK"
         ) { x ->
-            x * (1f / (1f + exp(io.github.kotlinmania.llama.ore.GELU_QUICK_COEF * x)))
+            x * (1f / (1f + exp(io.github.kotlinmania.llama.core.GELU_QUICK_COEF * x)))
         }
     }
 
-    private fun computeGeluErfNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeGeluErfNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("GELU_ERF operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
             "GELU_ERF"
         ) { x ->
-            0.5f * x * (1f + io.github.kotlinmania.llama.ore.erfApprox(x * io.github.kotlinmania.llama.ore.SQRT_2_INV))
+            0.5f * x * (1f + io.github.kotlinmania.llama.core.erfApprox(x * io.github.kotlinmania.llama.core.SQRT_2_INV))
         }
     }
 
-    private fun computeSoftplusNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSoftplusNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SOFTPLUS operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5886,9 +5886,9 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeEluNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeEluNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("ELU operation requires source tensor")
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5900,10 +5900,10 @@ object GGMLComputeOps {
 
     // --- Ops with parameters ---
 
-    private fun computeLeakyReluNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeLeakyReluNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("LEAKY_RELU operation requires source tensor")
         val negativeSlope = Float.fromBits(node.opParams[0])
-        io.github.kotlinmania.llama.ore.computeUnaryElementwise(
+        io.github.kotlinmania.llama.core.computeUnaryElementwise(
             graphAllocator,
             src,
             node,
@@ -5913,70 +5913,70 @@ object GGMLComputeOps {
         }
     }
 
-    private fun computeSiluBackNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSiluBackNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val grad = node.src[0] ?: throw IllegalArgumentException("SILU_BACK requires gradient tensor (src[0])")
         val src1 = node.src[1] ?: throw IllegalArgumentException("SILU_BACK requires input tensor (src[1])")
-        io.github.kotlinmania.llama.ore.computeSiluBack(graphAllocator, grad, src1, node)
+        io.github.kotlinmania.llama.core.computeSiluBack(graphAllocator, grad, src1, node)
     }
 
     // --- Normalization ops ---
 
-    private fun computeNormNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeNormNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("NORM (layer norm) requires source tensor")
         val eps = Float.fromBits(node.opParams[0])
-        io.github.kotlinmania.llama.ore.computeLayerNorm(graphAllocator, src, eps, node)
+        io.github.kotlinmania.llama.core.computeLayerNorm(graphAllocator, src, eps, node)
     }
 
-    private fun computeRmsNormBackNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeRmsNormBackNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val grad = node.src[0] ?: throw IllegalArgumentException("RMS_NORM_BACK requires gradient tensor (src[0])")
         val src1 = node.src[1] ?: throw IllegalArgumentException("RMS_NORM_BACK requires input tensor (src[1])")
         val eps = Float.fromBits(node.opParams[0])
-        io.github.kotlinmania.llama.ore.computeRmsNormBack(graphAllocator, grad, src1, eps, node)
+        io.github.kotlinmania.llama.core.computeRmsNormBack(graphAllocator, grad, src1, eps, node)
     }
 
-    private fun computeGroupNormNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeGroupNormNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("GROUP_NORM requires source tensor")
         val nGroups = node.opParams[0]
         val eps = Float.fromBits(node.opParams[1])
-        io.github.kotlinmania.llama.ore.computeGroupNorm(graphAllocator, src, nGroups, eps, node)
+        io.github.kotlinmania.llama.core.computeGroupNorm(graphAllocator, src, nGroups, eps, node)
     }
 
     // --- Tensor manipulation ops ---
 
-    private fun computeAccNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeAccNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("ACC requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("ACC requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeAcc(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeAcc(graphAllocator, src0, src1, node)
     }
 
-    private fun computeScaleNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeScaleNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("SCALE requires source tensor")
         val s = Float.fromBits(node.opParams[0])
         val b = Float.fromBits(node.opParams[1])
-        io.github.kotlinmania.llama.ore.computeScale(graphAllocator, src, s, b, node)
+        io.github.kotlinmania.llama.core.computeScale(graphAllocator, src, s, b, node)
     }
 
-    private fun computeClampNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeClampNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = node.src[0] ?: throw IllegalArgumentException("CLAMP requires source tensor")
         val minVal = Float.fromBits(node.opParams[0])
         val maxVal = Float.fromBits(node.opParams[1])
-        io.github.kotlinmania.llama.ore.computeClamp(graphAllocator, src, minVal, maxVal, node)
+        io.github.kotlinmania.llama.core.computeClamp(graphAllocator, src, minVal, maxVal, node)
     }
 
-    private fun computeContNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeContNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         // CONT is identical to DUP — makes a tensor contiguous
         computeDup(graphAllocator, node)
     }
 
-    private fun computeCpyNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeCpyNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         // CPY is identical to DUP — copies src[0] into dst
         computeDup(graphAllocator, node)
     }
 
-    private fun computeSetNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSetNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src0 = node.src[0] ?: throw IllegalArgumentException("SET requires first source tensor")
         val src1 = node.src[1] ?: throw IllegalArgumentException("SET requires second source tensor")
-        io.github.kotlinmania.llama.ore.computeSet(graphAllocator, src0, src1, node)
+        io.github.kotlinmania.llama.core.computeSet(graphAllocator, src0, src1, node)
     }
     
     // Removed copyTensorData: compute functions now write directly into node
@@ -5991,8 +5991,8 @@ object GGMLComputeOps {
      * Assumes the tensor is F32-contiguous (nb[0] == 4).
      */
     private fun readF32Flat(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         flatIndex: Int
     ): Float {
         val buf = graphAllocator.buffers[tensor.bufferId] as? ByteArray
@@ -6006,8 +6006,8 @@ object GGMLComputeOps {
      * Assumes the tensor is F32-contiguous (nb[0] == 4).
      */
     private fun writeF32Flat(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         flatIndex: Int,
         value: Float
     ) {
@@ -6042,8 +6042,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeFlashAttnExt(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6059,9 +6059,9 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeFlashAttnBack(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
         masked: Boolean,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6087,8 +6087,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor `{d_inner, n_t, n_seqs}` (pre-allocated).
      */
     fun computeSsmConv(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6111,8 +6111,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeSsmScan(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6139,8 +6139,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeRwkvWkv6(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6163,8 +6163,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeRwkvWkv7(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6191,8 +6191,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeGla(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6219,8 +6219,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeGatedDeltaNet(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6242,8 +6242,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeConvTranspose1d(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6270,13 +6270,13 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computeIm2col(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src0 = dst.src[0] ?: error("im2col requires kernel tensor (src0)")
         val src1 = dst.src[1] ?: error("im2col requires image tensor (src1)")
-        require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "im2col: src1 must be F32" }
-        require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "im2col: dst must be F32" }
+        require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "im2col: src1 must be F32" }
+        require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "im2col: dst must be F32" }
 
         val s0   = dst.opParams[0]
         val s1   = dst.opParams[1]
@@ -6336,20 +6336,20 @@ object GGMLComputeOps {
      * Iterates over every row of the source tensor and applies a
      * sliding window of size `k` with stride `s` and padding `p`.
      *
-     * `opParams`: `[op, k0, s0, p0]` where `op` is [io.github.kotlinmania.llama.ore.GGMLOpPool] ordinal.
+     * `opParams`: `[op, k0, s0, p0]` where `op` is [io.github.kotlinmania.llama.core.GGMLOpPool] ordinal.
      *
      * @param graphAllocator Memory allocator for tensor data access.
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computePool1d(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src = dst.src[0] ?: error("pool_1d requires source tensor")
-        require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "pool_1d: source must be F32" }
+        require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "pool_1d: source must be F32" }
 
         val opOrdinal = dst.opParams[0]
-        val poolOp = io.github.kotlinmania.llama.ore.GGMLOpPool.entries[opOrdinal]
+        val poolOp = io.github.kotlinmania.llama.core.GGMLOpPool.entries[opOrdinal]
         val k0 = dst.opParams[1]
         val s0 = dst.opParams[2]
         val p0 = dst.opParams[3]
@@ -6361,8 +6361,8 @@ object GGMLComputeOps {
         for (ir in 0 until nRows) {
             for (ow in 0 until OW) {
                 var res = when (poolOp) {
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> 0.0f
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> -Float.MAX_VALUE
+                    io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> 0.0f
+                    io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> -Float.MAX_VALUE
                     else -> error("Unsupported pool op: $poolOp")
                 }
                 var count = 0
@@ -6372,12 +6372,12 @@ object GGMLComputeOps {
                     if (j < 0 || j >= IW) continue
                     val v = readF32Flat(graphAllocator, src, ir * IW + j)
                     when (poolOp) {
-                        io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> res += v
-                        io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> if (v > res) res = v
+                        io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> res += v
+                        io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> if (v > res) res = v
                     }
                     count++
                 }
-                if (poolOp == io.github.kotlinmania.llama.ore.GGMLOpPool.AVG && count > 0) {
+                if (poolOp == io.github.kotlinmania.llama.core.GGMLOpPool.AVG && count > 0) {
                     res /= count
                 }
                 writeF32Flat(graphAllocator, dst, ir * OW + ow, res)
@@ -6394,8 +6394,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computePool2d(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6406,8 +6406,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computePool2dBack(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6425,11 +6425,11 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computeWinPart(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src0 = dst.src[0] ?: error("win_part requires source tensor")
-        require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "win_part: source must be F32" }
+        require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "win_part: source must be F32" }
 
         val ne00 = src0.ne[0]; val ne01 = src0.ne[1]; val ne02 = src0.ne[2]
         val ne0  = dst.ne[0]; val ne1 = dst.ne[1]; val ne2 = dst.ne[2]; val ne3 = dst.ne[3]
@@ -6471,11 +6471,11 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computeWinUnpart(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src0 = dst.src[0] ?: error("win_unpart requires source tensor")
-        require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "win_unpart: source must be F32" }
+        require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "win_unpart: source must be F32" }
 
         val ne00 = src0.ne[0]; val ne01 = src0.ne[1]; val ne02 = src0.ne[2]
         val ne0  = dst.ne[0]; val ne1 = dst.ne[1]; val ne2 = dst.ne[2]
@@ -6516,8 +6516,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeGetRelPos(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6537,8 +6537,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computeAddRelPos(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6557,8 +6557,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor.
      */
     fun computeMapCustom1(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6569,8 +6569,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor.
      */
     fun computeMapCustom2(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6581,8 +6581,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor.
      */
     fun computeMapCustom3(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6593,7 +6593,7 @@ object GGMLComputeOps {
     /**
      * Dispatch table for element-wise unary operations.
      *
-     * Routes to the appropriate kernel based on the [io.github.kotlinmania.llama.ore.GGMLUnaryOp]
+     * Routes to the appropriate kernel based on the [io.github.kotlinmania.llama.core.GGMLUnaryOp]
      * stored in `dst.opParams`.  Currently dispatches to existing
      * `computeRelu`, `computeGelu`, `computeSilu`, etc.
      *
@@ -6601,44 +6601,44 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeUnary(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src = dst.src[0] ?: error("unary op requires source tensor")
-        val unaryOp = io.github.kotlinmania.llama.ore.GGMLUnaryOp.entries[dst.opParams[0]]
+        val unaryOp = io.github.kotlinmania.llama.core.GGMLUnaryOp.entries[dst.opParams[0]]
         when (unaryOp) {
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.ABS    -> computeAbs(graphAllocator, dst)
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.NEG    -> io.github.kotlinmania.llama.ore.computeNeg(
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.ABS    -> computeAbs(graphAllocator, dst)
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.NEG    -> io.github.kotlinmania.llama.core.computeNeg(
                 graphAllocator,
                 src,
                 dst
             )
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.RELU   -> io.github.kotlinmania.llama.ore.computeRelu(
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.RELU   -> io.github.kotlinmania.llama.core.computeRelu(
                 graphAllocator,
                 src,
                 dst
             )
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.GELU   -> io.github.kotlinmania.llama.ore.computeGelu(
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.GELU   -> io.github.kotlinmania.llama.core.computeGelu(
                 graphAllocator,
                 src,
                 dst
             )
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.SILU   -> io.github.kotlinmania.llama.ore.computeSilu(
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.SILU   -> io.github.kotlinmania.llama.core.computeSilu(
                 graphAllocator,
                 src,
                 dst
             )
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.EXP    -> computeExp(graphAllocator, dst)
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.TANH   -> computeTanh(graphAllocator, dst)
-            io.github.kotlinmania.llama.ore.GGMLUnaryOp.SIGMOID -> computeSigmoid(graphAllocator, dst)
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.EXP    -> computeExp(graphAllocator, dst)
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.TANH   -> computeTanh(graphAllocator, dst)
+            io.github.kotlinmania.llama.core.GGMLUnaryOp.SIGMOID -> computeSigmoid(graphAllocator, dst)
             else -> error("unary op $unaryOp not yet ported")
         }
     }
 
     /** Element-wise absolute value. */
-    private fun computeAbs(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeAbs(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = dst.src[0] ?: error("abs requires source tensor")
-        require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "abs: source must be F32" }
+        require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "abs: source must be F32" }
         val n = src.numElements().toInt()
         for (i in 0 until n) {
             writeF32Flat(graphAllocator, dst, i, abs(readF32Flat(graphAllocator, src, i)))
@@ -6646,9 +6646,9 @@ object GGMLComputeOps {
     }
 
     /** Element-wise exponential. */
-    private fun computeExp(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeExp(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = dst.src[0] ?: error("exp requires source tensor")
-        require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "exp: source must be F32" }
+        require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "exp: source must be F32" }
         val n = src.numElements().toInt()
         for (i in 0 until n) {
             writeF32Flat(graphAllocator, dst, i, exp(readF32Flat(graphAllocator, src, i)))
@@ -6656,9 +6656,9 @@ object GGMLComputeOps {
     }
 
     /** Element-wise tanh. */
-    private fun computeTanh(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeTanh(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = dst.src[0] ?: error("tanh requires source tensor")
-        require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tanh: source must be F32" }
+        require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tanh: source must be F32" }
         val n = src.numElements().toInt()
         for (i in 0 until n) {
             writeF32Flat(graphAllocator, dst, i, kotlin.math.tanh(readF32Flat(graphAllocator, src, i)))
@@ -6666,9 +6666,9 @@ object GGMLComputeOps {
     }
 
     /** Element-wise sigmoid: 1 / (1 + exp(-x)). */
-    private fun computeSigmoid(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    private fun computeSigmoid(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, dst: io.github.kotlinmania.llama.core.GGMLTensor) {
         val src = dst.src[0] ?: error("sigmoid requires source tensor")
-        require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "sigmoid: source must be F32" }
+        require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "sigmoid: source must be F32" }
         val n = src.numElements().toInt()
         for (i in 0 until n) {
             val x = readF32Flat(graphAllocator, src, i)
@@ -6683,17 +6683,17 @@ object GGMLComputeOps {
     /**
      * Dispatch table for Gated Linear Unit variants.
      *
-     * Routes to the appropriate kernel based on the [io.github.kotlinmania.llama.ore.GGMLGluOp]
+     * Routes to the appropriate kernel based on the [io.github.kotlinmania.llama.core.GGMLGluOp]
      * stored in `dst.opParams`.
      *
      * @param graphAllocator Memory allocator for tensor data access.
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeGlu(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
-        val gluOp = io.github.kotlinmania.llama.ore.GGMLGluOp.entries[dst.opParams[0]]
+        val gluOp = io.github.kotlinmania.llama.core.GGMLGluOp.entries[dst.opParams[0]]
     }
 
     // -----------------------------------------------------------------
@@ -6710,8 +6710,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computeFill(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val c = Float.fromBits(dst.opParams[0])
         val n = dst.numElements().toInt()
@@ -6735,12 +6735,12 @@ object GGMLComputeOps {
      * @param dst Destination tensor X (pre-allocated, F32, n×k).
      */
     fun computeSolveTri(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src0 = dst.src[0] ?: error("solve_tri requires A tensor (src0)")
         val src1 = dst.src[1] ?: error("solve_tri requires B tensor (src1)")
-        require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32 && src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "solve_tri: F32 only" }
+        require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32 && src1.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "solve_tri: F32 only" }
 
         val n = src1.ne[1].toInt()   // rows of A (A is n×n)
         val k = src1.ne[0].toInt()   // columns of B
@@ -6778,7 +6778,7 @@ object GGMLComputeOps {
      * Extract triangular part of a matrix, zeroing elements outside
      * the triangle.
      *
-     * `opParams[0]` encodes the [io.github.kotlinmania.llama.ore.GGMLTriType]:
+     * `opParams[0]` encodes the [io.github.kotlinmania.llama.core.GGMLTriType]:
      * - LOWER: keep where `col < row`
      * - LOWER_DIAG: keep where `col <= row`
      * - UPPER: keep where `col > row`
@@ -6788,23 +6788,23 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated, F32).
      */
     fun computeTri(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
         val src0 = dst.src[0] ?: error("tri requires source tensor")
-        require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "tri: source must be F32" }
+        require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "tri: source must be F32" }
 
-        val triType = io.github.kotlinmania.llama.ore.GGMLTriType.entries.first { it.value == dst.opParams[0] }
+        val triType = io.github.kotlinmania.llama.core.GGMLTriType.entries.first { it.value == dst.opParams[0] }
         val ne0 = dst.ne[0].toInt()
         val ne1 = dst.ne[1].toInt()
         val ne2 = dst.ne[2].toInt()
         val ne3 = dst.ne[3].toInt()
 
         val predicate: (col: Int, row: Int) -> Boolean = when (triType) {
-            io.github.kotlinmania.llama.ore.GGMLTriType.LOWER      -> { col, row -> col < row }
-            io.github.kotlinmania.llama.ore.GGMLTriType.LOWER_DIAG -> { col, row -> col <= row }
-            io.github.kotlinmania.llama.ore.GGMLTriType.UPPER      -> { col, row -> col > row }
-            io.github.kotlinmania.llama.ore.GGMLTriType.UPPER_DIAG -> { col, row -> col >= row }
+            io.github.kotlinmania.llama.core.GGMLTriType.LOWER      -> { col, row -> col < row }
+            io.github.kotlinmania.llama.core.GGMLTriType.LOWER_DIAG -> { col, row -> col <= row }
+            io.github.kotlinmania.llama.core.GGMLTriType.UPPER      -> { col, row -> col > row }
+            io.github.kotlinmania.llama.core.GGMLTriType.UPPER_DIAG -> { col, row -> col >= row }
         }
 
         var idx = 0
@@ -6835,8 +6835,8 @@ object GGMLComputeOps {
      * @param dst Destination scalar tensor (pre-allocated, F32).
      */
     fun computeCrossEntropyLoss(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6847,8 +6847,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (pre-allocated).
      */
     fun computeCrossEntropyLossBack(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6863,8 +6863,8 @@ object GGMLComputeOps {
      * @param dst Destination tensor (weights, updated in-place).
      */
     fun computeOptStepAdamw(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
 
@@ -6875,99 +6875,99 @@ object GGMLComputeOps {
      * @param dst Destination tensor (weights, updated in-place).
      */
     fun computeOptStepSgd(
-        graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ) {
     }
     // ---- Wrappers for structural / advanced compute operations ----
 
-    private val defaultParams = io.github.kotlinmania.llama.ore.GGMLComputeParams(ith = 0, nth = 1)
+    private val defaultParams = io.github.kotlinmania.llama.core.GGMLComputeParams(ith = 0, nth = 1)
 
-    private fun computeConcatNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeConcat(graphAllocator, defaultParams, node)
+    private fun computeConcatNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeConcat(graphAllocator, defaultParams, node)
 
-    private fun computeSumRowsNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeSumRows(graphAllocator, defaultParams, node)
+    private fun computeSumRowsNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeSumRows(graphAllocator, defaultParams, node)
 
-    private fun computeCumsumNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeCumsum(graphAllocator, defaultParams, node)
+    private fun computeCumsumNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeCumsum(graphAllocator, defaultParams, node)
 
-    private fun computeArgmaxNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeArgmax(graphAllocator, defaultParams, node)
+    private fun computeArgmaxNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeArgmax(graphAllocator, defaultParams, node)
 
-    private fun computeCountEqualNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeCountEqual(graphAllocator, defaultParams, node)
+    private fun computeCountEqualNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeCountEqual(graphAllocator, defaultParams, node)
 
-    private fun computeGetRowsNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeGetRows(graphAllocator, defaultParams, node)
+    private fun computeGetRowsNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeGetRows(graphAllocator, defaultParams, node)
 
-    private fun computeGetRowsBackNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeGetRowsBack(graphAllocator, defaultParams, node)
+    private fun computeGetRowsBackNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeGetRowsBack(graphAllocator, defaultParams, node)
 
-    private fun computeSetRowsNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeSetRows(graphAllocator, defaultParams, node)
+    private fun computeSetRowsNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeSetRows(graphAllocator, defaultParams, node)
 
-    private fun computeDiagNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeDiag(graphAllocator, defaultParams, node)
+    private fun computeDiagNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeDiag(graphAllocator, defaultParams, node)
 
-    private fun computeDiagMaskInfNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeDiagMaskInf(graphAllocator, defaultParams, node)
+    private fun computeDiagMaskInfNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeDiagMaskInf(graphAllocator, defaultParams, node)
 
-    private fun computeDiagMaskZeroNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeDiagMaskZero(graphAllocator, defaultParams, node)
+    private fun computeDiagMaskZeroNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeDiagMaskZero(graphAllocator, defaultParams, node)
 
-    private fun computeRopeNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeRope(graphAllocator, defaultParams, node)
+    private fun computeRopeNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeRope(graphAllocator, defaultParams, node)
 
-    private fun computeRopeBackNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeRopeBack(graphAllocator, defaultParams, node)
+    private fun computeRopeBackNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeRopeBack(graphAllocator, defaultParams, node)
 
-    private fun computePadNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computePad(graphAllocator, defaultParams, node)
+    private fun computePadNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computePad(graphAllocator, defaultParams, node)
 
-    private fun computePadReflect1DNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computePadReflect1D(graphAllocator, defaultParams, node)
+    private fun computePadReflect1DNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computePadReflect1D(graphAllocator, defaultParams, node)
 
-    private fun computeRollNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeRoll(graphAllocator, defaultParams, node)
+    private fun computeRollNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeRoll(graphAllocator, defaultParams, node)
 
-    private fun computeArangeNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeArange(graphAllocator, defaultParams, node)
+    private fun computeArangeNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeArange(graphAllocator, defaultParams, node)
 
-    private fun computeTimestepEmbeddingNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeTimestepEmbedding(
+    private fun computeTimestepEmbeddingNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeTimestepEmbedding(
             graphAllocator,
             defaultParams,
             node
         )
 
-    private fun computeArgsortNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeArgsort(graphAllocator, defaultParams, node)
+    private fun computeArgsortNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeArgsort(graphAllocator, defaultParams, node)
 
-    private fun computeTopKNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeTopK(graphAllocator, defaultParams, node)
+    private fun computeTopKNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeTopK(graphAllocator, defaultParams, node)
 
-    private fun computeUpscaleNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeUpscale(graphAllocator, defaultParams, node)
+    private fun computeUpscaleNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeUpscale(graphAllocator, defaultParams, node)
 
-    private fun computeOutProdNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeOutProd(graphAllocator, defaultParams, node)
+    private fun computeOutProdNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeOutProd(graphAllocator, defaultParams, node)
 
-    private fun computeCrossEntropyLossNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeCrossEntropyLoss(graphAllocator, defaultParams, node)
+    private fun computeCrossEntropyLossNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeCrossEntropyLoss(graphAllocator, defaultParams, node)
 
-    private fun computeCrossEntropyLossBackNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeCrossEntropyLossBack(
+    private fun computeCrossEntropyLossBackNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeCrossEntropyLossBack(
             graphAllocator,
             defaultParams,
             node
         )
 
-    private fun computeOptStepAdamwNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeOptStepAdamw(graphAllocator, defaultParams, node)
+    private fun computeOptStepAdamwNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeOptStepAdamw(graphAllocator, defaultParams, node)
 
-    private fun computeOptStepSgdNode(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, node: io.github.kotlinmania.llama.ore.GGMLTensor) =
-        io.github.kotlinmania.llama.ore.computeOptStepSgd(graphAllocator, defaultParams, node)
+    private fun computeOptStepSgdNode(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, node: io.github.kotlinmania.llama.core.GGMLTensor) =
+        io.github.kotlinmania.llama.core.computeOptStepSgd(graphAllocator, defaultParams, node)
 }
 
 // =====================================================================
@@ -7009,22 +7009,22 @@ private fun erfApprox(x: Float): Float {
  * every `ggml_compute_forward_<unary>` function in ops.cpp.
  */
 private fun computeUnaryElementwise(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
     opName: String,
     op: (Float) -> Float
 ) {
     require(src.type == dst.type) { "$opName: src and dst types must match" }
     val total = dst.numElements().toInt()
     when (src.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             total
         ) { _, ind ->
             dst.setFloat(graphAllocator, op(src.getFloat(graphAllocator, *ind)), *ind)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             total
         ) { _, ind ->
@@ -7046,16 +7046,16 @@ private fun computeUnaryElementwise(
  * writes `dx` into [dst] where `dx[i] = dy[i] · σ(x[i]) · (1 + x[i]·(1 − σ(x[i])))`.
  */
 fun computeSiluBack(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    grad: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    grad: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     require(src1.type == dst.type) { "SILU_BACK: src1 and dst types must match" }
     require(grad.type == dst.type) { "SILU_BACK: grad and dst types must match" }
     val total = dst.numElements().toInt()
     when (dst.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             total
         ) { _, ind ->
@@ -7064,7 +7064,7 @@ fun computeSiluBack(
             val s = 1f / (1f + exp(-x))
             dst.setFloat(graphAllocator, dy * s * (1f + x * (1f - s)), *ind)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             total
         ) { _, ind ->
@@ -7089,12 +7089,12 @@ fun computeSiluBack(
  * are computed along the first axis.
  */
 fun computeLayerNorm(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
     eps: Float,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "NORM (layer norm) only supports F32, got ${src.type}" }
+    require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "NORM (layer norm) only supports F32, got ${src.type}" }
     require(eps >= 0f) { "NORM eps must be >= 0" }
 
     val ne00 = src.ne[0].toInt()
@@ -7147,13 +7147,13 @@ fun computeLayerNorm(
  * Computes the backward pass of RMS Normalization.
  */
 fun computeRmsNormBack(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    grad: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    grad: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor,
     eps: Float,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    require(grad.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "RMS_NORM_BACK only supports F32" }
+    require(grad.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "RMS_NORM_BACK only supports F32" }
 
     val ne00 = src1.ne[0].toInt()
     val ne01 = src1.ne[1].toInt().coerceAtLeast(1)
@@ -7204,13 +7204,13 @@ fun computeRmsNormBack(
  * over all spatial positions and channels within the group.
  */
 fun computeGroupNorm(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
     nGroups: Int,
     eps: Float,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "GROUP_NORM only supports F32" }
+    require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "GROUP_NORM only supports F32" }
 
     val ne00 = src.ne[0].toInt()
     val ne01 = src.ne[1].toInt().coerceAtLeast(1)
@@ -7283,24 +7283,24 @@ fun computeGroupNorm(
  * accumulates src1 element-wise at matching indices.
  */
 fun computeAcc(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "ACC only supports F32, got ${src0.type}" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "ACC only supports F32, got ${src0.type}" }
 
     val inplace = dst.opParams[4] != 0
     val total0 = src0.numElements().toInt()
 
     if (!inplace) {
-        io.github.kotlinmania.llama.ore.applyNDIter(src0, total0) { _, ind ->
+        io.github.kotlinmania.llama.core.applyNDIter(src0, total0) { _, ind ->
             dst.setFloat(graphAllocator, src0.getFloat(graphAllocator, *ind), *ind)
         }
     }
 
     val total1 = src1.numElements().toInt()
-    io.github.kotlinmania.llama.ore.applyNDIter(src1, total1) { _, ind ->
+    io.github.kotlinmania.llama.core.applyNDIter(src1, total1) { _, ind ->
         val existing = dst.getFloat(graphAllocator, *ind)
         dst.setFloat(graphAllocator, existing + src1.getFloat(graphAllocator, *ind), *ind)
     }
@@ -7315,20 +7315,20 @@ fun computeAcc(
  * Scales every element of [src] by factor [s] and optionally adds bias [b].
  */
 fun computeScale(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
     s: Float,
     b: Float,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "SCALE only supports F32, got ${src.type}" }
+    require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "SCALE only supports F32, got ${src.type}" }
     val total = dst.numElements().toInt()
     if (b == 0f) {
-        io.github.kotlinmania.llama.ore.applyNDIter(dst, total) { _, ind ->
+        io.github.kotlinmania.llama.core.applyNDIter(dst, total) { _, ind ->
             dst.setFloat(graphAllocator, src.getFloat(graphAllocator, *ind) * s, *ind)
         }
     } else {
-        io.github.kotlinmania.llama.ore.applyNDIter(dst, total) { _, ind ->
+        io.github.kotlinmania.llama.core.applyNDIter(dst, total) { _, ind ->
             dst.setFloat(graphAllocator, src.getFloat(graphAllocator, *ind) * s + b, *ind)
         }
     }
@@ -7343,21 +7343,21 @@ fun computeScale(
  * Clamps every element of [src] to the range [[minVal], [maxVal]].
  */
 fun computeClamp(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
     minVal: Float,
     maxVal: Float,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val total = dst.numElements().toInt()
     when (src.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             total
         ) { _, ind ->
             dst.setFloat(graphAllocator, max(minVal, min(src.getFloat(graphAllocator, *ind), maxVal)), *ind)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.applyNDIter(
             dst,
             total
         ) { _, ind ->
@@ -7376,12 +7376,12 @@ fun computeClamp(
  * Copies [src0] into [dst], then overwrites a region with data from [src1].
  */
 fun computeSet(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32 || src0.type == io.github.kotlinmania.llama.ore.GGMLType.I32) {
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32 || src0.type == io.github.kotlinmania.llama.core.GGMLType.I32) {
         "SET only supports F32 and I32, got ${src0.type}"
     }
     val inplace = dst.opParams[4] != 0
@@ -7389,13 +7389,13 @@ fun computeSet(
     if (!inplace) {
         val total0 = src0.numElements().toInt()
         when (src0.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src0,
                 total0
             ) { _, ind ->
                 dst.setFloat(graphAllocator, src0.getFloat(graphAllocator, *ind), *ind)
             }
-            io.github.kotlinmania.llama.ore.GGMLType.I32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+            io.github.kotlinmania.llama.core.GGMLType.I32 -> io.github.kotlinmania.llama.core.applyNDIter(
                 src0,
                 total0
             ) { _, ind ->
@@ -7407,13 +7407,13 @@ fun computeSet(
 
     val total1 = src1.numElements().toInt()
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.applyNDIter(
             src1,
             total1
         ) { _, ind ->
             dst.setFloat(graphAllocator, src1.getFloat(graphAllocator, *ind), *ind)
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> io.github.kotlinmania.llama.ore.applyNDIter(
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> io.github.kotlinmania.llama.core.applyNDIter(
             src1,
             total1
         ) { _, ind ->
@@ -7432,12 +7432,12 @@ fun computeSet(
  * Ported from ggml_vec_reglu_f32 (vec.h)
  */
 fun computeReglu(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    io.github.kotlinmania.llama.ore.computeGluVariant(
+    io.github.kotlinmania.llama.core.computeGluVariant(
         graphAllocator,
         src0,
         src1,
@@ -7453,13 +7453,13 @@ fun computeReglu(
  * Ported from ggml_vec_geglu_f32 (vec.h)
  */
 fun computeGeglu(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val gelu = { x: Float -> x * 0.5f * (1f + tanh(0.797885f * (x + 0.044715f * x * x * x))) }
-    io.github.kotlinmania.llama.ore.computeGluVariant(
+    io.github.kotlinmania.llama.core.computeGluVariant(
         graphAllocator,
         src0,
         src1,
@@ -7475,12 +7475,12 @@ fun computeGeglu(
  * Ported from ggml_vec_swiglu_f32 (vec.h)
  */
 fun computeSwiglu(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    io.github.kotlinmania.llama.ore.computeGluVariant(
+    io.github.kotlinmania.llama.core.computeGluVariant(
         graphAllocator,
         src0,
         src1,
@@ -7496,14 +7496,14 @@ fun computeSwiglu(
  * Ported from ggml_compute_forward_swiglu_oai_f32 (ops.cpp:3276)
  */
 fun computeSwigluOai(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
     alpha: Float,
     limit: Float
 ) {
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32) { "SWIGLU_OAI only supports F32" }
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32) { "SWIGLU_OAI only supports F32" }
     val swapped = dst.opParams[1] != 0
     val nc = if (src1 != null) src0.ne[0].toInt() else (src0.ne[0] / 2).toInt()
     val nRows = (src0.numElements() / src0.ne[0]).toInt().coerceAtLeast(1)
@@ -7546,19 +7546,19 @@ fun computeSwigluOai(
  * Ported from ggml_vec_geglu_erf_f32 (vec.h)
  */
 fun computeGegluErf(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    io.github.kotlinmania.llama.ore.computeGluVariant(
+    io.github.kotlinmania.llama.core.computeGluVariant(
         graphAllocator,
         src0,
         src1,
         dst,
         "GEGLU_ERF"
     ) { x, g ->
-        0.5f * x * (1f + io.github.kotlinmania.llama.ore.erfApprox(x * io.github.kotlinmania.llama.ore.SQRT_2_INV)) * g
+        0.5f * x * (1f + io.github.kotlinmania.llama.core.erfApprox(x * io.github.kotlinmania.llama.core.SQRT_2_INV)) * g
     }
 }
 
@@ -7567,19 +7567,19 @@ fun computeGegluErf(
  * Ported from ggml_vec_geglu_quick_f32 (vec.h)
  */
 fun computeGegluQuick(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    io.github.kotlinmania.llama.ore.computeGluVariant(
+    io.github.kotlinmania.llama.core.computeGluVariant(
         graphAllocator,
         src0,
         src1,
         dst,
         "GEGLU_QUICK"
     ) { x, g ->
-        (x * (1f / (1f + exp(io.github.kotlinmania.llama.ore.GELU_QUICK_COEF * x)))) * g
+        (x * (1f / (1f + exp(io.github.kotlinmania.llama.core.GELU_QUICK_COEF * x)))) * g
     }
 }
 
@@ -7596,10 +7596,10 @@ fun computeGegluQuick(
  * The `swapped` flag comes from `opParams[1]` and swaps gate/value halves.
  */
 private fun computeGluVariant(
-    graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator,
-    src0: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src1: io.github.kotlinmania.llama.ore.GGMLTensor?,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
+    graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator,
+    src0: io.github.kotlinmania.llama.core.GGMLTensor,
+    src1: io.github.kotlinmania.llama.core.GGMLTensor?,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
     opName: String,
     fn: (gate: Float, value: Float) -> Float
 ) {
@@ -7627,14 +7627,14 @@ private fun computeGluVariant(
             }
 
             when (src0.type) {
-                io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                     val x = src0.getFloat(graphAllocator, *gateIdx)
                     val g = if (src1 != null) src1.getFloat(graphAllocator, *valIdx)
                             else src0.getFloat(graphAllocator, *valIdx)
                     idx[0] = k
                     dst.setFloat(graphAllocator, fn(x, g), *idx)
                 }
-                io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                     val x = src0.getHalf(graphAllocator, *gateIdx)
                     val g = if (src1 != null) src1.getHalf(graphAllocator, *valIdx)
                             else src0.getHalf(graphAllocator, *valIdx)

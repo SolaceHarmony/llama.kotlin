@@ -12,9 +12,9 @@ import kotlin.time.TimeSource
  */
 class GGMLPerformanceBenchmarkTest {
 
-    private lateinit var graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator
+    private lateinit var graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator
     private val bufferSize = 16 * 1024 * 1024 // 16 MB shared test buffer
-    private val context = io.github.kotlinmania.llama.ore.GGMLContext()
+    private val context = io.github.kotlinmania.llama.core.GGMLContext()
 
     data class BenchmarkResult(
         val operationName: String,
@@ -33,10 +33,10 @@ class GGMLPerformanceBenchmarkTest {
 
     private fun allocateVector(
         name: String,
-        type: io.github.kotlinmania.llama.ore.GGMLType,
+        type: io.github.kotlinmania.llama.core.GGMLType,
         size: Int,
         initializer: (Int) -> Float
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
         val tensor = GGMLTestUtils.allocateDestinationTensor(
             graphAllocator = graphAllocator,
             name = name,
@@ -45,8 +45,8 @@ class GGMLPerformanceBenchmarkTest {
         )
 
         when (type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> repeat(size) { idx -> tensor.setFloat(graphAllocator, initializer(idx), idx) }
-            io.github.kotlinmania.llama.ore.GGMLType.F16 -> repeat(size) { idx -> tensor.setHalf(graphAllocator, initializer(idx), idx) }
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> repeat(size) { idx -> tensor.setFloat(graphAllocator, initializer(idx), idx) }
+            io.github.kotlinmania.llama.core.GGMLType.F16 -> repeat(size) { idx -> tensor.setHalf(graphAllocator, initializer(idx), idx) }
             else -> throw IllegalArgumentException("Unsupported vector type $type for benchmark")
         }
         return tensor
@@ -57,11 +57,11 @@ class GGMLPerformanceBenchmarkTest {
         rows: Int,
         cols: Int,
         initializer: (Int, Int) -> Float
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
         val tensor = GGMLTestUtils.allocateDestinationTensor(
             graphAllocator = graphAllocator,
             name = name,
-            type = io.github.kotlinmania.llama.ore.GGMLType.F32,
+            type = io.github.kotlinmania.llama.core.GGMLType.F32,
             shape = longArrayOf(cols.toLong(), rows.toLong())
         )
 
@@ -74,10 +74,10 @@ class GGMLPerformanceBenchmarkTest {
     }
 
     private fun allocateDestination(
-        reference: io.github.kotlinmania.llama.ore.GGMLTensor,
+        reference: io.github.kotlinmania.llama.core.GGMLTensor,
         name: String = "dst_${reference.name}",
-        type: io.github.kotlinmania.llama.ore.GGMLType = reference.type
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
+        type: io.github.kotlinmania.llama.core.GGMLType = reference.type
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
         return GGMLTestUtils.allocateDestinationTensor(
             graphAllocator = graphAllocator,
             name = name,
@@ -116,31 +116,31 @@ class GGMLPerformanceBenchmarkTest {
 
         for (size in sizes) {
             resetAllocatorTracking(graphAllocator)
-            val tensorA = allocateVector("ew_a_$size", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 17) / 17.0f }
-            val tensorB = allocateVector("ew_b_$size", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 13 - 6).toFloat() }
+            val tensorA = allocateVector("ew_a_$size", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 17) / 17.0f }
+            val tensorB = allocateVector("ew_b_$size", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 13 - 6).toFloat() }
             val addDst = allocateDestination(tensorA, name = "add_dst_$size")
             val mulDst = allocateDestination(tensorA, name = "mul_dst_$size")
             val subDst = allocateDestination(tensorA, name = "sub_dst_$size")
             val divDst = allocateDestination(tensorA, name = "div_dst_$size")
 
             results += benchmarkOperation("ADD_F32", size) {
-                io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, tensorA, tensorB, addDst)
+                io.github.kotlinmania.llama.core.computeAdd(graphAllocator, tensorA, tensorB, addDst)
             }
             results += benchmarkOperation("MUL_F32", size) {
-                io.github.kotlinmania.llama.ore.computeMul(graphAllocator, tensorA, tensorB, mulDst)
+                io.github.kotlinmania.llama.core.computeMul(graphAllocator, tensorA, tensorB, mulDst)
             }
             results += benchmarkOperation("SUB_F32", size) {
-                io.github.kotlinmania.llama.ore.computeSub(graphAllocator, tensorA, tensorB, subDst)
+                io.github.kotlinmania.llama.core.computeSub(graphAllocator, tensorA, tensorB, subDst)
             }
             results += benchmarkOperation("DIV_F32", size) {
-                io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, tensorA, tensorB, divDst)
+                io.github.kotlinmania.llama.core.computeDiv(graphAllocator, tensorA, tensorB, divDst)
             }
         }
 
         println("\n=== F32 Element-wise Operations ===")
         println("Operation\tElements\tTime(ms)\tThroughput(MB/s)")
         for (result in results) {
-            println("${result.operationName}\t${result.dataSize}\t${result.timeMillis}\t${io.github.kotlinmania.llama.ore.GGMLUtilities.formatDouble(result.throughputMBps)}")
+            println("${result.operationName}\t${result.dataSize}\t${result.timeMillis}\t${io.github.kotlinmania.llama.core.GGMLUtilities.formatDouble(result.throughputMBps)}")
         }
 
         results.filter { it.timeMillis < Long.MAX_VALUE }.forEach {
@@ -152,7 +152,7 @@ class GGMLPerformanceBenchmarkTest {
     fun benchmarkUnaryOperations() {
         val size = 16_384
         resetAllocatorTracking(graphAllocator)
-        val source = allocateVector("unary_src", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 11 - 5).toFloat() }
+        val source = allocateVector("unary_src", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 11 - 5).toFloat() }
         val negDst = allocateDestination(source, "neg_dst")
         val sqrDst = allocateDestination(source, "sqr_dst")
         val sqrtDst = allocateDestination(source, "sqrt_dst")
@@ -160,36 +160,36 @@ class GGMLPerformanceBenchmarkTest {
         val geluDst = allocateDestination(source, "gelu_dst")
 
         val operations = listOf(
-            Triple("NEG_F32", negDst) { dst: io.github.kotlinmania.llama.ore.GGMLTensor ->
-                io.github.kotlinmania.llama.ore.computeNeg(
+            Triple("NEG_F32", negDst) { dst: io.github.kotlinmania.llama.core.GGMLTensor ->
+                io.github.kotlinmania.llama.core.computeNeg(
                     graphAllocator,
                     source,
                     dst
                 )
             },
-            Triple("SQR_F32", sqrDst) { dst: io.github.kotlinmania.llama.ore.GGMLTensor ->
-                io.github.kotlinmania.llama.ore.computeSqr(
+            Triple("SQR_F32", sqrDst) { dst: io.github.kotlinmania.llama.core.GGMLTensor ->
+                io.github.kotlinmania.llama.core.computeSqr(
                     graphAllocator,
                     source,
                     dst
                 )
             },
-            Triple("SQRT_F32", sqrtDst) { dst: io.github.kotlinmania.llama.ore.GGMLTensor ->
-                io.github.kotlinmania.llama.ore.computeSqrt(
+            Triple("SQRT_F32", sqrtDst) { dst: io.github.kotlinmania.llama.core.GGMLTensor ->
+                io.github.kotlinmania.llama.core.computeSqrt(
                     graphAllocator,
                     source,
                     dst
                 )
             },
-            Triple("RELU_F32", reluDst) { dst: io.github.kotlinmania.llama.ore.GGMLTensor ->
-                io.github.kotlinmania.llama.ore.computeRelu(
+            Triple("RELU_F32", reluDst) { dst: io.github.kotlinmania.llama.core.GGMLTensor ->
+                io.github.kotlinmania.llama.core.computeRelu(
                     graphAllocator,
                     source,
                     dst
                 )
             },
-            Triple("GELU_F32", geluDst) { dst: io.github.kotlinmania.llama.ore.GGMLTensor ->
-                io.github.kotlinmania.llama.ore.computeGelu(
+            Triple("GELU_F32", geluDst) { dst: io.github.kotlinmania.llama.core.GGMLTensor ->
+                io.github.kotlinmania.llama.core.computeGelu(
                     graphAllocator,
                     source,
                     dst
@@ -204,7 +204,7 @@ class GGMLPerformanceBenchmarkTest {
         println("\n=== Unary Operations (size=$size) ===")
         println("Operation\tTime(ms)\tOps/sec")
         results.forEach {
-            println("${it.operationName}\t${it.timeMillis}\t${io.github.kotlinmania.llama.ore.GGMLUtilities.formatDouble(it.operationsPerSecond)}")
+            println("${it.operationName}\t${it.timeMillis}\t${io.github.kotlinmania.llama.core.GGMLUtilities.formatDouble(it.operationsPerSecond)}")
         }
     }
 
@@ -221,7 +221,7 @@ class GGMLPerformanceBenchmarkTest {
 
             val elements = n * n
             results += benchmarkOperation("MATMUL_${n}x$n", elements, warmupRuns = 1, measureRuns = 3) {
-                io.github.kotlinmania.llama.ore.computeMatMul(graphAllocator, matrixA, matrixB, dst)
+                io.github.kotlinmania.llama.core.computeMatMul(graphAllocator, matrixA, matrixB, dst)
             }
         }
 
@@ -231,7 +231,7 @@ class GGMLPerformanceBenchmarkTest {
             val dim = sqrt(result.dataSize.toDouble()).toInt()
             val flops = 2.0 * dim * dim * dim
             val gflops = if (result.timeMillis > 0) (flops / (result.timeMillis / 1000.0)) / 1e9 else 0.0
-            println("${dim}x$dim\t${result.timeMillis}\t${io.github.kotlinmania.llama.ore.GGMLUtilities.formatDouble(gflops)}")
+            println("${dim}x$dim\t${result.timeMillis}\t${io.github.kotlinmania.llama.core.GGMLUtilities.formatDouble(gflops)}")
         }
     }
 
@@ -242,26 +242,26 @@ class GGMLPerformanceBenchmarkTest {
 
         for (size in sizes) {
             resetAllocatorTracking(graphAllocator)
-            val source = allocateVector("quant_src_$size", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 31 - 15).toFloat() / 10f }
+            val source = allocateVector("quant_src_$size", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 31 - 15).toFloat() / 10f }
             results += benchmarkOperation("QUANT_Q8_0", size) {
-                io.github.kotlinmania.llama.ore.quantizeTensor(
+                io.github.kotlinmania.llama.core.quantizeTensor(
                     graphAllocator,
                     source,
-                    io.github.kotlinmania.llama.ore.GGMLType.Q8_0
+                    io.github.kotlinmania.llama.core.GGMLType.Q8_0
                 )
             }
             results += benchmarkOperation("QUANT_Q4_0", size) {
-                io.github.kotlinmania.llama.ore.quantizeTensor(
+                io.github.kotlinmania.llama.core.quantizeTensor(
                     graphAllocator,
                     source,
-                    io.github.kotlinmania.llama.ore.GGMLType.Q4_0
+                    io.github.kotlinmania.llama.core.GGMLType.Q4_0
                 )
             }
             results += benchmarkOperation("QUANT_Q4_1", size) {
-                io.github.kotlinmania.llama.ore.quantizeTensor(
+                io.github.kotlinmania.llama.core.quantizeTensor(
                     graphAllocator,
                     source,
-                    io.github.kotlinmania.llama.ore.GGMLType.Q4_1
+                    io.github.kotlinmania.llama.core.GGMLType.Q4_1
                 )
             }
         }
@@ -275,38 +275,38 @@ class GGMLPerformanceBenchmarkTest {
     fun benchmarkDequantizationOperations() {
         val size = 8192
         resetAllocatorTracking(graphAllocator)
-        val source = allocateVector("dequant_src", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 29 - 14).toFloat() / 8f }
-        val q8 = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val source = allocateVector("dequant_src", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 29 - 14).toFloat() / 8f }
+        val q8 = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             source,
-            io.github.kotlinmania.llama.ore.GGMLType.Q8_0
+            io.github.kotlinmania.llama.core.GGMLType.Q8_0
         )
-        val q4 = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q4 = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             source,
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_0
+            io.github.kotlinmania.llama.core.GGMLType.Q4_0
         )
-        val q41 = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q41 = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             source,
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_1
+            io.github.kotlinmania.llama.core.GGMLType.Q4_1
         )
 
         val results = listOf(
             benchmarkOperation("DEQUANT_Q8_0", size) {
-                io.github.kotlinmania.llama.ore.dequantizeTensor(
+                io.github.kotlinmania.llama.core.dequantizeTensor(
                     graphAllocator,
                     q8
                 )
             },
             benchmarkOperation("DEQUANT_Q4_0", size) {
-                io.github.kotlinmania.llama.ore.dequantizeTensor(
+                io.github.kotlinmania.llama.core.dequantizeTensor(
                     graphAllocator,
                     q4
                 )
             },
             benchmarkOperation("DEQUANT_Q4_1", size) {
-                io.github.kotlinmania.llama.ore.dequantizeTensor(
+                io.github.kotlinmania.llama.core.dequantizeTensor(
                     graphAllocator,
                     q41
                 )
@@ -316,7 +316,7 @@ class GGMLPerformanceBenchmarkTest {
         println("\n=== Dequantization Benchmarks (size=$size) ===")
         println("Operation\tTime(ms)\tThroughput(MB/s)")
         results.forEach {
-            println("${it.operationName}\t${it.timeMillis}\t${io.github.kotlinmania.llama.ore.GGMLUtilities.formatDouble(it.throughputMBps)}")
+            println("${it.operationName}\t${it.timeMillis}\t${io.github.kotlinmania.llama.core.GGMLUtilities.formatDouble(it.throughputMBps)}")
         }
     }
 
@@ -332,11 +332,11 @@ class GGMLPerformanceBenchmarkTest {
             val tensorCount = 64
             val mark = TimeSource.Monotonic.markNow()
             repeat(tensorCount) { index ->
-                allocateVector("alloc_${size}_$index", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 5).toFloat() }
+                allocateVector("alloc_${size}_$index", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 5).toFloat() }
             }
             val elapsed = mark.elapsedNow().inWholeMilliseconds
             val tensorsPerSec = if (elapsed > 0) (tensorCount * 1000.0) / elapsed else 0.0
-            println("$size\t$elapsed\t${io.github.kotlinmania.llama.ore.GGMLUtilities.formatDouble(tensorsPerSec)}")
+            println("$size\t$elapsed\t${io.github.kotlinmania.llama.core.GGMLUtilities.formatDouble(tensorsPerSec)}")
             assertTrue(elapsed < 5_000L, "Allocating $tensorCount tensors of size $size took too long: ${elapsed}ms")
         }
     }
@@ -345,13 +345,13 @@ class GGMLPerformanceBenchmarkTest {
     fun performanceSummaryReport() {
         val size = 4096
         resetAllocatorTracking(graphAllocator)
-        val tensorA = allocateVector("summary_a", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 19).toFloat() / 5f }
-        val tensorB = allocateVector("summary_b", io.github.kotlinmania.llama.ore.GGMLType.F32, size) { idx -> (idx % 23 - 11).toFloat() / 7f }
+        val tensorA = allocateVector("summary_a", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 19).toFloat() / 5f }
+        val tensorB = allocateVector("summary_b", io.github.kotlinmania.llama.core.GGMLType.F32, size) { idx -> (idx % 23 - 11).toFloat() / 7f }
         val dst = allocateDestination(tensorA, name = "summary_dst")
 
-        val operations = mapOf<String, (io.github.kotlinmania.llama.ore.GGMLTensor) -> Unit>(
+        val operations = mapOf<String, (io.github.kotlinmania.llama.core.GGMLTensor) -> Unit>(
             "ADD" to {
-                io.github.kotlinmania.llama.ore.computeAdd(
+                io.github.kotlinmania.llama.core.computeAdd(
                     graphAllocator,
                     tensorA,
                     tensorB,
@@ -359,7 +359,7 @@ class GGMLPerformanceBenchmarkTest {
                 )
             },
             "MUL" to {
-                io.github.kotlinmania.llama.ore.computeMul(
+                io.github.kotlinmania.llama.core.computeMul(
                     graphAllocator,
                     tensorA,
                     tensorB,
@@ -367,7 +367,7 @@ class GGMLPerformanceBenchmarkTest {
                 )
             },
             "SUB" to {
-                io.github.kotlinmania.llama.ore.computeSub(
+                io.github.kotlinmania.llama.core.computeSub(
                     graphAllocator,
                     tensorA,
                     tensorB,
@@ -375,14 +375,14 @@ class GGMLPerformanceBenchmarkTest {
                 )
             },
             "DIV" to {
-                io.github.kotlinmania.llama.ore.computeDiv(
+                io.github.kotlinmania.llama.core.computeDiv(
                     graphAllocator,
                     tensorA,
                     tensorB,
                     dst
                 )
             },
-            "NEG" to { io.github.kotlinmania.llama.ore.computeNeg(graphAllocator, tensorA, dst) }
+            "NEG" to { io.github.kotlinmania.llama.core.computeNeg(graphAllocator, tensorA, dst) }
         )
 
         println("\n${"=".repeat(60)}")
@@ -392,7 +392,7 @@ class GGMLPerformanceBenchmarkTest {
 
         operations.forEach { (name, op) ->
             val result = benchmarkOperation(name, size, warmupRuns = 2, measureRuns = 5) { op(dst) }
-            println("$name\t${result.timeMillis}\t${io.github.kotlinmania.llama.ore.GGMLUtilities.formatDouble(result.throughputMBps)}")
+            println("$name\t${result.timeMillis}\t${io.github.kotlinmania.llama.core.GGMLUtilities.formatDouble(result.throughputMBps)}")
         }
         println("Summary complete.")
     }

@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/unicode.h llama.cpp/src/unicode.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 
 // =============================================================================
 // Unicode code-point flags

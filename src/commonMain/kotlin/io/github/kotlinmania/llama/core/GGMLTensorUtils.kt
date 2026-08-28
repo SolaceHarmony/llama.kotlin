@@ -33,7 +33,7 @@ object GGMLTensorUtils {
      */
     fun calculateTotalSize(ne: LongArray): Long {
         var totalSize = 1L
-        for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+        for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
             if (i < ne.size && ne[i] > 0) {
                 totalSize *= ne[i]
             } else if (i >= ne.size) {
@@ -73,12 +73,12 @@ object GGMLTensorUtils {
      * @param maxDims Maximum dimensions to calculate (defaults to GGML_MAX_DIMS)
      * @return Array of stride values in bytes for each dimension
      */
-    fun calculateContiguousStrides(ne: LongArray, type: io.github.kotlinmania.llama.ore.GGMLType, maxDims: Int = io.github.kotlinmania.llama.ore.GGML_MAX_DIMS): ULongArray {
+    fun calculateContiguousStrides(ne: LongArray, type: io.github.kotlinmania.llama.core.GGMLType, maxDims: Int = io.github.kotlinmania.llama.core.GGML_MAX_DIMS): ULongArray {
         val nb = ULongArray(maxDims) { 0uL }
         
         if (type.byteSize == 0uL) {
             // Handle types with zero byte size (e.g., COUNT or uninitialized quantized types)
-            if (type != io.github.kotlinmania.llama.ore.GGMLType.COUNT && !type.name.startsWith("Q", ignoreCase = true) && !type.name.startsWith("q", ignoreCase = true)) {
+            if (type != io.github.kotlinmania.llama.core.GGMLType.COUNT && !type.name.startsWith("Q", ignoreCase = true) && !type.name.startsWith("q", ignoreCase = true)) {
                 println("Warning: GGMLType ${type.name} has byteSize 0. Strides will be all zeros.")
             }
             return nb // Return zeroed strides
@@ -98,8 +98,8 @@ object GGMLTensorUtils {
      * Calculate tensor byte size for memory allocation.
      * Handles both regular types and quantized types with block structures.
      */
-    fun calculateTensorByteSize(type: io.github.kotlinmania.llama.ore.GGMLType, ne: LongArray): ULong {
-        if (type.byteSize == 0uL && type != io.github.kotlinmania.llama.ore.GGMLType.COUNT && !type.name.startsWith("Q")) {
+    fun calculateTensorByteSize(type: io.github.kotlinmania.llama.core.GGMLType, ne: LongArray): ULong {
+        if (type.byteSize == 0uL && type != io.github.kotlinmania.llama.core.GGMLType.COUNT && !type.name.startsWith("Q")) {
             return 0uL
         }
         
@@ -123,28 +123,28 @@ object GGMLTensorUtils {
 
         // Handle quantized types with block structures
         return when (type) {
-            io.github.kotlinmania.llama.ore.GGMLType.Q8_0 -> {
+            io.github.kotlinmania.llama.core.GGMLType.Q8_0 -> {
                 if (elements > 0uL) {
-                    if (elements.toLong() % io.github.kotlinmania.llama.ore.QK8_0 != 0L) {
-                        println("Warning: Total elements $elements for Q8_0 is not divisible by block size ${io.github.kotlinmania.llama.ore.QK8_0}.")
+                    if (elements.toLong() % io.github.kotlinmania.llama.core.QK8_0 != 0L) {
+                        println("Warning: Total elements $elements for Q8_0 is not divisible by block size ${io.github.kotlinmania.llama.core.QK8_0}.")
                     }
-                    (elements.toLong() / io.github.kotlinmania.llama.ore.QK8_0).toULong() * type.byteSize
+                    (elements.toLong() / io.github.kotlinmania.llama.core.QK8_0).toULong() * type.byteSize
                 } else 0uL
             }
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_0 -> {
+            io.github.kotlinmania.llama.core.GGMLType.Q4_0 -> {
                 if (elements > 0uL) {
-                    if (elements.toLong() % io.github.kotlinmania.llama.ore.QK4_0 != 0L) {
-                        println("Warning: Total elements $elements for Q4_0 is not divisible by block size ${io.github.kotlinmania.llama.ore.QK4_0}.")
+                    if (elements.toLong() % io.github.kotlinmania.llama.core.QK4_0 != 0L) {
+                        println("Warning: Total elements $elements for Q4_0 is not divisible by block size ${io.github.kotlinmania.llama.core.QK4_0}.")
                     }
-                    (elements.toLong() / io.github.kotlinmania.llama.ore.QK4_0).toULong() * type.byteSize
+                    (elements.toLong() / io.github.kotlinmania.llama.core.QK4_0).toULong() * type.byteSize
                 } else 0uL
             }
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_1 -> {
+            io.github.kotlinmania.llama.core.GGMLType.Q4_1 -> {
                 if (elements > 0uL) {
-                    if (elements.toLong() % io.github.kotlinmania.llama.ore.QK4_1 != 0L) {
-                        println("Warning: Total elements $elements for Q4_1 is not divisible by block size ${io.github.kotlinmania.llama.ore.QK4_1}.")
+                    if (elements.toLong() % io.github.kotlinmania.llama.core.QK4_1 != 0L) {
+                        println("Warning: Total elements $elements for Q4_1 is not divisible by block size ${io.github.kotlinmania.llama.core.QK4_1}.")
                     }
-                    (elements.toLong() / io.github.kotlinmania.llama.ore.QK4_1).toULong() * type.byteSize
+                    (elements.toLong() / io.github.kotlinmania.llama.core.QK4_1).toULong() * type.byteSize
                 } else 0uL
             }
             else -> elements * type.byteSize
@@ -155,18 +155,18 @@ object GGMLTensorUtils {
      * Initialize a tensor's dimensions and strides based on the provided shape.
      * Consolidates the repetitive tensor setup pattern.
      */
-    fun initializeTensorDimensions(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, shape: LongArray) {
+    fun initializeTensorDimensions(tensor: io.github.kotlinmania.llama.core.GGMLTensor, shape: LongArray) {
         // Ensure ne array is properly sized and initialized
-        tensor.ne = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L }
+        tensor.ne = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L }
         shape.forEachIndexed { index, dimSize ->
-            if (index < io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+            if (index < io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                 tensor.ne[index] = dimSize
             }
         }
         
         // Calculate and set strides
         tensor.nb = GGMLTensorUtils.calculateContiguousStrides(tensor.ne, tensor.type,
-            io.github.kotlinmania.llama.ore.GGML_MAX_DIMS
+            io.github.kotlinmania.llama.core.GGML_MAX_DIMS
         )
     }
     
@@ -174,8 +174,8 @@ object GGMLTensorUtils {
      * Create a tensor with proper dimensions and memory layout.
      * Consolidates the tensor creation pattern used throughout the codebase.
      */
-    fun createTensor(type: io.github.kotlinmania.llama.ore.GGMLType, name: String = "", vararg shape: Long): io.github.kotlinmania.llama.ore.GGMLTensor {
-        val tensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = type, name = name)
+    fun createTensor(type: io.github.kotlinmania.llama.core.GGMLType, name: String = "", vararg shape: Long): io.github.kotlinmania.llama.core.GGMLTensor {
+        val tensor = io.github.kotlinmania.llama.core.GGMLTensor(type = type, name = name)
         initializeTensorDimensions(tensor, shape)
         return tensor
     }

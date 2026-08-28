@@ -37,7 +37,7 @@ class GGUFExample {
                 }
                 
                 // Step 5: Load and inspect a tensor
-                val context = io.github.kotlinmania.llama.ore.GGMLContext(
+                val context = io.github.kotlinmania.llama.core.GGMLContext(
                     memSize = 1024uL,
                     noAlloc = false
                 )

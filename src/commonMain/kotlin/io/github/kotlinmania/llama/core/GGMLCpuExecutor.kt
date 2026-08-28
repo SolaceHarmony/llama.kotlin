@@ -1,12 +1,12 @@
 // port-lint: source ggml/include/ggml-cpu.h  ggml/src/ggml-cpu/ggml-cpu.c
 package io.github.kotlinmania.llama.ore
 
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getShortLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setShortLe
 
 // ============================================================================
 // ggml-cpu.h  –  Public CPU-backend API
@@ -19,22 +19,22 @@ import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setShortLe
 // ---------------------------------------------------------------------------
 
 /**
- * Compute plan produced by [io.github.kotlinmania.llama.ore.ggmlGraphPlan] and consumed by [io.github.kotlinmania.llama.ore.ggmlGraphCompute].
+ * Compute plan produced by [io.github.kotlinmania.llama.core.ggmlGraphPlan] and consumed by [io.github.kotlinmania.llama.core.ggmlGraphCompute].
  * `workSize` is calculated by the planner; the caller must allocate `workData`
  * before calling compute.
  *
  * Mirrors `struct ggml_cplan` from ggml-cpu.h.
  */
 data class GGMLCPlan(
-    /** Size of the work buffer in bytes, calculated by [io.github.kotlinmania.llama.ore.ggmlGraphPlan]. */
+    /** Size of the work buffer in bytes, calculated by [io.github.kotlinmania.llama.core.ggmlGraphPlan]. */
     var workSize: ULong = 0uL,
-    /** Work buffer supplied by the caller before [io.github.kotlinmania.llama.ore.ggmlGraphCompute]. */
+    /** Work buffer supplied by the caller before [io.github.kotlinmania.llama.core.ggmlGraphCompute]. */
     var workData: Any? = null,
 
     /** Number of threads to use during compute. */
-    var nThreads: Int = io.github.kotlinmania.llama.ore.GGML_DEFAULT_N_THREADS,
+    var nThreads: Int = io.github.kotlinmania.llama.core.GGML_DEFAULT_N_THREADS,
     /** Optional threadpool handle. */
-    var threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool? = null,
+    var threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool? = null,
 
     /** Callback checked between compute steps; returning `true` aborts the run. */
     var abortCallback: ((data: Any?) -> Boolean)? = null,
@@ -57,7 +57,7 @@ data class GGMLCPlan(
 // ---------------------------------------------------------------------------
 
 /**
- * NUMA placement strategy. Call [io.github.kotlinmania.llama.ore.ggmlNumaInit] once at startup.
+ * NUMA placement strategy. Call [io.github.kotlinmania.llama.core.ggmlNumaInit] once at startup.
  *
  * Mirrors `enum ggml_numa_strategy` from ggml-cpu.h.
  */
@@ -82,8 +82,8 @@ private var g_numa_n_nodes = 0
  * On non-Linux platforms this is a no-op (matches C #else branch).
  * Kotlin/Native doesn't have direct /sys access from common code.
  */
-fun ggmlNumaInit(strategy: io.github.kotlinmania.llama.ore.GGMLNumaStrategy) {
-    if (io.github.kotlinmania.llama.ore.g_numa_n_nodes > 0) {
+fun ggmlNumaInit(strategy: io.github.kotlinmania.llama.core.GGMLNumaStrategy) {
+    if (io.github.kotlinmania.llama.core.g_numa_n_nodes > 0) {
         println("ggmlNumaInit: NUMA already initialized")
         return
     }
@@ -94,7 +94,7 @@ fun ggmlNumaInit(strategy: io.github.kotlinmania.llama.ore.GGMLNumaStrategy) {
  * `ggml_is_numa` — C: ggml-cpu.c line 711.
  * Returns `true` when the runtime detected more than one NUMA node.
  */
-fun ggmlIsNuma(): Boolean = io.github.kotlinmania.llama.ore.g_numa_n_nodes > 1
+fun ggmlIsNuma(): Boolean = io.github.kotlinmania.llama.core.g_numa_n_nodes > 1
 
 // ---------------------------------------------------------------------------
 // Scalar tensor helpers  (ggml-cpu.c lines 735-1143)
@@ -104,13 +104,13 @@ fun ggmlIsNuma(): Boolean = io.github.kotlinmania.llama.ore.g_numa_n_nodes > 1
  * `ggml_new_i32` — C: ggml-cpu.c lines 735-743.
  * Create a 1-element I32 tensor and set its value.
  */
-fun ggmlNewI32(ctx: io.github.kotlinmania.llama.ore.GGMLContext, value: Int): io.github.kotlinmania.llama.ore.GGMLTensor {
-    val result = io.github.kotlinmania.llama.ore.ggmlNewTensor1d(
+fun ggmlNewI32(ctx: io.github.kotlinmania.llama.core.GGMLContext, value: Int): io.github.kotlinmania.llama.core.GGMLTensor {
+    val result = io.github.kotlinmania.llama.core.ggmlNewTensor1d(
         ctx,
-        io.github.kotlinmania.llama.ore.GGMLType.I32,
+        io.github.kotlinmania.llama.core.GGMLType.I32,
         1
     )
-    io.github.kotlinmania.llama.ore.ggmlSetI32(result, value)
+    io.github.kotlinmania.llama.core.ggmlSetI32(result, value)
     return result
 }
 
@@ -118,18 +118,18 @@ fun ggmlNewI32(ctx: io.github.kotlinmania.llama.ore.GGMLContext, value: Int): io
  * `ggml_new_f32` — C: ggml-cpu.c lines 745-753.
  * Create a 1-element F32 tensor and set its value.
  */
-fun ggmlNewF32(ctx: io.github.kotlinmania.llama.ore.GGMLContext, value: Float): io.github.kotlinmania.llama.ore.GGMLTensor {
-    val result = io.github.kotlinmania.llama.ore.ggmlNewTensor1d(
+fun ggmlNewF32(ctx: io.github.kotlinmania.llama.core.GGMLContext, value: Float): io.github.kotlinmania.llama.core.GGMLTensor {
+    val result = io.github.kotlinmania.llama.core.ggmlNewTensor1d(
         ctx,
-        io.github.kotlinmania.llama.ore.GGMLType.F32,
+        io.github.kotlinmania.llama.core.GGMLType.F32,
         1
     )
-    io.github.kotlinmania.llama.ore.ggmlSetF32(result, value)
+    io.github.kotlinmania.llama.core.ggmlSetF32(result, value)
     return result
 }
 
 // Helper to get byte data from a tensor, with null check.
-private fun tensorData(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): ByteArray {
+private fun tensorData(tensor: io.github.kotlinmania.llama.core.GGMLTensor): ByteArray {
     val d = tensor.data
     require(d is ByteArray) { "tensor data must be ByteArray" }
     return d
@@ -139,46 +139,46 @@ private fun tensorData(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): Byte
  * `ggml_set_i32` — C: ggml-cpu.c lines 755-812.
  * Fill every element of [tensor] with [value].
  */
-fun ggmlSetI32(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, value: Int): io.github.kotlinmania.llama.ore.GGMLTensor {
-    val n = io.github.kotlinmania.llama.ore.ggmlNrows(tensor).toInt()
+fun ggmlSetI32(tensor: io.github.kotlinmania.llama.core.GGMLTensor, value: Int): io.github.kotlinmania.llama.core.GGMLTensor {
+    val n = io.github.kotlinmania.llama.core.ggmlNrows(tensor).toInt()
     val nc = tensor.ne[0].toInt()
     val n1 = tensor.nb[1].toInt()
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
 
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I8 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data[base + j] = value.toByte()
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setShortLe(base + j * 2, value.toShort())
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setIntLe(base + j * 4, value)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            val fp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(value.toFloat())
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            val fp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(value.toFloat())
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setShortLe(base + j * 2, fp16)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> {
-            val bf16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(value.toFloat())
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> {
+            val bf16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(value.toFloat())
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setShortLe(base + j * 2, bf16.bits.toShort())
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setFloatLe(base + j * 4, value.toFloat())
@@ -193,46 +193,46 @@ fun ggmlSetI32(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, value: Int): 
  * `ggml_set_f32` — C: ggml-cpu.c lines 814-871.
  * Fill every element of [tensor] with [value].
  */
-fun ggmlSetF32(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, value: Float): io.github.kotlinmania.llama.ore.GGMLTensor {
-    val n = io.github.kotlinmania.llama.ore.ggmlNrows(tensor).toInt()
+fun ggmlSetF32(tensor: io.github.kotlinmania.llama.core.GGMLTensor, value: Float): io.github.kotlinmania.llama.core.GGMLTensor {
+    val n = io.github.kotlinmania.llama.core.ggmlNrows(tensor).toInt()
     val nc = tensor.ne[0].toInt()
     val n1 = tensor.nb[1].toInt()
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
 
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I8 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data[base + j] = value.toInt().toByte()
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setShortLe(base + j * 2, value.toInt().toShort())
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setIntLe(base + j * 4, value.toInt())
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
-            val fp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(value)
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> {
+            val fp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(value)
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setShortLe(base + j * 2, fp16)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> {
-            val bf16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(value)
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> {
+            val bf16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(value)
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setShortLe(base + j * 2, bf16.bits.toShort())
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> {
             for (i in 0 until n) {
                 val base = i * n1
                 for (j in 0 until nc) data.setFloatLe(base + j * 4, value)
@@ -246,10 +246,10 @@ fun ggmlSetF32(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, value: Float)
 // --- 1-D indexed access (C lines 873-1091) ---
 
 /** `ggml_get_i32_1d` — C: ggml-cpu.c lines 873-915. */
-fun ggmlGetI32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int): Int {
-    if (!io.github.kotlinmania.llama.ore.ggmlIsContiguous(tensor)) {
-        val id = io.github.kotlinmania.llama.ore.ggmlUnravelIndex(tensor, i.toLong())
-        return io.github.kotlinmania.llama.ore.ggmlGetI32_nd(
+fun ggmlGetI32_1d(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i: Int): Int {
+    if (!io.github.kotlinmania.llama.core.ggmlIsContiguous(tensor)) {
+        val id = io.github.kotlinmania.llama.core.ggmlUnravelIndex(tensor, i.toLong())
+        return io.github.kotlinmania.llama.core.ggmlGetI32_nd(
             tensor,
             id[0].toInt(),
             id[1].toInt(),
@@ -257,27 +257,27 @@ fun ggmlGetI32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int): I
             id[3].toInt()
         )
     }
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     return when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[i].toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.getShortLe(i * 2).toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.getIntLe(i * 4)
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[i].toInt()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.getShortLe(i * 2).toInt()
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.getIntLe(i * 4)
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(
             data.getShortLe(i * 2)
         ).toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> io.github.kotlinmania.llama.ore.GGML_BF16_TO_FP32(
-            io.github.kotlinmania.llama.ore.GGMLBF16(data.getShortLe(i * 2).toUShort())
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> io.github.kotlinmania.llama.core.GGML_BF16_TO_FP32(
+            io.github.kotlinmania.llama.core.GGMLBF16(data.getShortLe(i * 2).toUShort())
         ).toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.getFloatLe(i * 4).toInt()
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.getFloatLe(i * 4).toInt()
         else -> error("ggmlGetI32_1d: unsupported type ${tensor.type}")
     }
 }
 
 /** `ggml_set_i32_1d` — C: ggml-cpu.c lines 917-960. */
-fun ggmlSetI32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int, value: Int) {
-    if (!io.github.kotlinmania.llama.ore.ggmlIsContiguous(tensor)) {
-        val id = io.github.kotlinmania.llama.ore.ggmlUnravelIndex(tensor, i.toLong())
-        io.github.kotlinmania.llama.ore.ggmlSetI32_nd(
+fun ggmlSetI32_1d(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i: Int, value: Int) {
+    if (!io.github.kotlinmania.llama.core.ggmlIsContiguous(tensor)) {
+        val id = io.github.kotlinmania.llama.core.ggmlUnravelIndex(tensor, i.toLong())
+        io.github.kotlinmania.llama.core.ggmlSetI32_nd(
             tensor,
             id[0].toInt(),
             id[1].toInt(),
@@ -287,27 +287,27 @@ fun ggmlSetI32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int, va
         )
         return
     }
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[i] = value.toByte()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.setShortLe(i * 2, value.toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.setIntLe(i * 4, value)
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> data.setShortLe(i * 2,
-            io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(value.toFloat())
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[i] = value.toByte()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.setShortLe(i * 2, value.toShort())
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.setIntLe(i * 4, value)
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> data.setShortLe(i * 2,
+            io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(value.toFloat())
         )
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> data.setShortLe(i * 2, io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> data.setShortLe(i * 2, io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(
             value.toFloat()
         ).bits.toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.setFloatLe(i * 4, value.toFloat())
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.setFloatLe(i * 4, value.toFloat())
         else -> error("ggmlSetI32_1d: unsupported type ${tensor.type}")
     }
 }
 
 /** `ggml_get_f32_1d` — C: ggml-cpu.c lines 1016-1052. */
-fun ggmlGetF32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int): Float {
-    if (!io.github.kotlinmania.llama.ore.ggmlIsContiguous(tensor)) {
-        val id = io.github.kotlinmania.llama.ore.ggmlUnravelIndex(tensor, i.toLong())
-        return io.github.kotlinmania.llama.ore.ggmlGetF32_nd(
+fun ggmlGetF32_1d(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i: Int): Float {
+    if (!io.github.kotlinmania.llama.core.ggmlIsContiguous(tensor)) {
+        val id = io.github.kotlinmania.llama.core.ggmlUnravelIndex(tensor, i.toLong())
+        return io.github.kotlinmania.llama.core.ggmlGetF32_nd(
             tensor,
             id[0].toInt(),
             id[1].toInt(),
@@ -315,27 +315,27 @@ fun ggmlGetF32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int): F
             id[3].toInt()
         )
     }
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     return when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[i].toFloat()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.getShortLe(i * 2).toFloat()
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.getIntLe(i * 4).toFloat()
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[i].toFloat()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.getShortLe(i * 2).toFloat()
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.getIntLe(i * 4).toFloat()
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(
             data.getShortLe(i * 2)
         )
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> io.github.kotlinmania.llama.ore.GGML_BF16_TO_FP32(
-            io.github.kotlinmania.llama.ore.GGMLBF16(data.getShortLe(i * 2).toUShort())
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> io.github.kotlinmania.llama.core.GGML_BF16_TO_FP32(
+            io.github.kotlinmania.llama.core.GGMLBF16(data.getShortLe(i * 2).toUShort())
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.getFloatLe(i * 4)
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.getFloatLe(i * 4)
         else -> error("ggmlGetF32_1d: unsupported type ${tensor.type}")
     }
 }
 
 /** `ggml_set_f32_1d` — C: ggml-cpu.c lines 1054-1091. */
-fun ggmlSetF32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int, value: Float) {
-    if (!io.github.kotlinmania.llama.ore.ggmlIsContiguous(tensor)) {
-        val id = io.github.kotlinmania.llama.ore.ggmlUnravelIndex(tensor, i.toLong())
-        io.github.kotlinmania.llama.ore.ggmlSetF32_nd(
+fun ggmlSetF32_1d(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i: Int, value: Float) {
+    if (!io.github.kotlinmania.llama.core.ggmlIsContiguous(tensor)) {
+        val id = io.github.kotlinmania.llama.core.ggmlUnravelIndex(tensor, i.toLong())
+        io.github.kotlinmania.llama.core.ggmlSetF32_nd(
             tensor,
             id[0].toInt(),
             id[1].toInt(),
@@ -345,18 +345,18 @@ fun ggmlSetF32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int, va
         )
         return
     }
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[i] = value.toInt().toByte()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.setShortLe(i * 2, value.toInt().toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.setIntLe(i * 4, value.toInt())
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> data.setShortLe(i * 2,
-            io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(value)
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[i] = value.toInt().toByte()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.setShortLe(i * 2, value.toInt().toShort())
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.setIntLe(i * 4, value.toInt())
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> data.setShortLe(i * 2,
+            io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(value)
         )
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> data.setShortLe(i * 2, io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> data.setShortLe(i * 2, io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(
             value
         ).bits.toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.setFloatLe(i * 4, value)
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.setFloatLe(i * 4, value)
         else -> error("ggmlSetF32_1d: unsupported type ${tensor.type}")
     }
 }
@@ -364,81 +364,81 @@ fun ggmlSetF32_1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Int, va
 // --- N-D indexed access (C lines 962-1143) ---
 
 /** `ggml_get_i32_nd` — C: ggml-cpu.c lines 962-980. */
-fun ggmlGetI32_nd(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int): Int {
+fun ggmlGetI32_nd(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int): Int {
     val offset = i0 * tensor.nb[0].toInt() + i1 * tensor.nb[1].toInt() +
                  i2 * tensor.nb[2].toInt() + i3 * tensor.nb[3].toInt()
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     return when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[offset].toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.getShortLe(offset).toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.getIntLe(offset)
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[offset].toInt()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.getShortLe(offset).toInt()
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.getIntLe(offset)
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(
             data.getShortLe(offset)
         ).toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> io.github.kotlinmania.llama.ore.GGML_BF16_TO_FP32(
-            io.github.kotlinmania.llama.ore.GGMLBF16(data.getShortLe(offset).toUShort())
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> io.github.kotlinmania.llama.core.GGML_BF16_TO_FP32(
+            io.github.kotlinmania.llama.core.GGMLBF16(data.getShortLe(offset).toUShort())
         ).toInt()
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.getFloatLe(offset).toInt()
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.getFloatLe(offset).toInt()
         else -> error("ggmlGetI32_nd: unsupported type ${tensor.type}")
     }
 }
 
 /** `ggml_set_i32_nd` — C: ggml-cpu.c lines 982-1014. */
-fun ggmlSetI32_nd(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int, value: Int) {
+fun ggmlSetI32_nd(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int, value: Int) {
     val offset = i0 * tensor.nb[0].toInt() + i1 * tensor.nb[1].toInt() +
                  i2 * tensor.nb[2].toInt() + i3 * tensor.nb[3].toInt()
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[offset] = value.toByte()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.setShortLe(offset, value.toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.setIntLe(offset, value)
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> data.setShortLe(offset,
-            io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(value.toFloat())
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[offset] = value.toByte()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.setShortLe(offset, value.toShort())
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.setIntLe(offset, value)
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> data.setShortLe(offset,
+            io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(value.toFloat())
         )
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> data.setShortLe(offset, io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> data.setShortLe(offset, io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(
             value.toFloat()
         ).bits.toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.setFloatLe(offset, value.toFloat())
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.setFloatLe(offset, value.toFloat())
         else -> error("ggmlSetI32_nd: unsupported type ${tensor.type}")
     }
 }
 
 /** `ggml_get_f32_nd` — C: ggml-cpu.c lines 1093-1111. */
-fun ggmlGetF32_nd(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int): Float {
+fun ggmlGetF32_nd(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int): Float {
     val offset = i0 * tensor.nb[0].toInt() + i1 * tensor.nb[1].toInt() +
                  i2 * tensor.nb[2].toInt() + i3 * tensor.nb[3].toInt()
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     return when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[offset].toFloat()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.getShortLe(offset).toFloat()
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.getIntLe(offset).toFloat()
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[offset].toFloat()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.getShortLe(offset).toFloat()
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.getIntLe(offset).toFloat()
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(
             data.getShortLe(offset)
         )
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> io.github.kotlinmania.llama.ore.GGML_BF16_TO_FP32(
-            io.github.kotlinmania.llama.ore.GGMLBF16(data.getShortLe(offset).toUShort())
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> io.github.kotlinmania.llama.core.GGML_BF16_TO_FP32(
+            io.github.kotlinmania.llama.core.GGMLBF16(data.getShortLe(offset).toUShort())
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.getFloatLe(offset)
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.getFloatLe(offset)
         else -> error("ggmlGetF32_nd: unsupported type ${tensor.type}")
     }
 }
 
 /** `ggml_set_f32_nd` — C: ggml-cpu.c lines 1113-1143. */
-fun ggmlSetF32_nd(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int, value: Float) {
+fun ggmlSetF32_nd(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i0: Int, i1: Int, i2: Int, i3: Int, value: Float) {
     val offset = i0 * tensor.nb[0].toInt() + i1 * tensor.nb[1].toInt() +
                  i2 * tensor.nb[2].toInt() + i3 * tensor.nb[3].toInt()
-    val data = io.github.kotlinmania.llama.ore.tensorData(tensor)
+    val data = io.github.kotlinmania.llama.core.tensorData(tensor)
     when (tensor.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.I8  -> data[offset] = value.toInt().toByte()
-        io.github.kotlinmania.llama.ore.GGMLType.I16 -> data.setShortLe(offset, value.toInt().toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.I32 -> data.setIntLe(offset, value.toInt())
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> data.setShortLe(offset,
-            io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(value)
+        io.github.kotlinmania.llama.core.GGMLType.I8  -> data[offset] = value.toInt().toByte()
+        io.github.kotlinmania.llama.core.GGMLType.I16 -> data.setShortLe(offset, value.toInt().toShort())
+        io.github.kotlinmania.llama.core.GGMLType.I32 -> data.setIntLe(offset, value.toInt())
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> data.setShortLe(offset,
+            io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(value)
         )
-        io.github.kotlinmania.llama.ore.GGMLType.BF16 -> data.setShortLe(offset, io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(
+        io.github.kotlinmania.llama.core.GGMLType.BF16 -> data.setShortLe(offset, io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(
             value
         ).bits.toShort())
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> data.setFloatLe(offset, value)
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> data.setFloatLe(offset, value)
         else -> error("ggmlSetF32_nd: unsupported type ${tensor.type}")
     }
 }
@@ -451,8 +451,8 @@ fun ggmlSetF32_nd(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i0: Int, i
  * `ggml_threadpool_new` — C: ggml-cpu.c (deferred to threading layer).
  * Creates a new threadpool from the given parameters.
  */
-fun ggmlThreadpoolNew(params: io.github.kotlinmania.llama.ore.GGMLThreadpoolParams): io.github.kotlinmania.llama.ore.GGMLThreadpool {
-    return io.github.kotlinmania.llama.ore.GGMLThreadpool().also { it.nThreads = params.nThreads }
+fun ggmlThreadpoolNew(params: io.github.kotlinmania.llama.core.GGMLThreadpoolParams): io.github.kotlinmania.llama.core.GGMLThreadpool {
+    return io.github.kotlinmania.llama.core.GGMLThreadpool().also { it.nThreads = params.nThreads }
 }
 
 /**
@@ -460,18 +460,18 @@ fun ggmlThreadpoolNew(params: io.github.kotlinmania.llama.ore.GGMLThreadpoolPara
  * Release resources. In Kotlin the threadpool is GC'd; this matches the
  * C API shape.
  */
-fun ggmlThreadpoolFree(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool) {
+fun ggmlThreadpoolFree(threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool) {
     threadpool.nThreads = 0
 }
 
 /** `ggml_threadpool_get_n_threads` */
-fun ggmlThreadpoolGetNThreads(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool): Int = threadpool.nThreads
+fun ggmlThreadpoolGetNThreads(threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool): Int = threadpool.nThreads
 
 /**
  * `ggml_threadpool_pause` — suspend worker threads.
  * In Kotlin/Native without a real thread-pool this is a no-op.
  */
-fun ggmlThreadpoolPause(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool) {
+fun ggmlThreadpoolPause(threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool) {
     // no-op: Kotlin/Native threadpool management not yet implemented
 }
 
@@ -479,7 +479,7 @@ fun ggmlThreadpoolPause(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpo
  * `ggml_threadpool_resume` — wake worker threads.
  * In Kotlin/Native without a real thread-pool this is a no-op.
  */
-fun ggmlThreadpoolResume(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool) {
+fun ggmlThreadpoolResume(threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool) {
     // no-op: Kotlin/Native threadpool management not yet implemented
 }
 
@@ -491,7 +491,7 @@ fun ggmlThreadpoolResume(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadp
  * `ggml_graph_plan` — C: ggml-cpu.c lines 2737+.
  *
  * Plan memory and threading for graph computation. When `plan.workSize > 0`
- * the caller must allocate `plan.workData` before calling [io.github.kotlinmania.llama.ore.ggmlGraphCompute].
+ * the caller must allocate `plan.workData` before calling [io.github.kotlinmania.llama.core.ggmlGraphCompute].
  *
  * The C implementation walks every node to compute the maximum work-buffer
  * size needed. This transliteration currently returns a plan with workSize=0
@@ -500,12 +500,12 @@ fun ggmlThreadpoolResume(threadpool: io.github.kotlinmania.llama.ore.GGMLThreadp
  * from ggml-cpu.c lines 2737-3200.
  */
 fun ggmlGraphPlan(
-    graph: io.github.kotlinmania.llama.ore.GGMLCGraph,
-    nThreads: Int = io.github.kotlinmania.llama.ore.GGML_DEFAULT_N_THREADS,
-    threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool? = null
-): io.github.kotlinmania.llama.ore.GGMLCPlan {
+    graph: io.github.kotlinmania.llama.core.GGMLCGraph,
+    nThreads: Int = io.github.kotlinmania.llama.core.GGML_DEFAULT_N_THREADS,
+    threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool? = null
+): io.github.kotlinmania.llama.core.GGMLCPlan {
     // C: struct ggml_cplan cplan = { 0 };
-    val cplan = io.github.kotlinmania.llama.ore.GGMLCPlan()
+    val cplan = io.github.kotlinmania.llama.core.GGMLCPlan()
     cplan.nThreads = nThreads.coerceAtLeast(1)
     cplan.threadpool = threadpool
 
@@ -532,14 +532,14 @@ fun ggmlGraphPlan(
  * dispatches work across threads; this single-threaded transliteration
  * walks nodes sequentially and calls the compute-ops layer.
  */
-fun ggmlGraphCompute(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, plan: io.github.kotlinmania.llama.ore.GGMLCPlan): io.github.kotlinmania.llama.ore.GGMLStatus {
+fun ggmlGraphCompute(graph: io.github.kotlinmania.llama.core.GGMLCGraph, plan: io.github.kotlinmania.llama.core.GGMLCPlan): io.github.kotlinmania.llama.core.GGMLStatus {
     if (plan.workSize > 0uL && plan.workData == null) {
-        return io.github.kotlinmania.llama.ore.GGMLStatus.ALLOC_FAILED
+        return io.github.kotlinmania.llama.core.GGMLStatus.ALLOC_FAILED
     }
 
     // Check abort callback before starting
     plan.abortCallback?.let { cb ->
-        if (cb(plan.abortCallbackData)) return io.github.kotlinmania.llama.ore.GGMLStatus.ABORTED
+        if (cb(plan.abortCallbackData)) return io.github.kotlinmania.llama.core.GGMLStatus.ABORTED
     }
 
     for (i in 0 until graph.nNodes) {
@@ -547,19 +547,19 @@ fun ggmlGraphCompute(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, plan: io
 
         // Check abort callback between nodes
         plan.abortCallback?.let { cb ->
-            if (cb(plan.abortCallbackData)) return io.github.kotlinmania.llama.ore.GGMLStatus.ABORTED
+            if (cb(plan.abortCallbackData)) return io.github.kotlinmania.llama.core.GGMLStatus.ABORTED
         }
 
         // Skip view ops — they don't need computation
-        if (io.github.kotlinmania.llama.ore.ggmlIsViewOp(node.op)) continue
+        if (io.github.kotlinmania.llama.core.ggmlIsViewOp(node.op)) continue
 
         val allocator = graph.allocator
         if (allocator != null) {
-            io.github.kotlinmania.llama.ore.GGMLComputeOps.computeNode(allocator, node)
+            io.github.kotlinmania.llama.core.GGMLComputeOps.computeNode(allocator, node)
         }
     }
 
-    return io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS
+    return io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS
 }
 
 /**
@@ -568,12 +568,12 @@ fun ggmlGraphCompute(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, plan: io
  * Convenience wrapper: plan and compute in one call. The context must have
  * sufficient memory for the work buffer.
  */
-fun ggmlGraphComputeWithCtx(ctx: io.github.kotlinmania.llama.ore.GGMLContext, graph: io.github.kotlinmania.llama.ore.GGMLCGraph, nThreads: Int): io.github.kotlinmania.llama.ore.GGMLStatus {
-    val plan = io.github.kotlinmania.llama.ore.ggmlGraphPlan(graph, nThreads)
+fun ggmlGraphComputeWithCtx(ctx: io.github.kotlinmania.llama.core.GGMLContext, graph: io.github.kotlinmania.llama.core.GGMLCGraph, nThreads: Int): io.github.kotlinmania.llama.core.GGMLStatus {
+    val plan = io.github.kotlinmania.llama.core.ggmlGraphPlan(graph, nThreads)
     if (plan.workSize > 0uL) {
-        plan.workData = io.github.kotlinmania.llama.ore.ggml_aligned_malloc(plan.workSize.toLong())
+        plan.workData = io.github.kotlinmania.llama.core.ggml_aligned_malloc(plan.workSize.toLong())
     }
-    return io.github.kotlinmania.llama.ore.ggmlGraphCompute(graph, plan)
+    return io.github.kotlinmania.llama.core.ggmlGraphCompute(graph, plan)
 }
 
 // ---------------------------------------------------------------------------
@@ -625,49 +625,49 @@ data class GGMLCpuFeatures(
  * (native expect/actual or cinterop). Returns conservative defaults here;
  * a nativeMain actual can provide real detection.
  */
-fun ggmlCpuDetectFeatures(): io.github.kotlinmania.llama.ore.GGMLCpuFeatures {
+fun ggmlCpuDetectFeatures(): io.github.kotlinmania.llama.core.GGMLCpuFeatures {
     // Conservative: report no SIMD features from common code.
     // nativeMain expect/actual can override with real cpuid / mrs checks.
-    return io.github.kotlinmania.llama.ore.GGMLCpuFeatures()
+    return io.github.kotlinmania.llama.core.GGMLCpuFeatures()
 }
 
 // ---------------------------------------------------------------------------
 // Individual CPU feature probes  (ggml_cpu_has_*)
 // ---------------------------------------------------------------------------
 
-private val cpuFeatures: io.github.kotlinmania.llama.ore.GGMLCpuFeatures by lazy { io.github.kotlinmania.llama.ore.ggmlCpuDetectFeatures() }
+private val cpuFeatures: io.github.kotlinmania.llama.core.GGMLCpuFeatures by lazy { io.github.kotlinmania.llama.core.ggmlCpuDetectFeatures() }
 
 // x86
-fun ggmlCpuHasSse3(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasSse3
-fun ggmlCpuHasSsse3(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasSsse3
-fun ggmlCpuHasAvx(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvx
-fun ggmlCpuHasAvxVnni(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvxVnni
-fun ggmlCpuHasAvx2(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvx2
-fun ggmlCpuHasBmi2(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasBmi2
-fun ggmlCpuHasF16c(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasF16c
-fun ggmlCpuHasFma(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasFma
-fun ggmlCpuHasAvx512(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvx512
-fun ggmlCpuHasAvx512Vbmi(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvx512Vbmi
-fun ggmlCpuHasAvx512Vnni(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvx512Vnni
-fun ggmlCpuHasAvx512Bf16(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAvx512Bf16
-fun ggmlCpuHasAmxInt8(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasAmxInt8
+fun ggmlCpuHasSse3(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasSse3
+fun ggmlCpuHasSsse3(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasSsse3
+fun ggmlCpuHasAvx(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvx
+fun ggmlCpuHasAvxVnni(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvxVnni
+fun ggmlCpuHasAvx2(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvx2
+fun ggmlCpuHasBmi2(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasBmi2
+fun ggmlCpuHasF16c(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasF16c
+fun ggmlCpuHasFma(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasFma
+fun ggmlCpuHasAvx512(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvx512
+fun ggmlCpuHasAvx512Vbmi(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvx512Vbmi
+fun ggmlCpuHasAvx512Vnni(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvx512Vnni
+fun ggmlCpuHasAvx512Bf16(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAvx512Bf16
+fun ggmlCpuHasAmxInt8(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasAmxInt8
 // ARM
-fun ggmlCpuHasNeon(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasNeon
-fun ggmlCpuHasArmFma(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasArmFma
-fun ggmlCpuHasFp16Va(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasFp16Va
-fun ggmlCpuHasDotprod(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasDotprod
-fun ggmlCpuHasMatmulInt8(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasMatmulInt8
-fun ggmlCpuHasSve(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasSve
-fun ggmlCpuGetSveCnt(): Int = io.github.kotlinmania.llama.ore.cpuFeatures.sveCnt
-fun ggmlCpuHasSme(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasSme
+fun ggmlCpuHasNeon(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasNeon
+fun ggmlCpuHasArmFma(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasArmFma
+fun ggmlCpuHasFp16Va(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasFp16Va
+fun ggmlCpuHasDotprod(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasDotprod
+fun ggmlCpuHasMatmulInt8(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasMatmulInt8
+fun ggmlCpuHasSve(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasSve
+fun ggmlCpuGetSveCnt(): Int = io.github.kotlinmania.llama.core.cpuFeatures.sveCnt
+fun ggmlCpuHasSme(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasSme
 // RISC-V
-fun ggmlCpuHasRiscvV(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasRiscvV
-fun ggmlCpuGetRvvVlen(): Int = io.github.kotlinmania.llama.ore.cpuFeatures.rvvVlen
+fun ggmlCpuHasRiscvV(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasRiscvV
+fun ggmlCpuGetRvvVlen(): Int = io.github.kotlinmania.llama.core.cpuFeatures.rvvVlen
 // Other
-fun ggmlCpuHasVsx(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasVsx
-fun ggmlCpuHasVxe(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasVxe
-fun ggmlCpuHasWasmSimd(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasWasmSimd
-fun ggmlCpuHasLlamafile(): Boolean = io.github.kotlinmania.llama.ore.cpuFeatures.hasLlamafile
+fun ggmlCpuHasVsx(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasVsx
+fun ggmlCpuHasVxe(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasVxe
+fun ggmlCpuHasWasmSimd(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasWasmSimd
+fun ggmlCpuHasLlamafile(): Boolean = io.github.kotlinmania.llama.core.cpuFeatures.hasLlamafile
 
 // ---------------------------------------------------------------------------
 // Type traits (CPU-specific)  (ggml_type_traits_cpu)
@@ -693,23 +693,23 @@ typealias GGMLFromFloatFn = (src: FloatArray, dst: ByteArray, count: Long) -> Un
  * Mirrors `struct ggml_type_traits_cpu` from ggml-cpu.h.
  */
 data class GGMLTypeTraitsCpu(
-    val fromFloat: io.github.kotlinmania.llama.ore.GGMLFromFloatFn? = null,
-    val vecDot: io.github.kotlinmania.llama.ore.GGMLVecDotFn? = null,
-    val vecDotType: io.github.kotlinmania.llama.ore.GGMLType = io.github.kotlinmania.llama.ore.GGMLType.COUNT,
+    val fromFloat: io.github.kotlinmania.llama.core.GGMLFromFloatFn? = null,
+    val vecDot: io.github.kotlinmania.llama.core.GGMLVecDotFn? = null,
+    val vecDotType: io.github.kotlinmania.llama.core.GGMLType = io.github.kotlinmania.llama.core.GGMLType.COUNT,
     val nRows: Long = 1
 )
 
 // Type-traits table — populated by ggmlCpuInit
-private val typeTraitsCpu = Array(io.github.kotlinmania.llama.ore.GGMLType.COUNT.ordinal) { io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu() }
+private val typeTraitsCpu = Array(io.github.kotlinmania.llama.core.GGMLType.COUNT.ordinal) { io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu() }
 
 /**
  * `ggml_get_type_traits_cpu` — C: ggml-cpu.h line 123.
  * Look up CPU-specific traits for [type].
  */
-fun ggmlGetTypeTraitsCpu(type: io.github.kotlinmania.llama.ore.GGMLType): io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu {
+fun ggmlGetTypeTraitsCpu(type: io.github.kotlinmania.llama.core.GGMLType): io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu {
     val idx = type.ordinal
-    if (idx < 0 || idx >= io.github.kotlinmania.llama.ore.typeTraitsCpu.size) return io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu()
-    return io.github.kotlinmania.llama.ore.typeTraitsCpu[idx]
+    if (idx < 0 || idx >= io.github.kotlinmania.llama.core.typeTraitsCpu.size) return io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu()
+    return io.github.kotlinmania.llama.core.typeTraitsCpu[idx]
 }
 
 // CPU init state
@@ -723,85 +723,85 @@ private var cpuInitDone = false
  * type-traits table and mark init as done.
  */
 fun ggmlCpuInit() {
-    if (io.github.kotlinmania.llama.ore.cpuInitDone) return
-    io.github.kotlinmania.llama.ore.cpuInitDone = true
+    if (io.github.kotlinmania.llama.core.cpuInitDone) return
+    io.github.kotlinmania.llama.core.cpuInitDone = true
 
     // Populate vec_dot_type for quantized types.
     // In C, the type_traits_cpu table is filled with function pointers;
     // here we record the metadata. Actual vec_dot functions are in GGMLCpuQuants.
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q4_0.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_0,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q4_0.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_0,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q4_1.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q4_1.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_1,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q5_0.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_0,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q5_0.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_0,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q5_1.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q5_1.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_1,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q8_0.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_0,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q8_0.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_0,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q8_1.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_1,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q8_1.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_1,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q2_K.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q2_K.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_K,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q3_K.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q3_K.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_K,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q4_K.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q4_K.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_K,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q5_K.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q5_K.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_K,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q6_K.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q6_K.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_K,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.Q8_K.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.Q8_K,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.Q8_K.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.Q8_K,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.F16.ordinal]  =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.F32,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.F16.ordinal]  =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.F32,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.BF16.ordinal] =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.BF16,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.BF16.ordinal] =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.BF16,
             nRows = 1
         )
-    io.github.kotlinmania.llama.ore.typeTraitsCpu[io.github.kotlinmania.llama.ore.GGMLType.F32.ordinal]  =
-        io.github.kotlinmania.llama.ore.GGMLTypeTraitsCpu(
-            vecDotType = io.github.kotlinmania.llama.ore.GGMLType.F32,
+    io.github.kotlinmania.llama.core.typeTraitsCpu[io.github.kotlinmania.llama.core.GGMLType.F32.ordinal]  =
+        io.github.kotlinmania.llama.core.GGMLTypeTraitsCpu(
+            vecDotType = io.github.kotlinmania.llama.core.GGMLType.F32,
             nRows = 1
         )
 }
@@ -814,25 +814,25 @@ fun ggmlCpuInit() {
 // mirror the C free-function API that delegates to the backend objects.
 
 /** `ggml_backend_cpu_init` — C: ggml-cpu.cpp lines 217-247. */
-fun ggmlBackendCpuInit(): io.github.kotlinmania.llama.ore.GGMLBackend {
-    io.github.kotlinmania.llama.ore.ggmlCpuInit()
-    return io.github.kotlinmania.llama.ore.GGMLCpuBackend()
+fun ggmlBackendCpuInit(): io.github.kotlinmania.llama.core.GGMLBackend {
+    io.github.kotlinmania.llama.core.ggmlCpuInit()
+    return io.github.kotlinmania.llama.core.GGMLCpuBackend()
 }
 
 /** `ggml_backend_cpu_set_n_threads` — C: ggml-cpu.cpp lines 253-258. */
-fun ggmlBackendCpuSetNThreads(backendCpu: io.github.kotlinmania.llama.ore.GGMLBackend, nThreads: Int) {
-    require(backendCpu is io.github.kotlinmania.llama.ore.GGMLCpuBackend) { "Expected CPU backend" }
+fun ggmlBackendCpuSetNThreads(backendCpu: io.github.kotlinmania.llama.core.GGMLBackend, nThreads: Int) {
+    require(backendCpu is io.github.kotlinmania.llama.core.GGMLCpuBackend) { "Expected CPU backend" }
     backendCpu.setThreadCount(nThreads)
 }
 
 /**
  * `ggml_backend_cpu_set_threadpool` — C: ggml-cpu.cpp lines 260-270.
  */
-fun ggmlBackendCpuSetThreadpool(backendCpu: io.github.kotlinmania.llama.ore.GGMLBackend, threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool) {
-    require(backendCpu is io.github.kotlinmania.llama.ore.GGMLCpuBackend) { "Expected CPU backend" }
+fun ggmlBackendCpuSetThreadpool(backendCpu: io.github.kotlinmania.llama.core.GGMLBackend, threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool) {
+    require(backendCpu is io.github.kotlinmania.llama.core.GGMLCpuBackend) { "Expected CPU backend" }
     val ctx = backendCpu.cpuCtx
     if (ctx.threadpool != null && ctx.threadpool !== threadpool) {
-        io.github.kotlinmania.llama.ore.ggmlThreadpoolPause(ctx.threadpool!!)
+        io.github.kotlinmania.llama.core.ggmlThreadpoolPause(ctx.threadpool!!)
     }
     ctx.threadpool = threadpool
 }
@@ -841,18 +841,18 @@ fun ggmlBackendCpuSetThreadpool(backendCpu: io.github.kotlinmania.llama.ore.GGML
  * `ggml_backend_cpu_set_abort_callback` — C: ggml-cpu.cpp lines 272-278.
  */
 fun ggmlBackendCpuSetAbortCallback(
-    backendCpu: io.github.kotlinmania.llama.ore.GGMLBackend,
+    backendCpu: io.github.kotlinmania.llama.core.GGMLBackend,
     abortCallback: ((data: Any?) -> Boolean)?,
     abortCallbackData: Any? = null
 ) {
-    require(backendCpu is io.github.kotlinmania.llama.ore.GGMLCpuBackend) { "Expected CPU backend" }
+    require(backendCpu is io.github.kotlinmania.llama.core.GGMLCpuBackend) { "Expected CPU backend" }
     backendCpu.cpuCtx.abortCallback = abortCallback
     backendCpu.cpuCtx.abortCallbackData = abortCallbackData
 }
 
 /** `ggml_backend_cpu_set_use_ref` — C: ggml-cpu.cpp lines 280-285. */
-fun ggmlBackendCpuSetUseRef(backendCpu: io.github.kotlinmania.llama.ore.GGMLBackend, useRef: Boolean) {
-    require(backendCpu is io.github.kotlinmania.llama.ore.GGMLCpuBackend) { "Expected CPU backend" }
+fun ggmlBackendCpuSetUseRef(backendCpu: io.github.kotlinmania.llama.core.GGMLBackend, useRef: Boolean) {
+    require(backendCpu is io.github.kotlinmania.llama.core.GGMLCpuBackend) { "Expected CPU backend" }
     backendCpu.cpuCtx.useRef = useRef
 }
 
@@ -878,7 +878,7 @@ fun ggmlCpuFp32ToI32(src: FloatArray, dst: IntArray, n: Long) {
  */
 fun ggmlCpuFp32ToFp16(src: FloatArray, dst: ShortArray, n: Long) {
     for (i in 0 until n.toInt()) {
-        dst[i] = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(src[i])
+        dst[i] = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(src[i])
     }
 }
 
@@ -889,7 +889,7 @@ fun ggmlCpuFp32ToFp16(src: FloatArray, dst: ShortArray, n: Long) {
  */
 fun ggmlCpuFp16ToFp32(src: ShortArray, dst: FloatArray, n: Long) {
     for (i in 0 until n.toInt()) {
-        dst[i] = io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(src[i])
+        dst[i] = io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(src[i])
     }
 }
 
@@ -899,7 +899,7 @@ fun ggmlCpuFp16ToFp32(src: ShortArray, dst: FloatArray, n: Long) {
  */
 fun ggmlCpuFp32ToBf16(src: FloatArray, dst: ShortArray, n: Long) {
     for (i in 0 until n.toInt()) {
-        dst[i] = io.github.kotlinmania.llama.ore.GGML_FP32_TO_BF16(src[i]).bits.toShort()
+        dst[i] = io.github.kotlinmania.llama.core.GGML_FP32_TO_BF16(src[i]).bits.toShort()
     }
 }
 
@@ -910,8 +910,8 @@ fun ggmlCpuFp32ToBf16(src: FloatArray, dst: ShortArray, n: Long) {
  */
 fun ggmlCpuBf16ToFp32(src: ShortArray, dst: FloatArray, n: Long) {
     for (i in 0 until n.toInt()) {
-        dst[i] = io.github.kotlinmania.llama.ore.GGML_BF16_TO_FP32(
-            io.github.kotlinmania.llama.ore.GGMLBF16(src[i].toUShort())
+        dst[i] = io.github.kotlinmania.llama.core.GGML_BF16_TO_FP32(
+            io.github.kotlinmania.llama.core.GGMLBF16(src[i].toUShort())
         )
     }
 }

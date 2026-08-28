@@ -215,10 +215,10 @@ object DemoTextUtilities {
         statusIcon: String = "✅"
     ): String {
         return buildString {
-            append(io.github.kotlinmania.llama.ore.GGMLUtilities.createSectionHeader(sectionTitle, emoji))
-            appendLine(io.github.kotlinmania.llama.ore.GGMLUtilities.createStatusLine("", "", statusIcon))
+            append(io.github.kotlinmania.llama.core.GGMLUtilities.createSectionHeader(sectionTitle, emoji))
+            appendLine(io.github.kotlinmania.llama.core.GGMLUtilities.createStatusLine("", "", statusIcon))
             features.forEach { feature ->
-                appendLine(io.github.kotlinmania.llama.ore.GGMLUtilities.createBulletPoint(feature))
+                appendLine(io.github.kotlinmania.llama.core.GGMLUtilities.createBulletPoint(feature))
             }
         }
     }

@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-sampling.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import kotlin.math.*
 import kotlin.random.Random
 

@@ -1,6 +1,6 @@
 package io.github.kotlinmania.llama.lnn
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 
 /**
  * Kotlin Native implementation of Liquid Neural Networks (LNN) core components.

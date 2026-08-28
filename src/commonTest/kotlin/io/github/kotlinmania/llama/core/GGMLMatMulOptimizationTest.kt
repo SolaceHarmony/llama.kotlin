@@ -12,25 +12,25 @@ import kotlin.time.TimeSource
 @OptIn(ExperimentalTime::class)
 class GGMLMatMulOptimizationTest {
 
-    private lateinit var graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator
-    private lateinit var context: io.github.kotlinmania.llama.ore.GGMLContext
+    private lateinit var graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator
+    private lateinit var context: io.github.kotlinmania.llama.core.GGMLContext
     private val bufferSize = 2 * 1024 * 1024 // 2MB for larger matrices
 
     @BeforeTest
     fun setup() {
         val (allocator, _) = GGMLTestUtils.createTestAllocator(bufferSize)
         graphAllocator = allocator
-        context = io.github.kotlinmania.llama.ore.GGMLContext()
+        context = io.github.kotlinmania.llama.core.GGMLContext()
     }
 
     @Test
     fun testF32xQ40Optimization() {
-        val M = 4; val K = io.github.kotlinmania.llama.ore.QK4_0 * 2; val N = 3
+        val M = 4; val K = io.github.kotlinmania.llama.core.QK4_0 * 2; val N = 3
         val tensorF32 = GGMLTestUtils.createF32Matrix(graphAllocator, "f32_a", M, K) { (it % 10).toFloat() + 1.0f }
-        val tensorQ40 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_b", io.github.kotlinmania.llama.ore.GGMLType.Q4_0, K, N) { (it % 15).toFloat() - 7.0f }
+        val tensorQ40 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_b", io.github.kotlinmania.llama.core.GGMLType.Q4_0, K, N) { (it % 15).toFloat() - 7.0f }
 
         val optimized = GGMLTestUtils.allocateMatMulResult(graphAllocator, "optimized_q40", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorF32,
             tensorQ40,
@@ -38,9 +38,9 @@ class GGMLMatMulOptimizationTest {
         )
 
         val tensorQ40F32 =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, tensorQ40)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, tensorQ40)
         val fallback = GGMLTestUtils.allocateMatMulResult(graphAllocator, "fallback_q40", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorF32,
             tensorQ40F32,
@@ -60,13 +60,13 @@ class GGMLMatMulOptimizationTest {
      */
     @Test
     fun testF32xQ80Optimization() {
-        val M = 3; val K = io.github.kotlinmania.llama.ore.QK8_0 * 2; val N = 4
+        val M = 3; val K = io.github.kotlinmania.llama.core.QK8_0 * 2; val N = 4
         
         val tensorF32 = GGMLTestUtils.createF32Matrix(graphAllocator, "f32_a", M, K) { (it % 13).toFloat() - 6.0f }
-        val tensorQ80 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_b", io.github.kotlinmania.llama.ore.GGMLType.Q8_0, K, N) { (it % 127).toFloat() - 63.0f }
+        val tensorQ80 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_b", io.github.kotlinmania.llama.core.GGMLType.Q8_0, K, N) { (it % 127).toFloat() - 63.0f }
 
         val optimized = GGMLTestUtils.allocateMatMulResult(graphAllocator, "optimized_q80", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorF32,
             tensorQ80,
@@ -74,9 +74,9 @@ class GGMLMatMulOptimizationTest {
         )
 
         val tensorQ80F32 =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, tensorQ80)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, tensorQ80)
         val fallback = GGMLTestUtils.allocateMatMulResult(graphAllocator, "fallback_q80", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorF32,
             tensorQ80F32,
@@ -97,13 +97,13 @@ class GGMLMatMulOptimizationTest {
      */
     @Test
     fun testQ80xQ80Optimization() {
-        val M = 2; val K = io.github.kotlinmania.llama.ore.QK8_0; val N = 2
+        val M = 2; val K = io.github.kotlinmania.llama.core.QK8_0; val N = 2
         
-        val tensorQ80A = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_a", io.github.kotlinmania.llama.ore.GGMLType.Q8_0, M, K) { (it % 127).toFloat() - 63.0f }
-        val tensorQ80B = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_b", io.github.kotlinmania.llama.ore.GGMLType.Q8_0, K, N) { ((it * 3) % 127).toFloat() - 63.0f }
+        val tensorQ80A = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_a", io.github.kotlinmania.llama.core.GGMLType.Q8_0, M, K) { (it % 127).toFloat() - 63.0f }
+        val tensorQ80B = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_b", io.github.kotlinmania.llama.core.GGMLType.Q8_0, K, N) { ((it * 3) % 127).toFloat() - 63.0f }
 
         val optimized = GGMLTestUtils.allocateMatMulResult(graphAllocator, "optimized_q80xq80", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorQ80A,
             tensorQ80B,
@@ -111,11 +111,11 @@ class GGMLMatMulOptimizationTest {
         )
 
         val tensorQ80AF32 =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, tensorQ80A)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, tensorQ80A)
         val tensorQ80BF32 =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, tensorQ80B)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, tensorQ80B)
         val fallback = GGMLTestUtils.allocateMatMulResult(graphAllocator, "fallback_q80xq80", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorQ80AF32,
             tensorQ80BF32,
@@ -136,20 +136,20 @@ class GGMLMatMulOptimizationTest {
      */
     @Test
     fun testQ40xQ40Optimization() {
-        val M = 2; val K = io.github.kotlinmania.llama.ore.QK4_0; val N = 3
+        val M = 2; val K = io.github.kotlinmania.llama.core.QK4_0; val N = 3
         
-        val tensorQ40A = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_a", io.github.kotlinmania.llama.ore.GGMLType.Q4_0, M, K) { (it % 15).toFloat() - 7.0f }
-        val tensorQ40B = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_b", io.github.kotlinmania.llama.ore.GGMLType.Q4_0, K, N) { ((it * 5) % 15).toFloat() - 7.0f }
+        val tensorQ40A = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_a", io.github.kotlinmania.llama.core.GGMLType.Q4_0, M, K) { (it % 15).toFloat() - 7.0f }
+        val tensorQ40B = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_b", io.github.kotlinmania.llama.core.GGMLType.Q4_0, K, N) { ((it * 5) % 15).toFloat() - 7.0f }
 
         val resultOptimized = GGMLTestUtils.allocateMatMulResult(graphAllocator, "optimized_q40xq40", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorQ40A,
             tensorQ40B,
             resultOptimized
         )
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultOptimized.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultOptimized.type)
         assertEquals(resultOptimized.ne[0], N.toLong())
         assertEquals(resultOptimized.ne[1], M.toLong())
 
@@ -164,18 +164,18 @@ class GGMLMatMulOptimizationTest {
     fun testQ80xQ40MixedOptimization() {
         val M = 2; val K = 64; val N = 2  // Use K divisible by both QK8_0 and QK4_0
         
-        val tensorQ80 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_a", io.github.kotlinmania.llama.ore.GGMLType.Q8_0, M, K) { (it % 127).toFloat() - 63.0f }
-        val tensorQ40 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_b", io.github.kotlinmania.llama.ore.GGMLType.Q4_0, K, N) { ((it * 7) % 15).toFloat() - 7.0f }
+        val tensorQ80 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q80_a", io.github.kotlinmania.llama.core.GGMLType.Q8_0, M, K) { (it % 127).toFloat() - 63.0f }
+        val tensorQ40 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "q40_b", io.github.kotlinmania.llama.core.GGMLType.Q4_0, K, N) { ((it * 7) % 15).toFloat() - 7.0f }
 
         val resultOptimized = GGMLTestUtils.allocateMatMulResult(graphAllocator, "optimized_q80xq40", M, N)
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             tensorQ80,
             tensorQ40,
             resultOptimized
         )
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultOptimized.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultOptimized.type)
         assertEquals(resultOptimized.ne[0], N.toLong())
         assertEquals(resultOptimized.ne[1], M.toLong())
 
@@ -195,11 +195,11 @@ class GGMLMatMulOptimizationTest {
         val M = 8; val K = 128; val N = 8  // Larger matrices for performance testing
         
         val tensorF32 = GGMLTestUtils.createF32Matrix(graphAllocator, "perf_f32", M, K) { (it % 17).toFloat() - 8.0f }
-        val tensorQ80 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "perf_q80", io.github.kotlinmania.llama.ore.GGMLType.Q8_0, K, N) { ((it * 11) % 127).toFloat() - 63.0f }
+        val tensorQ80 = GGMLTestUtils.createQuantizedMatrix(graphAllocator, "perf_q80", io.github.kotlinmania.llama.core.GGMLType.Q8_0, K, N) { ((it * 11) % 127).toFloat() - 63.0f }
 
         val optimizedResult = GGMLTestUtils.allocateMatMulResult(graphAllocator, "perf_opt", M, N)
         repeat(5) {
-            io.github.kotlinmania.llama.ore.computeMatMul(
+            io.github.kotlinmania.llama.core.computeMatMul(
                 graphAllocator,
                 tensorF32,
                 tensorQ80,
@@ -209,7 +209,7 @@ class GGMLMatMulOptimizationTest {
 
         val optimizedMark = TimeSource.Monotonic.markNow()
         repeat(10) {
-            io.github.kotlinmania.llama.ore.computeMatMul(
+            io.github.kotlinmania.llama.core.computeMatMul(
                 graphAllocator,
                 tensorF32,
                 tensorQ80,
@@ -219,10 +219,10 @@ class GGMLMatMulOptimizationTest {
         val timeOptimized = optimizedMark.elapsedNow().inWholeNanoseconds
 
         val tensorQ80F32 =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, tensorQ80)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, tensorQ80)
         val fallbackResult = GGMLTestUtils.allocateMatMulResult(graphAllocator, "perf_fallback", M, N)
         repeat(5) {
-            io.github.kotlinmania.llama.ore.computeMatMul(
+            io.github.kotlinmania.llama.core.computeMatMul(
                 graphAllocator,
                 tensorF32,
                 tensorQ80F32,
@@ -232,7 +232,7 @@ class GGMLMatMulOptimizationTest {
 
         val fallbackMark = TimeSource.Monotonic.markNow()
         repeat(10) {
-            io.github.kotlinmania.llama.ore.computeMatMul(
+            io.github.kotlinmania.llama.core.computeMatMul(
                 graphAllocator,
                 tensorF32,
                 tensorQ80F32,

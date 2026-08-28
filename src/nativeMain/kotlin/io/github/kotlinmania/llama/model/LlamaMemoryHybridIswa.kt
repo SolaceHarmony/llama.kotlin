@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-memory-hybrid-iswa.h llama.cpp/src/llama-memory-hybrid-iswa.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 
 // =============================================================================
 // LlamaMemoryHybridIswa — ISWA variant of hybrid memory

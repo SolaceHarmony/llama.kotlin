@@ -4,7 +4,7 @@
 // once the model layer is fully ported.
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import kotlin.math.*
 
 /**

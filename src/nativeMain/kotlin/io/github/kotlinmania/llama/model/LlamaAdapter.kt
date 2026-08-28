@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-adapter.h
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 
 // =============================================================================
 // LlamaAdapter – LoRA and control-vector adapter types

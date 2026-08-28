@@ -25,13 +25,13 @@ const val GGML_TENSOR_FLAG_PARAM = 1
  * @param zeroTable A set of tensors that are known to be zero
  * @return The result tensor
  */
-private fun addOrSet(context: io.github.kotlinmania.llama.ore.GGMLContext, a: io.github.kotlinmania.llama.ore.GGMLTensor?, b: io.github.kotlinmania.llama.ore.GGMLTensor, zeroTable: MutableSet<io.github.kotlinmania.llama.ore.GGMLTensor>): io.github.kotlinmania.llama.ore.GGMLTensor {
+private fun addOrSet(context: io.github.kotlinmania.llama.core.GGMLContext, a: io.github.kotlinmania.llama.core.GGMLTensor?, b: io.github.kotlinmania.llama.core.GGMLTensor, zeroTable: MutableSet<io.github.kotlinmania.llama.core.GGMLTensor>): io.github.kotlinmania.llama.core.GGMLTensor {
     return if (a == null || a in zeroTable) {
         // If a is null or known to be zero, return b
         b
     } else {
         // Otherwise, add a and b
-        io.github.kotlinmania.llama.ore.ggmlAdd(context, a, b)
+        io.github.kotlinmania.llama.core.ggmlAdd(context, a, b)
     }
 }
 
@@ -44,12 +44,12 @@ private fun addOrSet(context: io.github.kotlinmania.llama.ore.GGMLContext, a: io
  * @param zeroTable A set of tensors that are known to be zero
  * @return The result tensor
  */
-private fun subOrSet(context: io.github.kotlinmania.llama.ore.GGMLContext, a: io.github.kotlinmania.llama.ore.GGMLTensor?, b: io.github.kotlinmania.llama.ore.GGMLTensor, zeroTable: MutableSet<io.github.kotlinmania.llama.ore.GGMLTensor>): io.github.kotlinmania.llama.ore.GGMLTensor {
+private fun subOrSet(context: io.github.kotlinmania.llama.core.GGMLContext, a: io.github.kotlinmania.llama.core.GGMLTensor?, b: io.github.kotlinmania.llama.core.GGMLTensor, zeroTable: MutableSet<io.github.kotlinmania.llama.core.GGMLTensor>): io.github.kotlinmania.llama.core.GGMLTensor {
     return if (a == null || a in zeroTable) {
         // If a is null or known to be zero, return -b
         // We need to implement a negate function
-        val result = io.github.kotlinmania.llama.ore.GGMLTensor(type = b.type)
-        result.op = io.github.kotlinmania.llama.ore.GGMLOp.NEG
+        val result = io.github.kotlinmania.llama.core.GGMLTensor(type = b.type)
+        result.op = io.github.kotlinmania.llama.core.GGMLOp.NEG
         result.src[0] = b
 
         // If the context requests immediate computation, perform it now
@@ -62,8 +62,8 @@ private fun subOrSet(context: io.github.kotlinmania.llama.ore.GGMLContext, a: io
     } else {
         // Otherwise, subtract b from a
         // We need to implement a subtract function
-        val result = io.github.kotlinmania.llama.ore.GGMLTensor(type = a.type)
-        result.op = io.github.kotlinmania.llama.ore.GGMLOp.SUB
+        val result = io.github.kotlinmania.llama.core.GGMLTensor(type = a.type)
+        result.op = io.github.kotlinmania.llama.core.GGMLOp.SUB
         result.src[0] = a
         result.src[1] = b
 
@@ -82,8 +82,8 @@ private fun subOrSet(context: io.github.kotlinmania.llama.ore.GGMLContext, a: io
  *
  * @param tensor The tensor to set as a parameter
  */
-fun setParam(tensor: io.github.kotlinmania.llama.ore.GGMLTensor) {
-    tensor.flags = tensor.flags or io.github.kotlinmania.llama.ore.GGML_TENSOR_FLAG_PARAM
+fun setParam(tensor: io.github.kotlinmania.llama.core.GGMLTensor) {
+    tensor.flags = tensor.flags or io.github.kotlinmania.llama.core.GGML_TENSOR_FLAG_PARAM
 }
 
 /**
@@ -93,14 +93,14 @@ fun setParam(tensor: io.github.kotlinmania.llama.ore.GGMLTensor) {
  * @param tensor The tensor to compute gradients for
  * @param zeroTable A set of tensors that are known to be zero
  */
-private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, tensor: io.github.kotlinmania.llama.ore.GGMLTensor, zeroTable: MutableSet<io.github.kotlinmania.llama.ore.GGMLTensor>) {
+private fun computeBackward(context: io.github.kotlinmania.llama.core.GGMLContext, tensor: io.github.kotlinmania.llama.core.GGMLTensor, zeroTable: MutableSet<io.github.kotlinmania.llama.core.GGMLTensor>) {
     val src0 = tensor.src[0]
     val src1 = tensor.src[1]
 
     when (tensor.op) {
-        io.github.kotlinmania.llama.ore.GGMLOp.DUP -> {
+        io.github.kotlinmania.llama.core.GGMLOp.DUP -> {
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     tensor.grad!!,
@@ -108,12 +108,12 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.CPY -> {
+        io.github.kotlinmania.llama.core.GGMLOp.CPY -> {
             // C = A (tensor = tensor.src[0])
             // grad_A = grad_C
             // tensor.src[0].grad += tensor.grad
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     tensor.grad!!,
@@ -122,9 +122,9 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             // src1 is not used by CPY, so no gradient for it
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.ADD -> {
+        io.github.kotlinmania.llama.core.GGMLOp.ADD -> {
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     tensor.grad!!,
@@ -133,7 +133,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             if (src1?.grad != null) {
                 var needsRepeatBack = false
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     val srcDim = src1.ne[i]
                     val outDim = tensor.ne[i]
                     if (srcDim == outDim) continue
@@ -149,11 +149,11 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 val gradForSrc1 = if (needsRepeatBack) {
-                    io.github.kotlinmania.llama.ore.ggmlRepeatBack(context, tensor.grad!!, src1)
+                    io.github.kotlinmania.llama.core.ggmlRepeatBack(context, tensor.grad!!, src1)
                 } else {
                     tensor.grad!!
                 }
-                src1.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src1.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src1.grad,
                     gradForSrc1,
@@ -161,9 +161,9 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SUB -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SUB -> {
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     tensor.grad!!,
@@ -171,7 +171,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
             if (src1?.grad != null) {
-                src1.grad = io.github.kotlinmania.llama.ore.subOrSet(
+                src1.grad = io.github.kotlinmania.llama.core.subOrSet(
                     context,
                     src1.grad,
                     tensor.grad!!,
@@ -179,58 +179,58 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.MUL -> {
+        io.github.kotlinmania.llama.core.GGMLOp.MUL -> {
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, src1!!, tensor.grad!!),
+                    io.github.kotlinmania.llama.core.ggmlMul(context, src1!!, tensor.grad!!),
                     zeroTable
                 )
             }
             if (src1?.grad != null) {
-                src1.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src1.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src1.grad,
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, src0!!, tensor.grad!!),
+                    io.github.kotlinmania.llama.core.ggmlMul(context, src0!!, tensor.grad!!),
                     zeroTable
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.DIV -> {
+        io.github.kotlinmania.llama.core.GGMLOp.DIV -> {
             // For division C = A / B:
             // grad_A = grad_C / B
             // grad_B = -grad_C * A / (B * B)
 
             if (src0?.grad != null) {
                 // Compute grad_A = grad_C / B
-                val gradA = io.github.kotlinmania.llama.ore.ggmlDiv(context, tensor.grad!!, src1!!)
+                val gradA = io.github.kotlinmania.llama.core.ggmlDiv(context, tensor.grad!!, src1!!)
 
                 // Add to source gradient
                 src0.grad =
-                    io.github.kotlinmania.llama.ore.addOrSet(context, src0.grad, gradA, zeroTable)
+                    io.github.kotlinmania.llama.core.addOrSet(context, src0.grad, gradA, zeroTable)
             }
 
             if (src1?.grad != null) {
                 // Compute grad_B = -grad_C * A / (B * B)
 
                 // First compute B * B
-                val bSquared = io.github.kotlinmania.llama.ore.ggmlMul(context, src1, src1)
+                val bSquared = io.github.kotlinmania.llama.core.ggmlMul(context, src1, src1)
 
                 // Then compute A / (B * B)
                 val aDivBSquared =
-                    io.github.kotlinmania.llama.ore.ggmlDiv(context, src0!!, bSquared)
+                    io.github.kotlinmania.llama.core.ggmlDiv(context, src0!!, bSquared)
 
                 // Then compute grad_C * A / (B * B)
                 val gradCTimesADivBSquared =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, aDivBSquared)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, aDivBSquared)
 
                 // Finally negate to get -grad_C * A / (B * B)
                 val negGradCTimesADivBSquared =
-                    io.github.kotlinmania.llama.ore.ggmlNeg(context, gradCTimesADivBSquared)
+                    io.github.kotlinmania.llama.core.ggmlNeg(context, gradCTimesADivBSquared)
 
                 // Add to source gradient
-                src1.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src1.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src1.grad,
                     negGradCTimesADivBSquared,
@@ -238,24 +238,24 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SQR -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SQR -> {
             // For square operation C = A^2:
             // grad_A = grad_C * 2 * A
 
             if (src0?.grad != null) {
                 // Create a tensor with 2 * A values
-                val twoTimesA = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val twoTimesA = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     twoTimesA.ne[i] = src0.ne[i]
                     twoTimesA.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Create data with 2 * A values
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val aData = src0.data as FloatArray
                         val twoTimesAData = FloatArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -263,7 +263,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         twoTimesA.data = twoTimesAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val aData = src0.data as ShortArray
                         val twoTimesAData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -273,7 +273,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         twoTimesA.data = twoTimesAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val aData = src0.data as ByteArray
                         val twoTimesAData = ByteArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -281,7 +281,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         twoTimesA.data = twoTimesAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val aData = src0.data as ShortArray
                         val twoTimesAData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -289,7 +289,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         twoTimesA.data = twoTimesAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val aData = src0.data as IntArray
                         val twoTimesAData = IntArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -297,7 +297,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         twoTimesA.data = twoTimesAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val aData = src0.data as LongArray
                         val twoTimesAData = LongArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -313,31 +313,31 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Compute grad_A = grad_C * (2 * A)
                 val gradA =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, twoTimesA)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, twoTimesA)
 
                 // Add to source gradient
                 src0.grad =
-                    io.github.kotlinmania.llama.ore.addOrSet(context, src0.grad, gradA, zeroTable)
+                    io.github.kotlinmania.llama.core.addOrSet(context, src0.grad, gradA, zeroTable)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SQRT -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SQRT -> {
             // For square root operation C = sqrt(A):
             // grad_A = grad_C * 0.5 / sqrt(A)
 
             if (src0?.grad != null) {
                 // Create a tensor with 0.5 / sqrt(A) values
-                val halfDivSqrtA = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val halfDivSqrtA = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     halfDivSqrtA.ne[i] = src0.ne[i]
                     halfDivSqrtA.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Create data with 0.5 / sqrt(A) values
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val aData = src0.data as FloatArray
                         val halfDivSqrtAData = FloatArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -347,7 +347,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         halfDivSqrtA.data = halfDivSqrtAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val aData = src0.data as ShortArray
                         val halfDivSqrtAData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -359,7 +359,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         halfDivSqrtA.data = halfDivSqrtAData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8, io.github.kotlinmania.llama.ore.GGMLType.I16, io.github.kotlinmania.llama.ore.GGMLType.I32, io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8, io.github.kotlinmania.llama.core.GGMLType.I16, io.github.kotlinmania.llama.core.GGMLType.I32, io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         // For integer types, we need to be careful with the square root and division
                         // We'll convert to float, compute the derivative, and convert back
 
@@ -368,25 +368,25 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert input data to float
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val srcData = src0.data as ByteArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val srcData = src0.data as ShortArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val srcData = src0.data as IntArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val srcData = src0.data as LongArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
@@ -404,28 +404,28 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert back to the original type
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val derivativeData = ByteArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt().toByte()
                                 }
                                 halfDivSqrtA.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val derivativeData = ShortArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt().toShort()
                                 }
                                 halfDivSqrtA.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val derivativeData = IntArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt()
                                 }
                                 halfDivSqrtA.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val derivativeData = LongArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toLong()
@@ -443,62 +443,62 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Compute grad_A = grad_C * (0.5 / sqrt(A))
                 val gradA =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, halfDivSqrtA)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, halfDivSqrtA)
 
                 // Add to source gradient
                 src0.grad =
-                    io.github.kotlinmania.llama.ore.addOrSet(context, src0.grad, gradA, zeroTable)
+                    io.github.kotlinmania.llama.core.addOrSet(context, src0.grad, gradA, zeroTable)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SUM -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SUM -> {
             // For sum operation C = sum(A):
             // grad_A = grad_C for each element of A
 
             if (src0?.grad != null) {
                 // Create a tensor with the same shape as src0 but filled with the gradient value
-                val gradTensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val gradTensor = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     gradTensor.ne[i] = src0.ne[i]
                     gradTensor.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Get the gradient value (should be a scalar)
                 val gradValue = when (tensor.grad!!.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> (tensor.grad!!.data as FloatArray)[0]
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> (tensor.grad!!.data as ShortArray)[0].toFloat() / 32768.0f
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> (tensor.grad!!.data as ByteArray)[0].toFloat()
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> (tensor.grad!!.data as ShortArray)[0].toFloat()
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> (tensor.grad!!.data as IntArray)[0].toFloat()
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> (tensor.grad!!.data as LongArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> (tensor.grad!!.data as FloatArray)[0]
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> (tensor.grad!!.data as ShortArray)[0].toFloat() / 32768.0f
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> (tensor.grad!!.data as ByteArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> (tensor.grad!!.data as ShortArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> (tensor.grad!!.data as IntArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> (tensor.grad!!.data as LongArray)[0].toFloat()
                     else -> error("fatal error")
                 }
 
                 // Fill the gradient tensor with the gradient value
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val gradData = FloatArray(totalSize) { gradValue }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val gradData = ShortArray(totalSize) { (gradValue * 32768.0f).toInt().toShort() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val gradData = ByteArray(totalSize) { gradValue.toInt().toByte() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val gradData = ShortArray(totalSize) { gradValue.toInt().toShort() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val gradData = IntArray(totalSize) { gradValue.toInt() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val gradData = LongArray(totalSize) { gradValue.toLong() }
                         gradTensor.data = gradData
                     }
@@ -509,7 +509,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradTensor,
@@ -517,29 +517,29 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.MEAN -> {
+        io.github.kotlinmania.llama.core.GGMLOp.MEAN -> {
             // For mean operation C = mean(A):
             // grad_A = grad_C / n for each element of A, where n is the number of elements in A
 
             if (src0?.grad != null) {
                 // Create a tensor with the same shape as src0 but filled with the gradient value / n
-                val gradTensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val gradTensor = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     gradTensor.ne[i] = src0.ne[i]
                     gradTensor.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Get the gradient value (should be a scalar)
                 val gradValue = when (tensor.grad!!.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> (tensor.grad!!.data as FloatArray)[0]
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> (tensor.grad!!.data as ShortArray)[0].toFloat() / 32768.0f
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> (tensor.grad!!.data as ByteArray)[0].toFloat()
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> (tensor.grad!!.data as ShortArray)[0].toFloat()
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> (tensor.grad!!.data as IntArray)[0].toFloat()
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> (tensor.grad!!.data as LongArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> (tensor.grad!!.data as FloatArray)[0]
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> (tensor.grad!!.data as ShortArray)[0].toFloat() / 32768.0f
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> (tensor.grad!!.data as ByteArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> (tensor.grad!!.data as ShortArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> (tensor.grad!!.data as IntArray)[0].toFloat()
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> (tensor.grad!!.data as LongArray)[0].toFloat()
                     else -> error("fatal error")
                 }
 
@@ -548,27 +548,27 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Fill the gradient tensor with the gradient value / n
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val gradData = FloatArray(totalSize) { gradValueDivN }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val gradData = ShortArray(totalSize) { (gradValueDivN * 32768.0f).toInt().toShort() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val gradData = ByteArray(totalSize) { gradValueDivN.toInt().toByte() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val gradData = ShortArray(totalSize) { gradValueDivN.toInt().toShort() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val gradData = IntArray(totalSize) { gradValueDivN.toInt() }
                         gradTensor.data = gradData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val gradData = LongArray(totalSize) { gradValueDivN.toLong() }
                         gradTensor.data = gradData
                     }
@@ -579,7 +579,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradTensor,
@@ -587,33 +587,33 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.REPEAT -> {
+        io.github.kotlinmania.llama.core.GGMLOp.REPEAT -> {
             // For repeat operation C = repeat(A, dims):
             // grad_A = sum(grad_C) along the repeated dimensions
 
             if (src0?.grad != null) {
                 // Create a tensor with the same shape as src0
-                val gradTensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val gradTensor = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     gradTensor.ne[i] = src0.ne[i]
                     gradTensor.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size of src0
-                val totalSizeSrc0 = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSizeSrc0 = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Calculate total size of tensor (output of repeat)
-                val totalSizeTensor = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(tensor.ne).toInt()
+                val totalSizeTensor = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(tensor.ne).toInt()
 
                 // Calculate repeat factors for each dimension
-                val repeatFactors = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val repeatFactors = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     repeatFactors[i] = if (src0.ne[i] > 0) (tensor.ne[i] / src0.ne[i]).toInt() else 1
                 }
 
                 // Initialize gradient tensor data based on type
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val gradData = FloatArray(totalSizeSrc0) { 0.0f }
                         gradTensor.data = gradData
 
@@ -628,8 +628,8 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         for (i in 0 until totalSizeSrc0) {
                             // Calculate multi-dimensional indices for this element
                             var idx = i
-                            val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                            for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                            val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                            for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                                 if (src0.ne[dim] > 0) {
                                     indices[dim] = (idx % src0.ne[dim].toInt())
                                     idx /= src0.ne[dim].toInt()
@@ -661,7 +661,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             gradData[i] = sum
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val gradData = ShortArray(totalSizeSrc0) { 0 }
                         gradTensor.data = gradData
 
@@ -672,8 +672,8 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         for (i in 0 until totalSizeSrc0) {
                             // Calculate multi-dimensional indices for this element
                             var idx = i
-                            val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                            for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                            val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                            for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                                 if (src0.ne[dim] > 0) {
                                     indices[dim] = (idx % src0.ne[dim].toInt())
                                     idx /= src0.ne[dim].toInt()
@@ -705,32 +705,32 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             gradData[i] = (sum * 32768.0f).toInt().toShort()
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8, io.github.kotlinmania.llama.ore.GGMLType.I16, io.github.kotlinmania.llama.ore.GGMLType.I32, io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8, io.github.kotlinmania.llama.core.GGMLType.I16, io.github.kotlinmania.llama.core.GGMLType.I32, io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         // For integer types, we'll use a float array for intermediate calculations
                         val floatGradData = FloatArray(totalSizeSrc0) { 0.0f }
 
                         // Get tensor gradient data and convert to float
                         val tensorGradDataFloat = FloatArray(totalSizeTensor)
                         when (tensor.grad!!.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val tensorGradData = tensor.grad!!.data as ByteArray
                                 for (i in 0 until totalSizeTensor) {
                                     tensorGradDataFloat[i] = tensorGradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val tensorGradData = tensor.grad!!.data as ShortArray
                                 for (i in 0 until totalSizeTensor) {
                                     tensorGradDataFloat[i] = tensorGradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val tensorGradData = tensor.grad!!.data as IntArray
                                 for (i in 0 until totalSizeTensor) {
                                     tensorGradDataFloat[i] = tensorGradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val tensorGradData = tensor.grad!!.data as LongArray
                                 for (i in 0 until totalSizeTensor) {
                                     tensorGradDataFloat[i] = tensorGradData[i].toFloat()
@@ -743,8 +743,8 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         for (i in 0 until totalSizeSrc0) {
                             // Calculate multi-dimensional indices for this element
                             var idx = i
-                            val indices = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
-                            for (dim in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                            val indices = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
+                            for (dim in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                                 if (src0.ne[dim] > 0) {
                                     indices[dim] = (idx % src0.ne[dim].toInt())
                                     idx /= src0.ne[dim].toInt()
@@ -778,28 +778,28 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert float gradient data back to the original type
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val gradData = ByteArray(totalSizeSrc0)
                                 for (i in 0 until totalSizeSrc0) {
                                     gradData[i] = floatGradData[i].toInt().toByte()
                                 }
                                 gradTensor.data = gradData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val gradData = ShortArray(totalSizeSrc0)
                                 for (i in 0 until totalSizeSrc0) {
                                     gradData[i] = floatGradData[i].toInt().toShort()
                                 }
                                 gradTensor.data = gradData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val gradData = IntArray(totalSizeSrc0)
                                 for (i in 0 until totalSizeSrc0) {
                                     gradData[i] = floatGradData[i].toInt()
                                 }
                                 gradTensor.data = gradData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val gradData = LongArray(totalSizeSrc0)
                                 for (i in 0 until totalSizeSrc0) {
                                     gradData[i] = floatGradData[i].toLong()
@@ -816,7 +816,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradTensor,
@@ -824,24 +824,24 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.ABS -> {
+        io.github.kotlinmania.llama.core.GGMLOp.ABS -> {
             // For absolute value operation C = abs(A):
             // grad_A = grad_C * sign(A), where sign(A) is 1 if A > 0, -1 if A < 0, 0 if A = 0
 
             if (src0?.grad != null) {
                 // Create a tensor with the sign of src0
-                val signTensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val signTensor = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     signTensor.ne[i] = src0.ne[i]
                     signTensor.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Create data with sign values
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val aData = src0.data as FloatArray
                         val signData = FloatArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -853,7 +853,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         signTensor.data = signData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val aData = src0.data as ShortArray
                         val signData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -867,7 +867,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         signTensor.data = signData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val aData = src0.data as ByteArray
                         val signData = ByteArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -879,7 +879,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         signTensor.data = signData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val aData = src0.data as ShortArray
                         val signData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -891,7 +891,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         signTensor.data = signData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val aData = src0.data as IntArray
                         val signData = IntArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -903,7 +903,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         signTensor.data = signData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val aData = src0.data as LongArray
                         val signData = LongArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -923,47 +923,47 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Compute grad_A = grad_C * sign(A)
                 val gradA =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, signTensor)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, signTensor)
 
                 // Add to source gradient
                 src0.grad =
-                    io.github.kotlinmania.llama.ore.addOrSet(context, src0.grad, gradA, zeroTable)
+                    io.github.kotlinmania.llama.core.addOrSet(context, src0.grad, gradA, zeroTable)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SGN -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SGN -> {
             // For sign operation C = sgn(A):
             // grad_A = 0 (since the derivative of sgn is 0 everywhere except at 0, where it's undefined)
             // In practice, we treat it as 0 everywhere for backpropagation
 
             if (src0?.grad != null) {
                 // Create a tensor with zeros (same shape as src0)
-                val zeroTensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val zeroTensor = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     zeroTensor.ne[i] = src0.ne[i]
                     zeroTensor.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Create data with zeros
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         zeroTensor.data = FloatArray(totalSize) { 0.0f }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         zeroTensor.data = ShortArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         zeroTensor.data = ByteArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         zeroTensor.data = ShortArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         zeroTensor.data = IntArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         zeroTensor.data = LongArray(totalSize) { 0L }
                     }
                     else -> {
@@ -973,7 +973,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient (which is effectively just keeping the existing gradient since we're adding zeros)
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     zeroTensor,
@@ -981,9 +981,9 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.NEG -> {
+        io.github.kotlinmania.llama.core.GGMLOp.NEG -> {
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.subOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.subOrSet(
                     context,
                     src0.grad,
                     tensor.grad!!,
@@ -991,40 +991,40 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.STEP -> {
+        io.github.kotlinmania.llama.core.GGMLOp.STEP -> {
             // For step operation C = step(A):
             // grad_A = 0 (since the derivative of step is 0 everywhere except at the threshold, where it's undefined)
             // In practice, we treat it as 0 everywhere for backpropagation
 
             if (src0?.grad != null) {
                 // Create a tensor with zeros (same shape as src0)
-                val zeroTensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val zeroTensor = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     zeroTensor.ne[i] = src0.ne[i]
                     zeroTensor.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Create data with zeros
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         zeroTensor.data = FloatArray(totalSize) { 0.0f }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         zeroTensor.data = ShortArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         zeroTensor.data = ByteArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         zeroTensor.data = ShortArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         zeroTensor.data = IntArray(totalSize) { 0 }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         zeroTensor.data = LongArray(totalSize) { 0L }
                     }
                     else -> {
@@ -1034,7 +1034,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient (which is effectively just keeping the existing gradient since we're adding zeros)
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     zeroTensor,
@@ -1042,22 +1042,22 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.RELU -> {
+        io.github.kotlinmania.llama.core.GGMLOp.RELU -> {
             if (src0?.grad != null) {
                 // grad_src0 += grad_tensor * (src0 > 0)
                 // Create a mask where src0 > 0
-                val mask = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val mask = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     mask.ne[i] = src0.ne[i]
                     mask.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Create mask data based on the tensor type
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         val maskData = FloatArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -1065,7 +1065,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         mask.data = maskData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         val maskData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -1073,7 +1073,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         mask.data = maskData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val srcData = src0.data as ByteArray
                         val maskData = ByteArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -1081,7 +1081,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         mask.data = maskData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val srcData = src0.data as ShortArray
                         val maskData = ShortArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -1089,7 +1089,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         mask.data = maskData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val srcData = src0.data as IntArray
                         val maskData = IntArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -1097,7 +1097,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                         }
                         mask.data = maskData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val srcData = src0.data as LongArray
                         val maskData = LongArray(totalSize)
                         for (i in 0 until totalSize) {
@@ -1113,10 +1113,10 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Multiply gradient by mask: grad_tensor * (src0 > 0)
                 val gradMasked =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, mask)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, mask)
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradMasked,
@@ -1124,25 +1124,25 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.GELU -> {
+        io.github.kotlinmania.llama.core.GGMLOp.GELU -> {
             if (src0?.grad != null) {
                 // The derivative of GELU approximation
                 // GELU(x) ≈ x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
                 // We need to compute the derivative of this with respect to x
 
                 // Create a tensor for the derivative
-                val derivative = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val derivative = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     derivative.ne[i] = src0.ne[i]
                     derivative.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Compute the derivative based on the tensor type
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         val derivativeData = FloatArray(totalSize)
 
@@ -1170,7 +1170,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         val derivativeData = ShortArray(totalSize)
 
@@ -1201,7 +1201,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8, io.github.kotlinmania.llama.ore.GGMLType.I16, io.github.kotlinmania.llama.ore.GGMLType.I32, io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8, io.github.kotlinmania.llama.core.GGMLType.I16, io.github.kotlinmania.llama.core.GGMLType.I32, io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         // For integer types, convert to float, compute derivative, then convert back
 
                         // Create a float array for intermediate calculations
@@ -1209,25 +1209,25 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert input data to float
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val srcData = src0.data as ByteArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val srcData = src0.data as ShortArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val srcData = src0.data as IntArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val srcData = src0.data as LongArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
@@ -1260,28 +1260,28 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert back to the original type
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val derivativeData = ByteArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt().toByte()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val derivativeData = ShortArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt().toShort()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val derivativeData = IntArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val derivativeData = LongArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toLong()
@@ -1299,10 +1299,10 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Multiply gradient by derivative: grad_tensor * derivative
                 val gradDerivative =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, derivative)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, derivative)
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradDerivative,
@@ -1310,17 +1310,17 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SCALE -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SCALE -> {
             // C = A * scale_factor
             // grad_A = grad_C * scale_factor
             // src0 is A
             // src1 is scale_factor (scalar)
             // tensor.grad is grad_C
             if (src0?.grad != null) {
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
-                    io.github.kotlinmania.llama.ore.ggmlMul(
+                    io.github.kotlinmania.llama.core.ggmlMul(
                         context,
                         tensor.grad!!,
                         src1!!
@@ -1330,7 +1330,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             // No gradient for src1 (scale_factor) as it's a constant
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.RESHAPE -> {
+        io.github.kotlinmania.llama.core.GGMLOp.RESHAPE -> {
             // C = reshape(A, new_shape)
             // grad_A = reshape(grad_C, shape_of_A)
             // tensor.src[0] is A
@@ -1341,12 +1341,12 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 val shapeOfA = src0.ne // LongArray
 
                 // grad_A = reshape(grad_C, shape_of_A)
-                val gradCReshapedToAShape = io.github.kotlinmania.llama.ore.reshape(
+                val gradCReshapedToAShape = io.github.kotlinmania.llama.core.reshape(
                     context,
                     gradC,
                     *shapeOfA // Spread operator for LongArray into vararg Long
                 )
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradCReshapedToAShape,
@@ -1355,7 +1355,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             // src1 is not used by RESHAPE (new shape is usually immediate, not a tensor src)
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.VIEW -> {
+        io.github.kotlinmania.llama.core.GGMLOp.VIEW -> {
             // C = view(A) (tensor is C, tensor.src[0] is A)
             // As per instructions, grad_A += reshape(grad_C, shape_of_A).
             // This implies grad_C corresponds to the entirety of A, just potentially in a different layout.
@@ -1368,12 +1368,12 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 val shapeOfA = src0.ne // LongArray
 
                 // grad_A_contribution = reshape(grad_C, shape_of_A)
-                val gradCReshapedToAShape = io.github.kotlinmania.llama.ore.reshape(
+                val gradCReshapedToAShape = io.github.kotlinmania.llama.core.reshape(
                     context,
                     gradC,
                     *shapeOfA // Spread operator for LongArray into vararg Long
                 )
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradCReshapedToAShape,
@@ -1382,7 +1382,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             // View parameters (like offset or new shape for view) are typically not differentiable.
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.PERMUTE -> {
+        io.github.kotlinmania.llama.core.GGMLOp.PERMUTE -> {
             // C = permute(A, ax0, ax1, ax2, ax3)
             // grad_A = permute(grad_C, inv_ax0, inv_ax1, inv_ax2, inv_ax3)
             // tensor.src[0] is A
@@ -1406,7 +1406,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     inverseAxes[originalAxes[i]] = i
                 }
 
-                val gradCPermutedBack = io.github.kotlinmania.llama.ore.permute(
+                val gradCPermutedBack = io.github.kotlinmania.llama.core.permute(
                     context,
                     gradC,
                     inverseAxes[0],
@@ -1414,7 +1414,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     inverseAxes[2],
                     inverseAxes[3]
                 )
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradCPermutedBack,
@@ -1423,7 +1423,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             // Parameters for permute (axes) are not differentiable.
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.TRANSPOSE -> {
+        io.github.kotlinmania.llama.core.GGMLOp.TRANSPOSE -> {
             // C = transpose(A, ax0, ax1)
             // grad_A = transpose(grad_C, ax0, ax1) (because transpose(transpose(X)) = X with same axes)
             // tensor.src[0] is A
@@ -1439,13 +1439,13 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 val axes = opParams
 
                 // Transpose grad_C back using the same axes
-                val gradCTransposedBack = io.github.kotlinmania.llama.ore.transpose(
+                val gradCTransposedBack = io.github.kotlinmania.llama.core.transpose(
                     context,
                     gradC,
                     axes[0], // ax0
                     axes[1]  // ax1
                 )
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradCTransposedBack,
@@ -1454,7 +1454,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
             // Parameters for transpose (axes) are not differentiable.
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.GET_ROWS -> {
+        io.github.kotlinmania.llama.core.GGMLOp.GET_ROWS -> {
             // C = get_rows(A, B) -> tensor = get_rows(src0, src1)
             // grad_A[B[i]] += grad_C[i] (row-wise)
             val src0 = tensor.src[0] // A: source tensor
@@ -1462,21 +1462,21 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
             // Check if src0 needs gradient and other inputs are valid
             if (src0 != null && src0.grad != null && // src0.grad being non-null implies it's a parameter and grad accumulation is expected
-                tensor.grad != null && src1 != null && src1.type == io.github.kotlinmania.llama.ore.GGMLType.I32) {
+                tensor.grad != null && src1 != null && src1.type == io.github.kotlinmania.llama.core.GGMLType.I32) {
 
                 // Create a temporary tensor for the gradient contribution to src0, initialized to zeros.
                 // This tensor will have the same shape and type as src0.
-                val gradAContribution = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
+                val gradAContribution = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
                 gradAContribution.ne = src0.ne.copyOf()
                 gradAContribution.nb = src0.nb.copyOf()
-                val totalElementsSrc0 = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(gradAContribution.ne).toInt()
+                val totalElementsSrc0 = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(gradAContribution.ne).toInt()
                 gradAContribution.data = when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> FloatArray(totalElementsSrc0) { 0.0f }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> ShortArray(totalElementsSrc0) { 0 } // Represents 0.0f for F16
-                    io.github.kotlinmania.llama.ore.GGMLType.I8  -> ByteArray(totalElementsSrc0) { 0 }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> ShortArray(totalElementsSrc0) { 0 }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> IntArray(totalElementsSrc0) { 0 }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> LongArray(totalElementsSrc0) { 0L }
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> FloatArray(totalElementsSrc0) { 0.0f }
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> ShortArray(totalElementsSrc0) { 0 } // Represents 0.0f for F16
+                    io.github.kotlinmania.llama.core.GGMLType.I8  -> ByteArray(totalElementsSrc0) { 0 }
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> ShortArray(totalElementsSrc0) { 0 }
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> IntArray(totalElementsSrc0) { 0 }
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> LongArray(totalElementsSrc0) { 0L }
                     else -> error("fatal error")
                 }
 
@@ -1495,7 +1495,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Accumulate gradients from gradC into gradAContribution based on indicesB
                 when (gradAContribution.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val gradAData = gradAContribution.data as FloatArray
                         val gradCData = gradC.data as FloatArray
                         for (i in 0 until numRowsC) { // For each row/index
@@ -1506,7 +1506,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             }
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val gradAData = gradAContribution.data as ShortArray
                         val gradCData = gradC.data as ShortArray
                         for (i in 0 until numRowsC) {
@@ -1520,7 +1520,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             }
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val gradAData = gradAContribution.data as ByteArray
                         val gradCData = gradC.data as ByteArray
                         for (i in 0 until numRowsC) {
@@ -1532,7 +1532,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             }
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val gradAData = gradAContribution.data as ShortArray
                         val gradCData = gradC.data as ShortArray
                         for (i in 0 until numRowsC) {
@@ -1544,7 +1544,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             }
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val gradAData = gradAContribution.data as IntArray
                         val gradCData = gradC.data as IntArray
                         for (i in 0 until numRowsC) {
@@ -1555,7 +1555,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                             }
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val gradAData = gradAContribution.data as LongArray
                         val gradCData = gradC.data as LongArray
                         for (i in 0 until numRowsC) {
@@ -1571,7 +1571,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Add the accumulated contributions from gradAContribution to src0.grad
                 // src0.grad is assumed to be non-null here due to the initial check.
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad!!,
                     gradAContribution,
@@ -1579,7 +1579,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-    io.github.kotlinmania.llama.ore.GGMLOp.DIAG_MASK_INF -> {
+    io.github.kotlinmania.llama.core.GGMLOp.DIAG_MASK_INF -> {
         // C = diag_mask_inf(A, n_past)
         // grad_A = grad_C * unmasked_mask, where unmasked_mask is 1 if A[i]==C[i], 0 otherwise.
         // tensor is C, src0 is A.
@@ -1592,10 +1592,10 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             val gradC = tensor.grad!!
 
             // Create unmasked_mask tensor of the same type and shape as src0
-            val unmaskedMask = io.github.kotlinmania.llama.ore.GGMLTensor(type = type)
+            val unmaskedMask = io.github.kotlinmania.llama.core.GGMLTensor(type = type)
             unmaskedMask.ne = src0.ne.copyOf()
             unmaskedMask.nb = src0.nb.copyOf()
-            val totalElements = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(unmaskedMask.ne).toInt()
+            val totalElements = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(unmaskedMask.ne).toInt()
 
             val s0Data = src0.data
             val cData = tensor.data // Data of the output tensor C
@@ -1603,7 +1603,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             // Allocate and populate unmaskedMask.data
             // Mask value is 1 if src0.data[i] == tensor.data[i], else 0
             when (type) {
-                io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                     val maskData = FloatArray(totalElements)
                     val s0Array = s0Data as FloatArray
                     val cArray = cData as FloatArray
@@ -1612,7 +1612,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     }
                     unmaskedMask.data = maskData
                 }
-                io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                     val maskData = ShortArray(totalElements)
                     val s0Array = s0Data as ShortArray
                     val cArray = cData as ShortArray
@@ -1623,7 +1623,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     }
                     unmaskedMask.data = maskData
                 }
-                io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                     val maskData = ByteArray(totalElements)
                     val s0Array = s0Data as ByteArray
                     val cArray = cData as ByteArray
@@ -1632,7 +1632,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     }
                     unmaskedMask.data = maskData
                 }
-                io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                     val maskData = ShortArray(totalElements)
                     val s0Array = s0Data as ShortArray
                     val cArray = cData as ShortArray
@@ -1641,7 +1641,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     }
                     unmaskedMask.data = maskData
                 }
-                io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                     val maskData = IntArray(totalElements)
                     val s0Array = s0Data as IntArray
                     val cArray = cData as IntArray
@@ -1650,7 +1650,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                     }
                     unmaskedMask.data = maskData
                 }
-                io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                     val maskData = LongArray(totalElements)
                     val s0Array = s0Data as LongArray
                     val cArray = cData as LongArray
@@ -1663,10 +1663,10 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             }
 
             // Calculate contribution: grad_C * unmasked_mask
-            val contribution = io.github.kotlinmania.llama.ore.ggmlMul(context, gradC, unmaskedMask)
+            val contribution = io.github.kotlinmania.llama.core.ggmlMul(context, gradC, unmaskedMask)
 
             // Add contribution to src0's gradient
-            src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+            src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                 context,
                 src0.grad!!,
                 contribution,
@@ -1674,7 +1674,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
             )
         }
     }
-        io.github.kotlinmania.llama.ore.GGMLOp.MUL_MAT -> {
+        io.github.kotlinmania.llama.core.GGMLOp.MUL_MAT -> {
             // For matrix multiplication C = A @ B:
             // grad_A = grad_C @ B^T
             // grad_B = A^T @ grad_C
@@ -1683,30 +1683,30 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 // Compute grad_A = grad_C @ B^T
 
                 // First, we need to transpose B (src1)
-                val bTransposed = io.github.kotlinmania.llama.ore.GGMLTensor(type = src1!!.type)
+                val bTransposed = io.github.kotlinmania.llama.core.GGMLTensor(type = src1!!.type)
 
                 // Set dimensions for the transposed tensor
                 // If B is (n x p), B^T will be (p x n)
                 bTransposed.ne[0] = src1.ne[1]
                 bTransposed.ne[1] = src1.ne[0]
-                for (i in 2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                for (i in 2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     bTransposed.ne[i] = src1.ne[i]
                 }
 
                 // Set strides for the transposed tensor
                 val typeSize = when (src1.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> 4u
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> 2u
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> 1u
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> 2u
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> 4u
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> 8u
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> 4u
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> 2u
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> 1u
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> 2u
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> 4u
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> 8u
                     else -> 1u // Default for quantized types
                 }
 
                 bTransposed.nb[0] = src1.nb[1]
                 bTransposed.nb[1] = src1.nb[0]
-                for (i in 2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                for (i in 2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     bTransposed.nb[i] = src1.nb[i]
                 }
 
@@ -1715,7 +1715,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Create transposed data
                 when (src1.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src1.data as FloatArray
                         val transposedData = FloatArray(totalSize)
 
@@ -1730,7 +1730,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         bTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src1.data as ShortArray
                         val transposedData = ShortArray(totalSize)
 
@@ -1745,7 +1745,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         bTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val srcData = src1.data as ByteArray
                         val transposedData = ByteArray(totalSize)
 
@@ -1760,7 +1760,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         bTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val srcData = src1.data as ShortArray
                         val transposedData = ShortArray(totalSize)
 
@@ -1775,7 +1775,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         bTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val srcData = src1.data as IntArray
                         val transposedData = IntArray(totalSize)
 
@@ -1790,7 +1790,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         bTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val srcData = src1.data as LongArray
                         val transposedData = LongArray(totalSize)
 
@@ -1813,41 +1813,41 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Compute grad_A = grad_C @ B^T
                 val gradA =
-                    io.github.kotlinmania.llama.ore.ggmlMulMat(context, tensor.grad!!, bTransposed)
+                    io.github.kotlinmania.llama.core.ggmlMulMat(context, tensor.grad!!, bTransposed)
 
                 // Add to source gradient
                 src0.grad =
-                    io.github.kotlinmania.llama.ore.addOrSet(context, src0.grad, gradA, zeroTable)
+                    io.github.kotlinmania.llama.core.addOrSet(context, src0.grad, gradA, zeroTable)
             }
 
             if (src1?.grad != null) {
                 // Compute grad_B = A^T @ grad_C
 
                 // First, we need to transpose A (src0)
-                val aTransposed = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0!!.type)
+                val aTransposed = io.github.kotlinmania.llama.core.GGMLTensor(type = src0!!.type)
 
                 // Set dimensions for the transposed tensor
                 // If A is (m x n), A^T will be (n x m)
                 aTransposed.ne[0] = src0.ne[1]
                 aTransposed.ne[1] = src0.ne[0]
-                for (i in 2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                for (i in 2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     aTransposed.ne[i] = src0.ne[i]
                 }
 
                 // Set strides for the transposed tensor
                 val typeSize = when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> 4u
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> 2u
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> 1u
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> 2u
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> 4u
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> 8u
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> 4u
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> 2u
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> 1u
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> 2u
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> 4u
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> 8u
                     else -> 1u // Default for quantized types
                 }
 
                 aTransposed.nb[0] = src0.nb[1]
                 aTransposed.nb[1] = src0.nb[0]
-                for (i in 2 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                for (i in 2 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     aTransposed.nb[i] = src0.nb[i]
                 }
 
@@ -1856,7 +1856,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Create transposed data
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         val transposedData = FloatArray(totalSize)
 
@@ -1871,7 +1871,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         aTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         val transposedData = ShortArray(totalSize)
 
@@ -1886,7 +1886,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         aTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val srcData = src0.data as ByteArray
                         val transposedData = ByteArray(totalSize)
 
@@ -1901,7 +1901,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         aTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val srcData = src0.data as ShortArray
                         val transposedData = ShortArray(totalSize)
 
@@ -1916,7 +1916,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         aTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val srcData = src0.data as IntArray
                         val transposedData = IntArray(totalSize)
 
@@ -1931,7 +1931,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         aTransposed.data = transposedData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val srcData = src0.data as LongArray
                         val transposedData = LongArray(totalSize)
 
@@ -1954,31 +1954,31 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Compute grad_B = A^T @ grad_C
                 val gradB =
-                    io.github.kotlinmania.llama.ore.ggmlMulMat(context, aTransposed, tensor.grad!!)
+                    io.github.kotlinmania.llama.core.ggmlMulMat(context, aTransposed, tensor.grad!!)
 
                 // Add to source gradient
                 src1.grad =
-                    io.github.kotlinmania.llama.ore.addOrSet(context, src1.grad, gradB, zeroTable)
+                    io.github.kotlinmania.llama.core.addOrSet(context, src1.grad, gradB, zeroTable)
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.SILU -> {
+        io.github.kotlinmania.llama.core.GGMLOp.SILU -> {
             // For SILU operation C = x * sigmoid(x):
             // grad_x = grad_C * (sigmoid(x) + x * sigmoid(x) * (1 - sigmoid(x)))
 
             if (src0?.grad != null) {
                 // Create a tensor for the derivative
-                val derivative = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val derivative = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     derivative.ne[i] = src0.ne[i]
                     derivative.nb[i] = src0.nb[i]
                 }
 
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // Compute the derivative based on the tensor type
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         val derivativeData = FloatArray(totalSize)
 
@@ -1991,7 +1991,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         val derivativeData = ShortArray(totalSize)
 
@@ -2008,31 +2008,31 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8, io.github.kotlinmania.llama.ore.GGMLType.I16, io.github.kotlinmania.llama.ore.GGMLType.I32, io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8, io.github.kotlinmania.llama.core.GGMLType.I16, io.github.kotlinmania.llama.core.GGMLType.I32, io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         // For integer types, convert to float, compute derivative, then convert back
                         val floatData = FloatArray(totalSize)
 
                         // Convert input data to float
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val srcData = src0.data as ByteArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val srcData = src0.data as ShortArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val srcData = src0.data as IntArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val srcData = src0.data as LongArray
                                 for (i in 0 until totalSize) {
                                     floatData[i] = srcData[i].toFloat()
@@ -2051,28 +2051,28 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert back to the original type
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val derivativeData = ByteArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt().toByte()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val derivativeData = ShortArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt().toShort()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val derivativeData = IntArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toInt()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val derivativeData = LongArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = floatData[i].toLong()
@@ -2090,10 +2090,10 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                 // Multiply gradient by derivative: grad_tensor * derivative
                 val gradDerivative =
-                    io.github.kotlinmania.llama.ore.ggmlMul(context, tensor.grad!!, derivative)
+                    io.github.kotlinmania.llama.core.ggmlMul(context, tensor.grad!!, derivative)
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     gradDerivative,
@@ -2101,51 +2101,51 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.NORM -> {
+        io.github.kotlinmania.llama.core.GGMLOp.NORM -> {
             // where ⊗ is the outer product and I is the identity matrix
 
             if (src0?.grad != null) {
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
 
                 // First, we need to compute the L2 norm of src0
                 var norm = 0.0f
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         for (i in 0 until totalSize) {
                             norm += srcData[i] * srcData[i]
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat() / 32768.0f
                             norm += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val srcData = src0.data as ByteArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
                             norm += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val srcData = src0.data as ShortArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
                             norm += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val srcData = src0.data as IntArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
                             norm += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val srcData = src0.data as LongArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
@@ -2159,15 +2159,15 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 norm = kotlin.math.sqrt(norm)
 
                 // Create a tensor for the derivative
-                val derivative = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val derivative = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     derivative.ne[i] = src0.ne[i]
                     derivative.nb[i] = src0.nb[i]
                 }
 
                 // Compute the derivative based on the tensor type
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         val derivativeData = FloatArray(totalSize)
                         val normalizedData = FloatArray(totalSize)
@@ -2188,7 +2188,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         val derivativeData = ShortArray(totalSize)
                         val normalizedData = FloatArray(totalSize)
@@ -2216,7 +2216,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8, io.github.kotlinmania.llama.ore.GGMLType.I16, io.github.kotlinmania.llama.ore.GGMLType.I32, io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8, io.github.kotlinmania.llama.core.GGMLType.I16, io.github.kotlinmania.llama.core.GGMLType.I32, io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         // For integer types, convert to float, compute derivative, then convert back
                         val srcFloatData = FloatArray(totalSize)
                         val gradFloatData = FloatArray(totalSize)
@@ -2225,7 +2225,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert source data to float
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val srcData = src0.data as ByteArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2235,7 +2235,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                                     gradFloatData[i] = gradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val srcData = src0.data as ShortArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2245,7 +2245,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                                     gradFloatData[i] = gradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val srcData = src0.data as IntArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2255,7 +2255,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                                     gradFloatData[i] = gradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val srcData = src0.data as LongArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2284,28 +2284,28 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert back to the original type
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val derivativeData = ByteArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toInt().toByte()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val derivativeData = ShortArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toInt().toShort()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val derivativeData = IntArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toInt()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val derivativeData = LongArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toLong()
@@ -2322,7 +2322,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     derivative,
@@ -2330,54 +2330,54 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 )
             }
         }
-        io.github.kotlinmania.llama.ore.GGMLOp.RMS_NORM -> {
+        io.github.kotlinmania.llama.core.GGMLOp.RMS_NORM -> {
             // For RMS_NORM operation C = x / sqrt(mean(x^2) + eps):
             // grad_x = grad_C * (1 / sqrt(mean(x^2) + eps) - x^2 / (mean(x^2) + eps)^(3/2) / n)
             // where n is the number of elements in x and eps is a small constant for numerical stability
 
             if (src0?.grad != null) {
                 // Calculate total size
-                val totalSize = io.github.kotlinmania.llama.ore.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
+                val totalSize = io.github.kotlinmania.llama.core.GGMLTensorUtils.calculateTotalSize(src0.ne).toInt()
                 val eps = 1e-5f // Small constant for numerical stability
 
                 // First, we need to compute the mean of squared values
                 var meanSquared = 0.0f
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         for (i in 0 until totalSize) {
                             meanSquared += srcData[i] * srcData[i]
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat() / 32768.0f
                             meanSquared += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                         val srcData = src0.data as ByteArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
                             meanSquared += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                         val srcData = src0.data as ShortArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
                             meanSquared += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                         val srcData = src0.data as IntArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
                             meanSquared += value * value
                         }
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         val srcData = src0.data as LongArray
                         for (i in 0 until totalSize) {
                             val value = srcData[i].toFloat()
@@ -2395,15 +2395,15 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 val rmsFactorCubed = rmsFactor * rmsFactor * rmsFactor
 
                 // Create a tensor for the derivative
-                val derivative = io.github.kotlinmania.llama.ore.GGMLTensor(type = src0.type)
-                for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val derivative = io.github.kotlinmania.llama.core.GGMLTensor(type = src0.type)
+                for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     derivative.ne[i] = src0.ne[i]
                     derivative.nb[i] = src0.nb[i]
                 }
 
                 // Compute the derivative based on the tensor type
                 when (src0.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                         val srcData = src0.data as FloatArray
                         val derivativeData = FloatArray(totalSize)
                         val gradData = tensor.grad!!.data as FloatArray
@@ -2418,7 +2418,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> {
                         val srcData = src0.data as ShortArray
                         val derivativeData = ShortArray(totalSize)
                         val gradData = FloatArray(totalSize)
@@ -2440,7 +2440,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         derivative.data = derivativeData
                     }
-                    io.github.kotlinmania.llama.ore.GGMLType.I8, io.github.kotlinmania.llama.ore.GGMLType.I16, io.github.kotlinmania.llama.ore.GGMLType.I32, io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                    io.github.kotlinmania.llama.core.GGMLType.I8, io.github.kotlinmania.llama.core.GGMLType.I16, io.github.kotlinmania.llama.core.GGMLType.I32, io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                         // For integer types, convert to float, compute derivative, then convert back
                         val srcFloatData = FloatArray(totalSize)
                         val gradFloatData = FloatArray(totalSize)
@@ -2448,7 +2448,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert source and gradient data to float
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val srcData = src0.data as ByteArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2458,7 +2458,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                                     gradFloatData[i] = gradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val srcData = src0.data as ShortArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2468,7 +2468,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                                     gradFloatData[i] = gradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val srcData = src0.data as IntArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2478,7 +2478,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                                     gradFloatData[i] = gradData[i].toFloat()
                                 }
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val srcData = src0.data as LongArray
                                 for (i in 0 until totalSize) {
                                     srcFloatData[i] = srcData[i].toFloat()
@@ -2501,28 +2501,28 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
 
                         // Convert back to the original type
                         when (src0.type) {
-                            io.github.kotlinmania.llama.ore.GGMLType.I8 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I8 -> {
                                 val derivativeData = ByteArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toInt().toByte()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I16 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I16 -> {
                                 val derivativeData = ShortArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toInt().toShort()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I32 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I32 -> {
                                 val derivativeData = IntArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toInt()
                                 }
                                 derivative.data = derivativeData
                             }
-                            io.github.kotlinmania.llama.ore.GGMLType.I64 -> {
+                            io.github.kotlinmania.llama.core.GGMLType.I64 -> {
                                 val derivativeData = LongArray(totalSize)
                                 for (i in 0 until totalSize) {
                                     derivativeData[i] = derivativeFloatData[i].toLong()
@@ -2539,7 +2539,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
                 }
 
                 // Add to source gradient
-                src0.grad = io.github.kotlinmania.llama.ore.addOrSet(
+                src0.grad = io.github.kotlinmania.llama.core.addOrSet(
                     context,
                     src0.grad,
                     derivative,
@@ -2561,7 +2561,7 @@ private fun computeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
  * @param cgraph The computation graph to build
  * @param visited A set of visited tensors to avoid cycles
  */
-private fun buildForwardImpl(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, visited: MutableSet<io.github.kotlinmania.llama.ore.GGMLTensor>) {
+private fun buildForwardImpl(tensor: io.github.kotlinmania.llama.core.GGMLTensor, cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, visited: MutableSet<io.github.kotlinmania.llama.core.GGMLTensor>) {
     // If we've already visited this tensor, return
     if (tensor in visited) {
         return
@@ -2571,13 +2571,13 @@ private fun buildForwardImpl(tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
     visited.add(tensor)
 
     // If the tensor has no operation, it's a leaf node
-    if (tensor.op == io.github.kotlinmania.llama.ore.GGMLOp.NONE) {
+    if (tensor.op == io.github.kotlinmania.llama.core.GGMLOp.NONE) {
         cgraph.leafs[cgraph.nLeafs++] = tensor
         return
     }
 
     // Recursively build the graph for the source tensors
-    for (i in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_SRC) {
+    for (i in 0 until io.github.kotlinmania.llama.core.GGML_MAX_SRC) {
         val src = tensor.src[i] ?: break
         buildForwardImpl(src, cgraph, visited)
     }
@@ -2592,17 +2592,17 @@ private fun buildForwardImpl(tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
  * @param cgraph The computation graph to build
  * @param tensor The output tensor
  */
-fun buildForward(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, tensor: io.github.kotlinmania.llama.ore.GGMLTensor) {
+fun buildForward(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, tensor: io.github.kotlinmania.llama.core.GGMLTensor) {
     // Reset the graph
     cgraph.nNodes = 0
     cgraph.nLeafs = 0
 
     // Build the graph
-    val visited = mutableSetOf<io.github.kotlinmania.llama.ore.GGMLTensor>()
-    io.github.kotlinmania.llama.ore.buildForwardImpl(tensor, cgraph, visited)
+    val visited = mutableSetOf<io.github.kotlinmania.llama.core.GGMLTensor>()
+    io.github.kotlinmania.llama.core.buildForwardImpl(tensor, cgraph, visited)
 
     // Set the order to forward
-    cgraph.order = io.github.kotlinmania.llama.ore.GGMLCGraphEvalOrder.FORWARD
+    cgraph.order = io.github.kotlinmania.llama.core.GGMLCGraphEvalOrder.FORWARD
 }
 
 /**
@@ -2613,7 +2613,7 @@ fun buildForward(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, tensor: io.
  * @param gb The backward computation graph to build
  * @param keep Whether to keep the original gradients
  */
-fun buildBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, gf: io.github.kotlinmania.llama.ore.GGMLCGraph, gb: io.github.kotlinmania.llama.ore.GGMLCGraph, keep: Boolean = true) {
+fun buildBackward(context: io.github.kotlinmania.llama.core.GGMLContext, gf: io.github.kotlinmania.llama.core.GGMLCGraph, gb: io.github.kotlinmania.llama.core.GGMLCGraph, keep: Boolean = true) {
     // Check that the forward graph has nodes
     if (gf.nNodes <= 0) {
         throw IllegalArgumentException("Forward graph has no nodes")
@@ -2631,8 +2631,8 @@ fun buildBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, gf: io.g
 
             if (node.grad != null) {
                 // Create a duplicate of the gradient tensor
-                val gradDup = io.github.kotlinmania.llama.ore.GGMLTensor(type = node.grad!!.type)
-                for (j in 0 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+                val gradDup = io.github.kotlinmania.llama.core.GGMLTensor(type = node.grad!!.type)
+                for (j in 0 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                     gradDup.ne[j] = node.grad!!.ne[j]
                     gradDup.nb[j] = node.grad!!.nb[j]
                 }
@@ -2645,7 +2645,7 @@ fun buildBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, gf: io.g
     }
 
     // Remember original gradients which start with zero values
-    val zeroTable = mutableSetOf<io.github.kotlinmania.llama.ore.GGMLTensor>()
+    val zeroTable = mutableSetOf<io.github.kotlinmania.llama.core.GGMLTensor>()
     for (i in 0 until gf.nNodes) {
         if (gf.grads[i] != null) {
             zeroTable.add(gf.grads[i]!!)
@@ -2658,7 +2658,7 @@ fun buildBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, gf: io.g
 
         // Compute gradients for this node
         if (node.grad != null) {
-            io.github.kotlinmania.llama.ore.computeBackward(context, node, zeroTable)
+            io.github.kotlinmania.llama.core.computeBackward(context, node, zeroTable)
         }
     }
 
@@ -2669,16 +2669,16 @@ fun buildBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, gf: io.g
     for (i in 0 until gf.nNodes) {
         val node = gf.nodes[i] ?: continue
 
-        if (node.flags and io.github.kotlinmania.llama.ore.GGML_TENSOR_FLAG_PARAM != 0) {
+        if (node.flags and io.github.kotlinmania.llama.core.GGML_TENSOR_FLAG_PARAM != 0) {
             // This is a parameter tensor, add its gradient to the backward graph
             if (node.grad != null) {
-                io.github.kotlinmania.llama.ore.buildForward(gb, node.grad!!)
+                io.github.kotlinmania.llama.core.buildForward(gb, node.grad!!)
             }
         }
     }
 
     // Set the order to backward
-    gb.order = io.github.kotlinmania.llama.ore.GGMLCGraphEvalOrder.BACKWARD
+    gb.order = io.github.kotlinmania.llama.core.GGMLCGraphEvalOrder.BACKWARD
 }
 
 /**
@@ -2687,9 +2687,9 @@ fun buildBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, gf: io.g
  * @param context The GGML context
  * @param cgraph The computation graph to execute
  */
-fun executeGraph(context: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+fun executeGraph(context: io.github.kotlinmania.llama.core.GGMLContext, cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {
     // Unified execution path: ensure allocation, then compute via backend or CPU compute ops
-    val allocator = cgraph.allocator ?: io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+    val allocator = cgraph.allocator ?: io.github.kotlinmania.llama.core.GGMLGraphAllocator()
     // Attach allocator if missing
     if (cgraph.allocator == null) {
         cgraph.allocator = allocator
@@ -2703,9 +2703,9 @@ fun executeGraph(context: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: i
     val backend = allocator.backend
     if (backend != null) {
         val status = backend.graphCompute(cgraph)
-        if (status != io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS) throw IllegalStateException("Backend graph compute failed: $status")
+        if (status != io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS) throw IllegalStateException("Backend graph compute failed: $status")
     } else {
-        io.github.kotlinmania.llama.ore.GGMLComputeOps.computeGraph(cgraph)
+        io.github.kotlinmania.llama.core.GGMLComputeOps.computeGraph(cgraph)
     }
 }
 
@@ -2715,9 +2715,9 @@ fun executeGraph(context: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: i
  * @param context The GGML context
  * @param cgraph The computation graph to execute
  */
-private fun executeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+private fun executeBackward(context: io.github.kotlinmania.llama.core.GGMLContext, cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {
     // Legacy path replaced: ensure allocation and compute via backend/CPU
-    io.github.kotlinmania.llama.ore.computeGraphWithBackend(cgraph)
+    io.github.kotlinmania.llama.core.computeGraphWithBackend(cgraph)
 }
 
 /**
@@ -2726,9 +2726,9 @@ private fun executeBackward(context: io.github.kotlinmania.llama.ore.GGMLContext
  * @param context The GGML context
  * @param cgraph The computation graph to execute
  */
-private fun executeForward(context: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+private fun executeForward(context: io.github.kotlinmania.llama.core.GGMLContext, cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {
     // Legacy path replaced: ensure allocation and compute via backend/CPU
-    io.github.kotlinmania.llama.ore.computeGraphWithBackend(cgraph)
+    io.github.kotlinmania.llama.core.computeGraphWithBackend(cgraph)
 }
 
 /**
@@ -2737,13 +2737,13 @@ private fun executeForward(context: io.github.kotlinmania.llama.ore.GGMLContext,
  * @param context The GGML context
  * @param node The node to execute
  */
-private fun executeNode(context: io.github.kotlinmania.llama.ore.GGMLContext, node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+private fun executeNode(context: io.github.kotlinmania.llama.core.GGMLContext, node: io.github.kotlinmania.llama.core.GGMLTensor) {
     // Legacy per-node execution replaced by backend/CPU graph compute.
     // Build a temporary single-node graph and compute it via unified path.
-    val tempGraph = io.github.kotlinmania.llama.ore.createGraph(1)
+    val tempGraph = io.github.kotlinmania.llama.core.createGraph(1)
     tempGraph.nodes[0] = node
     tempGraph.nNodes = 1
-    io.github.kotlinmania.llama.ore.computeGraphWithBackend(tempGraph)
+    io.github.kotlinmania.llama.core.computeGraphWithBackend(tempGraph)
 }
 
 /**
@@ -2752,14 +2752,14 @@ private fun executeNode(context: io.github.kotlinmania.llama.ore.GGMLContext, no
  * @param size The maximum number of nodes in the graph
  * @return The new computation graph
  */
-fun createGraph(size: Int, backend: io.github.kotlinmania.llama.ore.GGMLBackend? = null): io.github.kotlinmania.llama.ore.GGMLCGraph {
+fun createGraph(size: Int, backend: io.github.kotlinmania.llama.core.GGMLBackend? = null): io.github.kotlinmania.llama.core.GGMLCGraph {
     val allocator = if (backend != null) {
-        io.github.kotlinmania.llama.ore.GGMLGraphAllocator(backend)
+        io.github.kotlinmania.llama.core.GGMLGraphAllocator(backend)
     } else {
-        io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        io.github.kotlinmania.llama.core.GGMLGraphAllocator()
     }
     
-    return io.github.kotlinmania.llama.ore.GGMLCGraph(
+    return io.github.kotlinmania.llama.core.GGMLCGraph(
         size = size,
         nNodes = 0,
         nLeafs = 0,
@@ -2767,7 +2767,7 @@ fun createGraph(size: Int, backend: io.github.kotlinmania.llama.ore.GGMLBackend?
         grads = Array(size) { null },
         leafs = Array(size) { null },
         visitedHashSet = null,
-        order = io.github.kotlinmania.llama.ore.GGMLCGraphEvalOrder.NONE,
+        order = io.github.kotlinmania.llama.core.GGMLCGraphEvalOrder.NONE,
         allocator = allocator
     )
 }
@@ -2780,25 +2780,25 @@ fun createGraph(size: Int, backend: io.github.kotlinmania.llama.ore.GGMLBackend?
  * @param context Optional context for legacy execution
  * @return The computation status
  */
-fun computeGraphWithBackend(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, context: io.github.kotlinmania.llama.ore.GGMLContext? = null): io.github.kotlinmania.llama.ore.GGMLStatus {
-    val allocator = graph.allocator ?: io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+fun computeGraphWithBackend(graph: io.github.kotlinmania.llama.core.GGMLCGraph, context: io.github.kotlinmania.llama.core.GGMLContext? = null): io.github.kotlinmania.llama.core.GGMLStatus {
+    val allocator = graph.allocator ?: io.github.kotlinmania.llama.core.GGMLGraphAllocator()
         .also { graph.allocator = it }
     val backend = allocator.backend
 
     // Ensure graph is allocated before compute
     return try {
         val ok = allocator.allocateGraph(graph)
-        if (!ok) return io.github.kotlinmania.llama.ore.GGMLStatus.FAILED
+        if (!ok) return io.github.kotlinmania.llama.core.GGMLStatus.FAILED
 
         if (backend != null) {
             backend.graphCompute(graph)
         } else {
-            io.github.kotlinmania.llama.ore.GGMLComputeOps.computeGraph(graph)
-            io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS
+            io.github.kotlinmania.llama.core.GGMLComputeOps.computeGraph(graph)
+            io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS
         }
     } catch (e: Exception) {
         println("Graph computation failed: ${e.message}")
-        io.github.kotlinmania.llama.ore.GGMLStatus.FAILED
+        io.github.kotlinmania.llama.core.GGMLStatus.FAILED
     }
 }
 
@@ -2810,7 +2810,7 @@ fun computeGraphWithBackend(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, c
 private val graphUidCounter = AtomicLong(1L)
 
 /** Returns the next unique graph identifier. Thread-safe via atomic increment. */
-fun ggmlGraphNextUid(): Long = io.github.kotlinmania.llama.ore.graphUidCounter.fetchAndAdd(1L)
+fun ggmlGraphNextUid(): Long = io.github.kotlinmania.llama.core.graphUidCounter.fetchAndAdd(1L)
 
 // ---------------------------------------------------------------------------
 // Timing (ported from ggml_time_init / ggml_time_ms / ggml_time_us)
@@ -2822,21 +2822,21 @@ fun ggmlTimeInit() { /* identity on Kotlin targets */ }
 private val timeOrigin = TimeSource.Monotonic.markNow()
 
 /** Current wall-clock time in milliseconds (monotonic). */
-fun ggmlTimeMs(): Long = io.github.kotlinmania.llama.ore.timeOrigin.elapsedNow().inWholeMilliseconds
+fun ggmlTimeMs(): Long = io.github.kotlinmania.llama.core.timeOrigin.elapsedNow().inWholeMilliseconds
 
 /** Current wall-clock time in microseconds (monotonic). */
-fun ggmlTimeUs(): Long = io.github.kotlinmania.llama.ore.timeOrigin.elapsedNow().inWholeMicroseconds
+fun ggmlTimeUs(): Long = io.github.kotlinmania.llama.core.timeOrigin.elapsedNow().inWholeMicroseconds
 
 // ---------------------------------------------------------------------------
 // Status helpers (ported from ggml_status_to_string)
 // ---------------------------------------------------------------------------
 
-/** Converts a [io.github.kotlinmania.llama.ore.GGMLStatus] to a human-readable description. */
-fun ggmlStatusToString(status: io.github.kotlinmania.llama.ore.GGMLStatus): String = when (status) {
-    io.github.kotlinmania.llama.ore.GGMLStatus.ALLOC_FAILED -> "GGML status: error (failed to allocate memory)"
-    io.github.kotlinmania.llama.ore.GGMLStatus.FAILED       -> "GGML status: error (operation failed)"
-    io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS      -> "GGML status: success"
-    io.github.kotlinmania.llama.ore.GGMLStatus.ABORTED      -> "GGML status: warning (operation aborted)"
+/** Converts a [io.github.kotlinmania.llama.core.GGMLStatus] to a human-readable description. */
+fun ggmlStatusToString(status: io.github.kotlinmania.llama.core.GGMLStatus): String = when (status) {
+    io.github.kotlinmania.llama.core.GGMLStatus.ALLOC_FAILED -> "GGML status: error (failed to allocate memory)"
+    io.github.kotlinmania.llama.core.GGMLStatus.FAILED       -> "GGML status: error (operation failed)"
+    io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS      -> "GGML status: success"
+    io.github.kotlinmania.llama.core.GGMLStatus.ABORTED      -> "GGML status: warning (operation aborted)"
 }
 
 // ---------------------------------------------------------------------------
@@ -2851,25 +2851,25 @@ fun ggmlStatusToString(status: io.github.kotlinmania.llama.ore.GGMLStatus): Stri
 // ---------------------------------------------------------------------------
 
 /** True when stride layout indicates channel-last ordering. */
-fun ggmlIsContiguousChannels(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean =
+fun ggmlIsContiguousChannels(tensor: io.github.kotlinmania.llama.core.GGMLTensor): Boolean =
     tensor.nb[0] > tensor.nb[2] &&
     tensor.nb[1] > tensor.nb[0] &&
-    tensor.nb[2] == io.github.kotlinmania.llama.ore.ggmlTypeSize(tensor.type)
+    tensor.nb[2] == io.github.kotlinmania.llama.core.ggmlTypeSize(tensor.type)
 
 /** True when rows are contiguous in memory. */
-fun ggmlIsContiguousRows(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean =
-    tensor.ne[0] == io.github.kotlinmania.llama.ore.ggmlBlckSize(tensor.type) ||
-    tensor.nb[0] == io.github.kotlinmania.llama.ore.ggmlTypeSize(tensor.type)
+fun ggmlIsContiguousRows(tensor: io.github.kotlinmania.llama.core.GGMLTensor): Boolean =
+    tensor.ne[0] == io.github.kotlinmania.llama.core.ggmlBlckSize(tensor.type) ||
+    tensor.nb[0] == io.github.kotlinmania.llama.core.ggmlTypeSize(tensor.type)
 
 /** True when `nb[0]` is type-sized and higher dims pack tightly. */
-fun ggmlIsPadded1d(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean =
-    tensor.nb[0] == io.github.kotlinmania.llama.ore.ggmlTypeSize(tensor.type) &&
+fun ggmlIsPadded1d(tensor: io.github.kotlinmania.llama.core.GGMLTensor): Boolean =
+    tensor.nb[0] == io.github.kotlinmania.llama.core.ggmlTypeSize(tensor.type) &&
     tensor.nb[2] == tensor.nb[1] * tensor.ne[1].toULong() &&
     tensor.nb[3] == tensor.nb[2] * tensor.ne[2].toULong()
 
 /** True when t0 can be broadcast row-wise onto t1. */
-fun ggmlCanRepeatRows(t0: io.github.kotlinmania.llama.ore.GGMLTensor, t1: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean =
-    t0.ne[0] == t1.ne[0] && io.github.kotlinmania.llama.ore.ggmlCanRepeat(t0, t1)
+fun ggmlCanRepeatRows(t0: io.github.kotlinmania.llama.core.GGMLTensor, t1: io.github.kotlinmania.llama.core.GGMLTensor): Boolean =
+    t0.ne[0] == t1.ne[0] && io.github.kotlinmania.llama.core.ggmlCanRepeat(t0, t1)
 
 // ---------------------------------------------------------------------------
 // Tensor utilities ported from ggml.c
@@ -2879,7 +2879,7 @@ fun ggmlCanRepeatRows(t0: io.github.kotlinmania.llama.ore.GGMLTensor, t1: io.git
  * Converts a flat element index into per-dimension indices for [tensor].
  * Ported from `ggml_unravel_index`.
  */
-fun ggmlUnravelIndex(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Long): LongArray {
+fun ggmlUnravelIndex(tensor: io.github.kotlinmania.llama.core.GGMLTensor, i: Long): LongArray {
     val ne0 = tensor.ne[0]; val ne1 = tensor.ne[1]; val ne2 = tensor.ne[2]
     val i3 = i / (ne2 * ne1 * ne0)
     val i2 = (i - i3 * ne2 * ne1 * ne0) / (ne1 * ne0)
@@ -2902,9 +2902,9 @@ fun ggmlUnravelIndex(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, i: Long
  * The returned graph shares the underlying node array — no deep copy.
  * Ported from `ggml_graph_view`.
  */
-fun ggmlGraphView(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, i0: Int, i1: Int): io.github.kotlinmania.llama.ore.GGMLCGraph {
+fun ggmlGraphView(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, i0: Int, i1: Int): io.github.kotlinmania.llama.core.GGMLCGraph {
     require(i0 in 0..cgraph.nNodes && i1 in i0..cgraph.nNodes)
-    return io.github.kotlinmania.llama.ore.GGMLCGraph(
+    return io.github.kotlinmania.llama.core.GGMLCGraph(
         size = 0,
         nNodes = i1 - i0,
         nLeafs = 0,
@@ -2923,7 +2923,7 @@ fun ggmlGraphView(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, i0: Int, i
  * Deep-copies [src] graph data into [dst]. [dst] must be large enough.
  * Ported from `ggml_graph_cpy`.
  */
-fun ggmlGraphCpy(src: io.github.kotlinmania.llama.ore.GGMLCGraph, dst: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+fun ggmlGraphCpy(src: io.github.kotlinmania.llama.core.GGMLCGraph, dst: io.github.kotlinmania.llama.core.GGMLCGraph) {
     require(dst.size >= src.nLeafs) { "dst too small for leafs" }
     require(dst.size >= src.nNodes) { "dst too small for nodes" }
     dst.nLeafs = src.nLeafs
@@ -2937,13 +2937,13 @@ fun ggmlGraphCpy(src: io.github.kotlinmania.llama.ore.GGMLCGraph, dst: io.github
  * Duplicates [cgraph] into a new graph allocated from [ctx].
  * Ported from `ggml_graph_dup`.
  */
-fun ggmlGraphDup(ctx: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, forceGrads: Boolean = false): io.github.kotlinmania.llama.ore.GGMLCGraph {
-    val result = io.github.kotlinmania.llama.ore.ggmlNewGraphCustom(
+fun ggmlGraphDup(ctx: io.github.kotlinmania.llama.core.GGMLContext, cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, forceGrads: Boolean = false): io.github.kotlinmania.llama.core.GGMLCGraph {
+    val result = io.github.kotlinmania.llama.core.ggmlNewGraphCustom(
         ctx,
         cgraph.size.toULong(),
         cgraph.grads.isNotEmpty() || forceGrads
     )
-    io.github.kotlinmania.llama.ore.ggmlGraphCpy(cgraph, result)
+    io.github.kotlinmania.llama.core.ggmlGraphCpy(cgraph, result)
     return result
 }
 
@@ -2952,19 +2952,19 @@ fun ggmlGraphDup(ctx: io.github.kotlinmania.llama.ore.GGMLContext, cgraph: io.gi
  * Loss nodes get gradient = 1.0f; all others are zeroed.
  * Ported from `ggml_graph_reset`.
  */
-fun ggmlGraphReset(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+fun ggmlGraphReset(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {
     for (i in 0 until cgraph.nNodes) {
         val node = cgraph.nodes[i] ?: continue
         // If the node has a gradient accumulator, zero it (or set to 1.0 for loss)
         val grad = cgraph.grads.getOrNull(i)
         if (grad != null) {
-            if (node.flags and io.github.kotlinmania.llama.ore.GGML_TENSOR_FLAG_LOSS != 0) {
-                require(grad.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-                require(io.github.kotlinmania.llama.ore.ggmlIsScalar(grad))
+            if (node.flags and io.github.kotlinmania.llama.core.GGML_TENSOR_FLAG_LOSS != 0) {
+                require(grad.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+                require(io.github.kotlinmania.llama.core.ggmlIsScalar(grad))
                 val data = grad.data
                 if (data is FloatArray && data.isNotEmpty()) data[0] = 1.0f
             } else {
-                io.github.kotlinmania.llama.ore.ggmlSetZero(grad)
+                io.github.kotlinmania.llama.core.ggmlSetZero(grad)
             }
         }
     }
@@ -2974,48 +2974,48 @@ fun ggmlGraphReset(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
  * Prints a human-readable summary of [cgraph] to the log.
  * Ported from `ggml_graph_print`.
  */
-fun ggmlGraphPrint(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
-    io.github.kotlinmania.llama.ore.ggmlLogInternal(
-        io.github.kotlinmania.llama.ore.GGMLLogLevel.INFO,
+fun ggmlGraphPrint(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {
+    io.github.kotlinmania.llama.core.ggmlLogInternal(
+        io.github.kotlinmania.llama.core.GGMLLogLevel.INFO,
         "=== GRAPH ===\n"
     )
-    io.github.kotlinmania.llama.ore.ggmlLogInternal(
-        io.github.kotlinmania.llama.ore.GGMLLogLevel.INFO,
+    io.github.kotlinmania.llama.core.ggmlLogInternal(
+        io.github.kotlinmania.llama.core.GGMLLogLevel.INFO,
         "n_nodes = ${cgraph.nNodes}\n"
     )
     for (i in 0 until cgraph.nNodes) {
         val node = cgraph.nodes[i] ?: continue
-        val flag = if (node.flags and io.github.kotlinmania.llama.ore.GGML_TENSOR_FLAG_PARAM != 0) "x"
+        val flag = if (node.flags and io.github.kotlinmania.llama.core.GGML_TENSOR_FLAG_PARAM != 0) "x"
                    else if (cgraph.grads.getOrNull(i) != null) "g"
                    else " "
-        io.github.kotlinmania.llama.ore.ggmlLogInternal(
-            io.github.kotlinmania.llama.ore.GGMLLogLevel.INFO,
+        io.github.kotlinmania.llama.core.ggmlLogInternal(
+            io.github.kotlinmania.llama.core.GGMLLogLevel.INFO,
             " - ${i.toString().padStart(3)}: [${node.ne[0].toString().padStart(5)}, ${
                 node.ne[1].toString().padStart(5)
             }, ${node.ne[2].toString().padStart(5)}] ${
-                io.github.kotlinmania.llama.ore.ggmlOpName(
+                io.github.kotlinmania.llama.core.ggmlOpName(
                     node.op
                 ).padStart(16)
             } $flag\n"
         )
     }
-    io.github.kotlinmania.llama.ore.ggmlLogInternal(
-        io.github.kotlinmania.llama.ore.GGMLLogLevel.INFO,
+    io.github.kotlinmania.llama.core.ggmlLogInternal(
+        io.github.kotlinmania.llama.core.GGMLLogLevel.INFO,
         "n_leafs = ${cgraph.nLeafs}\n"
     )
     for (i in 0 until cgraph.nLeafs) {
         val leaf = cgraph.leafs[i] ?: continue
-        io.github.kotlinmania.llama.ore.ggmlLogInternal(
-            io.github.kotlinmania.llama.ore.GGMLLogLevel.INFO,
+        io.github.kotlinmania.llama.core.ggmlLogInternal(
+            io.github.kotlinmania.llama.core.GGMLLogLevel.INFO,
             " - ${i.toString().padStart(3)}: [${leaf.ne[0].toString().padStart(5)}, ${
                 leaf.ne[1].toString().padStart(5)
             }] ${
-                io.github.kotlinmania.llama.ore.ggmlOpName(leaf.op).padStart(8)
+                io.github.kotlinmania.llama.core.ggmlOpName(leaf.op).padStart(8)
             } ${leaf.name.padStart(16)}\n"
         )
     }
-    io.github.kotlinmania.llama.ore.ggmlLogInternal(
-        io.github.kotlinmania.llama.ore.GGMLLogLevel.INFO,
+    io.github.kotlinmania.llama.core.ggmlLogInternal(
+        io.github.kotlinmania.llama.core.GGMLLogLevel.INFO,
         "========================================\n"
     )
 }
@@ -3026,7 +3026,7 @@ fun ggmlGraphPrint(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
  * Returns the gradient tensor for [node] inside [cgraph], or null.
  * Ported from `ggml_graph_get_grad` (simplified — uses array index).
  */
-fun ggmlGraphGetGrad(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, node: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.GGMLTensor? {
+fun ggmlGraphGetGrad(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, node: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.GGMLTensor? {
     if (cgraph.grads.isEmpty()) return null
     for (i in 0 until cgraph.nNodes) {
         if (cgraph.nodes[i] === node) return cgraph.grads.getOrNull(i)
@@ -3038,7 +3038,7 @@ fun ggmlGraphGetGrad(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, node: i
  * Returns the gradient accumulator tensor for [node], or null.
  * Ported from `ggml_graph_get_grad_acc`.
  */
-fun ggmlGraphGetGradAcc(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, node: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.GGMLTensor? {
+fun ggmlGraphGetGradAcc(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, node: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.GGMLTensor? {
     if (cgraph.gradAccs.isEmpty()) return null
     for (i in 0 until cgraph.nNodes) {
         if (cgraph.nodes[i] === node) return cgraph.gradAccs.getOrNull(i)
@@ -3050,7 +3050,7 @@ fun ggmlGraphGetGradAcc(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, node
  * True when [node] appears in [cgraph] nodes.
  * Ported from `ggml_graph_find`.
  */
-fun ggmlGraphFind(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph?, node: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean {
+fun ggmlGraphFind(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph?, node: io.github.kotlinmania.llama.core.GGMLTensor): Boolean {
     if (cgraph == null) return true
     for (i in 0 until cgraph.nNodes) {
         if (cgraph.nodes[i] === node) return true
@@ -3093,16 +3093,16 @@ data class GGMLComputePlan(
  * work-buffer sizing will be filled in when the CPU backend is formalised.
  * Ported from `ggml_graph_plan` (minimal).
  */
-fun ggmlGraphPlan(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, nThreads: Int = 1): io.github.kotlinmania.llama.ore.GGMLComputePlan {
-    return io.github.kotlinmania.llama.ore.GGMLComputePlan(nThreads = nThreads)
+fun ggmlGraphPlan(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, nThreads: Int = 1): io.github.kotlinmania.llama.core.GGMLComputePlan {
+    return io.github.kotlinmania.llama.core.GGMLComputePlan(nThreads = nThreads)
 }
 
 /**
  * Executes [cgraph] according to [plan].
  * Ported from `ggml_graph_compute` (delegates to backend infrastructure).
  */
-fun ggmlGraphCompute(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph, plan: io.github.kotlinmania.llama.ore.GGMLComputePlan): io.github.kotlinmania.llama.ore.GGMLStatus {
-    return io.github.kotlinmania.llama.ore.computeGraphWithBackend(cgraph)
+fun ggmlGraphCompute(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph, plan: io.github.kotlinmania.llama.core.GGMLComputePlan): io.github.kotlinmania.llama.core.GGMLStatus {
+    return io.github.kotlinmania.llama.core.computeGraphWithBackend(cgraph)
 }
 
 // ---------------------------------------------------------------------------
@@ -3122,18 +3122,18 @@ fun ggmlCommit(): String = "unknown"
 // GGMLFType enum is defined in GGMLOps.kt.
 
 /** Converts a file-level type hint to the corresponding tensor data type. */
-fun ggmlFtypeToGgmlType(ftype: io.github.kotlinmania.llama.ore.GGMLFType): io.github.kotlinmania.llama.ore.GGMLType = when (ftype) {
-    io.github.kotlinmania.llama.ore.GGMLFType.ALL_F32     -> io.github.kotlinmania.llama.ore.GGMLType.F32
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_F16  -> io.github.kotlinmania.llama.ore.GGMLType.F16
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q4_0 -> io.github.kotlinmania.llama.ore.GGMLType.Q4_0
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q4_1 -> io.github.kotlinmania.llama.ore.GGMLType.Q4_1
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q5_0 -> io.github.kotlinmania.llama.ore.GGMLType.Q5_0
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q5_1 -> io.github.kotlinmania.llama.ore.GGMLType.Q5_1
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q8_0 -> io.github.kotlinmania.llama.ore.GGMLType.Q8_0
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q2_K -> io.github.kotlinmania.llama.ore.GGMLType.Q2_K
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q3_K -> io.github.kotlinmania.llama.ore.GGMLType.Q3_K
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q4_K -> io.github.kotlinmania.llama.ore.GGMLType.Q4_K
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q5_K -> io.github.kotlinmania.llama.ore.GGMLType.Q5_K
-    io.github.kotlinmania.llama.ore.GGMLFType.MOSTLY_Q6_K -> io.github.kotlinmania.llama.ore.GGMLType.Q6_K
+fun ggmlFtypeToGgmlType(ftype: io.github.kotlinmania.llama.core.GGMLFType): io.github.kotlinmania.llama.core.GGMLType = when (ftype) {
+    io.github.kotlinmania.llama.core.GGMLFType.ALL_F32     -> io.github.kotlinmania.llama.core.GGMLType.F32
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_F16  -> io.github.kotlinmania.llama.core.GGMLType.F16
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q4_0 -> io.github.kotlinmania.llama.core.GGMLType.Q4_0
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q4_1 -> io.github.kotlinmania.llama.core.GGMLType.Q4_1
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q5_0 -> io.github.kotlinmania.llama.core.GGMLType.Q5_0
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q5_1 -> io.github.kotlinmania.llama.core.GGMLType.Q5_1
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q8_0 -> io.github.kotlinmania.llama.core.GGMLType.Q8_0
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q2_K -> io.github.kotlinmania.llama.core.GGMLType.Q2_K
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q3_K -> io.github.kotlinmania.llama.core.GGMLType.Q3_K
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q4_K -> io.github.kotlinmania.llama.core.GGMLType.Q4_K
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q5_K -> io.github.kotlinmania.llama.core.GGMLType.Q5_K
+    io.github.kotlinmania.llama.core.GGMLFType.MOSTLY_Q6_K -> io.github.kotlinmania.llama.core.GGMLType.Q6_K
     else -> error("Cannot convert ftype ${ftype.name} to ggml_type")
 }

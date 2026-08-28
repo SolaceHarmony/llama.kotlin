@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-batch.h llama.cpp/src/llama-batch.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import kotlinx.cinterop.toKString
 
 // =============================================================================
