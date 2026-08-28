@@ -1,4 +1,4 @@
-package ai.solace.klangnative.fp
+package io.github.kotlinmania.llama.lang.fp
 
 /**
  * VectorOps: Deterministic floating-point vector operations.

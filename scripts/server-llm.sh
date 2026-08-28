@@ -356,9 +356,9 @@ elif [[ -d "$llama_cpp_dir" ]]; then
 
     cd ..
 else
-    printf "[+] Cloning llama.cpp\n"
-
-    git clone https://github.com/ggerganov/llama.cpp "$llama_cpp_dir"
+    printf "[-] Missing llama.cpp at %s\n" "$llama_cpp_dir"
+    printf "    Fetch it outside this script before running the server helper.\n"
+    exit 1
 fi
 
 # mark that that the directory is made by this script

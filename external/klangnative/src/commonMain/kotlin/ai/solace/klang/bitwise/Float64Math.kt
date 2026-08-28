@@ -1,4 +1,4 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
 /**
  * Float64Math - IEEE-754 binary64 (double precision) arithmetic operations.

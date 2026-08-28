@@ -25,32 +25,41 @@ apt-get update
 apt-get install -y git-lfs cmake cmake-curses-gui vim ruby
 git-lfs install
 
-if [ ! -d "/workspace" ]; then
-    ln -sfn $(pwd) /workspace
-fi
+mkdir -p /workspace
 
 # download data
 cd /workspace
 
-# this is useful to git clone repos without doubling the disk size due to .git
-git clone https://github.com/iboB/git-lfs-download
-ln -sfn /workspace/git-lfs-download/git-lfs-download /usr/local/bin/git-lfs-download
+if ! command -v git-lfs-download >/dev/null 2>&1; then
+    echo "git-lfs-download must be installed before running this script."
+    exit 1
+fi
 
 # llama.cpp
 cd /workspace
-git clone https://github.com/ggerganov/llama.cpp
+if [ ! -d llama.cpp ]; then
+    echo "Missing /workspace/llama.cpp. Fetch it outside this script before running it."
+    exit 1
+fi
 
 cd llama.cpp
 
 GGML_CUDA=1 make -j
 
-ln -sfn /workspace/TinyLlama-1.1B-Chat-v0.3  ./models/tinyllama-1b
-ln -sfn /workspace/CodeLlama-7b-hf           ./models/codellama-7b
-ln -sfn /workspace/CodeLlama-13b-hf          ./models/codellama-13b
-ln -sfn /workspace/CodeLlama-34b-hf          ./models/codellama-34b
-ln -sfn /workspace/CodeLlama-7b-Instruct-hf  ./models/codellama-7b-instruct
-ln -sfn /workspace/CodeLlama-13b-Instruct-hf ./models/codellama-13b-instruct
-ln -sfn /workspace/CodeLlama-34b-Instruct-hf ./models/codellama-34b-instruct
+for model_dir in \
+    ./models/tinyllama-1b \
+    ./models/codellama-7b \
+    ./models/codellama-13b \
+    ./models/codellama-34b \
+    ./models/codellama-7b-instruct \
+    ./models/codellama-13b-instruct \
+    ./models/codellama-34b-instruct
+do
+    if [ -L "$model_dir" ]; then
+        echo "Remove symbolic link $model_dir and provide a real directory."
+        exit 1
+    fi
+done
 
 pip install -r requirements.txt
 

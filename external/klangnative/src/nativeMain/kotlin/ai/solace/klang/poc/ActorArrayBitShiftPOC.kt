@@ -1,11 +1,11 @@
-package ai.solace.klangnative.poc
+package io.github.kotlinmania.llama.lang.poc
 
-import ai.solace.klangnative.bitwise.ArrayBitShifts
-import ai.solace.klangnative.bitwise.BitShiftConfig
-import ai.solace.klangnative.bitwise.BitShiftMode
-import ai.solace.klangnative.int.SwAR128
-import ai.solace.klangnative.mem.GlobalHeap
-import ai.solace.klangnative.mem.KMalloc
+import io.github.kotlinmania.llama.lang.bitwise.ArrayBitShifts
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftConfig
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftMode
+import io.github.kotlinmania.llama.lang.int.SwAR128
+import io.github.kotlinmania.llama.lang.mem.GlobalHeap
+import io.github.kotlinmania.llama.lang.mem.KMalloc
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

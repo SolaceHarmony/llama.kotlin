@@ -10,13 +10,13 @@ This document summarizes the KLang numeric core added to the project: a pure‑K
 - Provide precise 128‑bit integer intermediates required by Float64 ops
 
 ## Modules & Types
-- `ai.solace.klangnative.fp`
+- `io.github.kotlinmania.llama.lang.fp`
   - `CFloat32`: inline value class with operators +, −, ×, ÷
   - Future: `CFloat16`, `CBF16`, `CFloat64`
-- `ai.solace.klangnative.bitwise`
+- `io.github.kotlinmania.llama.lang.bitwise`
   - `Float32Math`: compiler‑rt transliterations (add/sub/mul/div/sqrt; rounding nearest‑even by default)
   - `CFloatTrace` (diagnostics), `DoubleDouble` (widened accumulators for analysis only)
-- `ai.solace.klangnative.int.hpc`
+- `io.github.kotlinmania.llama.lang.int.hpc`
   - `HPC16x4` (64‑bit, 4×16‑bit limbs): add/sub/compare/shifts
   - `HPC16x8` (128‑bit, 8×16‑bit limbs): add/sub/compare/shifts, 64×64→128 mul
   - TODO: 128/64 division (Knuth D), full carry propagation passthrough for larger inputs

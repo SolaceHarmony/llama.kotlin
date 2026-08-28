@@ -400,7 +400,7 @@ For each file to be considered "complete":
 ```bash
 # Initialize task queue for systematic porting
 cd tools/ast_distance
-./ast_distance --init-tasks ../../ggml/src cpp ../../src/commonMain/kotlin/ai/solace/llamakotlin/core kotlin tasks.json ../../AGENTS.md
+./ast_distance --init-tasks ../../ggml/src cpp ../../src/commonMain/kotlin/io.github.kotlinmania.llama.ore kotlin tasks.json ../../AGENTS.md
 
 # Get next high-priority task
 ./ast_distance --assign tasks.json <agent-id>

@@ -1,4 +1,4 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
 /**
  * KStack: C-style automatic storage with frame-based memory management.

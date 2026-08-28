@@ -1,6 +1,6 @@
-package ai.solace.klangnative.int
+package io.github.kotlinmania.llama.lang.int
 
-import ai.solace.klangnative.mem.KMalloc
+import io.github.kotlinmania.llama.lang.mem.KMalloc
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

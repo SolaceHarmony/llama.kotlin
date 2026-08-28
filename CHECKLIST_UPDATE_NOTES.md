@@ -9,16 +9,16 @@ The project currently does not build due to package naming inconsistencies betwe
 - **Problem**: klang is a separate repository at https://github.com/Kotlinmania/klang
 - **Current State**: klang sources are vendored in `external/klangnative/`
 - **Issue**: Package naming mismatch
-  - llama.kotlin code imports from `ai.solace.klangnative.*`
-  - Some vendored klang files declare package as `ai.solace.klangnative.*` (correct)
-  - Other files reference `ai.solace.klang.*` internally (incorrect)
+  - llama.kotlin code imports from `io.github.kotlinmania.llama.lang.*`
+  - Some vendored klang files declare package as `io.github.kotlinmania.llama.lang.*` (correct)
+  - Other files reference `io.github.kotlinmania.llama.lang.*` internally (incorrect)
 - **Affected Files**:
   - Core files: `GGMLComputeOps.kt`, `GGMLTypes.kt`, `QuantizationHelper.kt`
   - Backend files: Entire `backend/klangnative/` directory
   - Bench files: All benchmark utilities
 
 ### 2. Duplicate Source Issues
-- **Problem**: klang sources existed in both `src/commonMain/kotlin/ai/solace/klang/` AND `external/klangnative/`
+- **Problem**: klang sources existed in both `src/commonMain/kotlin/io.github.kotlinmania.llama.lang/` AND `external/klangnative/`
 - **Resolution**: Removed duplicates from `src/` directories
 - **Remaining**: Need to fix vendored klang sources or properly integrate as dependency
 
@@ -29,7 +29,7 @@ The project currently does not build due to package naming inconsistencies betwe
 
 ### 4. Incomplete/Experimental Code
 - **Disabled Files**:
-  - `QuantizationHelperHeap.kt` - depends on missing `ai.solace.klangnative.mem.GlobalHeap`
+  - `QuantizationHelperHeap.kt` - depends on missing `io.github.kotlinmania.llama.lang.mem.GlobalHeap`
   - `QuantizationHelperHeapTest.kt` - corresponding test file
 
 ## Checklist Items That Need Review
@@ -56,7 +56,7 @@ Based on code inspection (without successful build), the following sections need
 1. **Immediate**: Fix klang integration
    - Option A: Publish klang as separate library and add as dependency
    - Option B: Fix package naming in vendored klang sources
-   - Option C: Use git submodule for klang
+   - Option C: Use submodule vendoring for klang
 
 2. **Short-term**: Validate checklist completion claims
    - Build project successfully

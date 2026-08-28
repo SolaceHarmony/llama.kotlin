@@ -15,7 +15,7 @@ The llama.kotlin project follows a modular, utility-based architecture that emph
 
 ### 1. GGMLUtilities Object
 
-Located in `src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLUtilities.kt`
+Located in `src/nativeMain/kotlin/io.github.kotlinmania.llama.ore/GGMLUtilities.kt`
 
 **Purpose**: Centralized utilities for formatting, display, and common operations.
 
@@ -37,7 +37,7 @@ println("Speedup: ${GGMLUtilities.formatSpeedup(speedup)}")
 
 ### 2. ByteArrayExtensions Object
 
-Located in `src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLUtilities.kt`
+Located in `src/nativeMain/kotlin/io.github.kotlinmania.llama.ore/GGMLUtilities.kt`
 
 **Purpose**: Centralized little-endian ByteArray operations.
 
@@ -50,8 +50,8 @@ Located in `src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLUtilities.kt`
 
 **Usage Pattern**:
 ```kotlin
-import ai.solace.llamakotlin.core.ByteArrayExtensions.getFloatLe
-import ai.solace.llamakotlin.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
 
 // Consistent little-endian operations across all files
 val value = buffer.getFloatLe(offset)
@@ -60,7 +60,7 @@ buffer.setFloatLe(offset, newValue)
 
 ### 3. GGMLTensorUtils Object
 
-Located in `src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLTensorUtils.kt`
+Located in `src/nativeMain/kotlin/io.github.kotlinmania.llama.ore/GGMLTensorUtils.kt`
 
 **Purpose**: Tensor-specific utility functions and calculations.
 
@@ -83,7 +83,7 @@ val totalSize = GGMLTensorUtils.calculateTotalSize(ne)
 
 ### 4. DemoTextUtilities Object
 
-Located in `src/nativeMain/kotlin/ai/solace/llamakotlin/core/GGMLUtilities.kt`
+Located in `src/nativeMain/kotlin/io.github.kotlinmania.llama.ore/GGMLUtilities.kt`
 
 **Purpose**: Reusable components for demo output and documentation.
 

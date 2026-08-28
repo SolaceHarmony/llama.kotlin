@@ -1,6 +1,6 @@
-package ai.solace.klangnative.fp
+package io.github.kotlinmania.llama.lang.fp
 
-import ai.solace.klangnative.bitwise.CFloatTrace
+import io.github.kotlinmania.llama.lang.bitwise.CFloatTrace
 import kotlin.math.abs
 
 /**

@@ -36,7 +36,7 @@
 
 ### Phase 1: Update Build Configuration
 - [ ] Add external/klangnative to source sets in build.gradle.kts
-- [ ] Update imports from `ai.solace.klangnative.bitwise` to vendored packages
+- [ ] Update imports from `io.github.kotlinmania.llama.lang.bitwise` to vendored packages
 - [ ] Test that existing code compiles with vendored klangnative
 
 ### Phase 2: Introduce GlobalHeap Layer
@@ -94,7 +94,7 @@ val scale = CFloat32.fromFloat(maxAbs) / CFloat32.fromFloat(127.0f)
 ```
 
 ### Phase 6: Remove Embedded KLang
-- [ ] Delete `src/commonMain/kotlin/ai/solace/klang/`
+- [ ] Delete `src/commonMain/kotlin/io.github.kotlinmania.llama.lang/`
 - [ ] Verify all imports point to `external/klangnative`
 - [ ] Update tests to use vendored klangnative
 

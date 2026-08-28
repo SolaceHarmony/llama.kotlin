@@ -58,7 +58,11 @@ wget -q "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.
 mkdir -p /opt/gradle
 unzip -q /tmp/gradle.zip -d /opt/gradle
 mv /opt/gradle/gradle-${GRADLE_VERSION} /opt/gradle/latest
-ln -s /opt/gradle/latest/bin/gradle /usr/bin/gradle
+cat > /usr/bin/gradle <<'EOF'
+#!/usr/bin/env bash
+exec /opt/gradle/latest/bin/gradle "$@"
+EOF
+chmod +x /usr/bin/gradle
 rm /tmp/gradle.zip
 
 # Optionally install Gradle with SDKMAN if SSL errors occur

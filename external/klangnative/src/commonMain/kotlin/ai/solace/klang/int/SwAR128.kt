@@ -1,8 +1,8 @@
-package ai.solace.klangnative.int
+package io.github.kotlinmania.llama.lang.int
 
-import ai.solace.klangnative.bitwise.ArithmeticBitwiseOps
-import ai.solace.klangnative.bitwise.BitShiftEngine
-import ai.solace.klangnative.bitwise.BitShiftMode
+import io.github.kotlinmania.llama.lang.bitwise.ArithmeticBitwiseOps
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftEngine
+import io.github.kotlinmania.llama.lang.bitwise.BitShiftMode
 
 /**
  * SwAR128 - arithmetic-only SIMD-Within-A-Register helpers for unsigned 128-bit integers.
@@ -132,8 +132,8 @@ object SwAR128 {
      */
     private fun readLimb(addr: Int): Int {
         val ops16 = ArithmeticBitwiseOps.BITS_16
-        val lo = ai.solace.klang.mem.GlobalHeap.lbu(addr)
-        val hi = ai.solace.klang.mem.GlobalHeap.lbu(addr + 1)
+        val lo = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lbu(addr)
+        val hi = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lbu(addr + 1)
         val shifted = ops16.leftShift(hi.toLong(), 8)
         return ops16.or(lo.toLong(), shifted).toInt()
     }
@@ -148,8 +148,8 @@ object SwAR128 {
         val normalized = ops16.and(value.toLong(), LIMB_MASK.toLong())
         val lowByte = ops8.and(normalized, 0xFFL)
         val highByte = ops8.and(ops16.rightShift(normalized, 8), 0xFFL)
-        ai.solace.klang.mem.GlobalHeap.sb(addr, lowByte.toByte())
-        ai.solace.klang.mem.GlobalHeap.sb(addr + 1, highByte.toByte())
+        io.github.kotlinmania.llama.lang.mem.GlobalHeap.sb(addr, lowByte.toByte())
+        io.github.kotlinmania.llama.lang.mem.GlobalHeap.sb(addr + 1, highByte.toByte())
     }
     
     /**
@@ -226,13 +226,13 @@ object SwAR128 {
         
         if (bits == 0) {
             // Copy src to dest
-            ai.solace.klang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
+            io.github.kotlinmania.llama.lang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
             return 0uL
         }
         
         if (bits >= LIMB_COUNT * LIMB_BITS) {
             // Everything shifts out, result is zero
-            ai.solace.klang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
+            io.github.kotlinmania.llama.lang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
             return accumulateSpillHeap(srcAddr)
         }
         
@@ -299,12 +299,12 @@ object SwAR128 {
         require(bits >= 0)
         
         if (bits == 0) {
-            ai.solace.klang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
+            io.github.kotlinmania.llama.lang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
             return 0uL
         }
         
         if (bits >= LIMB_COUNT * LIMB_BITS) {
-            ai.solace.klang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
+            io.github.kotlinmania.llama.lang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
             return accumulateSpillHeap(srcAddr)
         }
         
@@ -379,6 +379,6 @@ object SwAR128 {
      * Write zero to a 128-bit integer in heap.
      */
     fun zeroHeap(addr: Int) {
-        ai.solace.klang.mem.GlobalHeap.memset(addr, 0, LIMB_COUNT * 2)
+        io.github.kotlinmania.llama.lang.mem.GlobalHeap.memset(addr, 0, LIMB_COUNT * 2)
     }
 }

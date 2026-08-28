@@ -2,7 +2,7 @@
 
 **Generated:** 2026-05-07
 **Source:** ggml/src
-**Target:** src/commonMain/kotlin/ai/solace/llamakotlin/core
+**Target:** src/commonMain/kotlin/io.github.kotlinmania.llama.ore
 
 ## Executive Summary
 

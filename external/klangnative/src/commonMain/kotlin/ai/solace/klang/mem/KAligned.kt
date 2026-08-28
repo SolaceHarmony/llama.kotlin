@@ -1,4 +1,4 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
 /**
  * Aligned allocations over KMalloc.

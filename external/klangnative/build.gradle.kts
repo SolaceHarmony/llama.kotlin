@@ -12,7 +12,7 @@ plugins {
     id("maven-publish")
 }
 
-group = "ai.solace"
+group = "io.github.kotlinmania.llama.
 version = "0.7.2"
 
 //project.gradle.taskGraph.whenReady { println(project.gradle.taskGraph.allTasks) }
@@ -44,7 +44,7 @@ kotlin {
         configureAll()
         binaries {
             executable {
-                entryPoint = "ai.solace.klang.poc.main"
+                entryPoint = "io.github.kotlinmania.llama.lang.poc.main"
             }
         }
     }
@@ -88,7 +88,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-stdlib-common")
-                // Added for ai.solace.klang parallel array operations and actors
+                // Added for io.github.kotlinmania.llama.lang parallel array operations and actors
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             }
         }
@@ -106,7 +106,7 @@ kotlin {
     }
 }
 
-val mainClassName = "ai.solace.klang.KLangExportsKt"
+val mainClassName = "io.github.kotlinmania.llama.lang.KLangExportsKt"
 
 val jsCompilations = kotlin.targets["js"].compilations
 

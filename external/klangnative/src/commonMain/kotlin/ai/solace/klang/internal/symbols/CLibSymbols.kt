@@ -1,13 +1,13 @@
-package ai.solace.klangnative.internal.symbols
+package io.github.kotlinmania.llama.lang.internal.symbols
 
-import ai.solace.klangnative.internal.runtime.CPointer
+import io.github.kotlinmania.llama.lang.internal.runtime.CPointer
 
 /**
  * C standard library function symbols backed by [GlobalHeap].
  *
  * Provides familiar C library function names (strlen, strcpy, memcpy, etc.) that operate
  * on [CPointer] wrappers instead of raw integer addresses. These functions delegate to
- * the heap-backed implementations in [ai.solace.klang.mem.CLib] and [ai.solace.klang.mem.GlobalHeap].
+ * the heap-backed implementations in [io.github.kotlinmania.llama.lang.mem.CLib] and [io.github.kotlinmania.llama.lang.mem.GlobalHeap].
  *
  * ## Purpose
  *
@@ -27,7 +27,7 @@ import ai.solace.klangnative.internal.runtime.CPointer
  * val len = strlen(dst)  // Returns 5
  * ```
  *
- * @see ai.solace.klang.mem.CLib For the underlying implementations
+ * @see io.github.kotlinmania.llama.lang.mem.CLib For the underlying implementations
  * @see CPointer For the pointer wrapper type
  */
 
@@ -37,7 +37,7 @@ import ai.solace.klangnative.internal.runtime.CPointer
  * @param s Pointer to the null-terminated string.
  * @return The number of bytes before the null terminator.
  */
-fun strlen(s: CPointer<Byte>): Int = ai.solace.klang.mem.CLib.strlen(s.ptr)
+fun strlen(s: CPointer<Byte>): Int = io.github.kotlinmania.llama.lang.mem.CLib.strlen(s.ptr)
 
 /**
  * Calculates the length of a C string, up to a maximum.
@@ -46,7 +46,7 @@ fun strlen(s: CPointer<Byte>): Int = ai.solace.klang.mem.CLib.strlen(s.ptr)
  * @param n Maximum number of bytes to examine.
  * @return The number of bytes before null or n, whichever is smaller.
  */
-fun strnlen(s: CPointer<Byte>, n: Int): Int = ai.solace.klang.mem.CLib.strnlen(s.ptr, n)
+fun strnlen(s: CPointer<Byte>, n: Int): Int = io.github.kotlinmania.llama.lang.mem.CLib.strnlen(s.ptr, n)
 
 /**
  * Compares two null-terminated C strings lexicographically.
@@ -55,7 +55,7 @@ fun strnlen(s: CPointer<Byte>, n: Int): Int = ai.solace.klang.mem.CLib.strnlen(s
  * @param b Second string pointer.
  * @return Negative if a < b, 0 if equal, positive if a > b.
  */
-fun strcmp(a: CPointer<Byte>, b: CPointer<Byte>): Int = ai.solace.klang.mem.CLib.strcmp(a.ptr, b.ptr)
+fun strcmp(a: CPointer<Byte>, b: CPointer<Byte>): Int = io.github.kotlinmania.llama.lang.mem.CLib.strcmp(a.ptr, b.ptr)
 
 /**
  * Compares up to n bytes of two C strings lexicographically.
@@ -65,7 +65,7 @@ fun strcmp(a: CPointer<Byte>, b: CPointer<Byte>): Int = ai.solace.klang.mem.CLib
  * @param n Maximum number of bytes to compare.
  * @return Negative if a < b, 0 if equal, positive if a > b.
  */
-fun strncmp(a: CPointer<Byte>, b: CPointer<Byte>, n: Int): Int = ai.solace.klang.mem.CLib.strncmp(a.ptr, b.ptr, n)
+fun strncmp(a: CPointer<Byte>, b: CPointer<Byte>, n: Int): Int = io.github.kotlinmania.llama.lang.mem.CLib.strncmp(a.ptr, b.ptr, n)
 
 /**
  * Copies a null-terminated string from source to destination.
@@ -74,7 +74,7 @@ fun strncmp(a: CPointer<Byte>, b: CPointer<Byte>, n: Int): Int = ai.solace.klang
  * @param src Source string pointer.
  * @return The destination pointer.
  */
-fun strcpy(dst: CPointer<Byte>, src: CPointer<Byte>): CPointer<Byte> = CPointer(ai.solace.klang.mem.CLib.strcpy(dst.ptr, src.ptr))
+fun strcpy(dst: CPointer<Byte>, src: CPointer<Byte>): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.CLib.strcpy(dst.ptr, src.ptr))
 
 /**
  * Copies up to n bytes from source to destination.
@@ -84,7 +84,7 @@ fun strcpy(dst: CPointer<Byte>, src: CPointer<Byte>): CPointer<Byte> = CPointer(
  * @param n Maximum number of bytes to copy.
  * @return The destination pointer.
  */
-fun strncpy(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> = CPointer(ai.solace.klang.mem.CLib.strncpy(dst.ptr, src.ptr, n))
+fun strncpy(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.CLib.strncpy(dst.ptr, src.ptr, n))
 
 /**
  * Searches for the first occurrence of a byte in a memory region.
@@ -94,7 +94,7 @@ fun strncpy(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> = 
  * @param n Number of bytes to search.
  * @return Pointer to the found byte, or null pointer if not found.
  */
-fun memchr(addr: CPointer<Byte>, c: Int, n: Int): CPointer<Byte> = CPointer(ai.solace.klang.mem.CLib.memchr(addr.ptr, c, n))
+fun memchr(addr: CPointer<Byte>, c: Int, n: Int): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.CLib.memchr(addr.ptr, c, n))
 
 /**
  * Searches for the first occurrence of a character in a C string.
@@ -103,7 +103,7 @@ fun memchr(addr: CPointer<Byte>, c: Int, n: Int): CPointer<Byte> = CPointer(ai.s
  * @param c Character code to find.
  * @return Pointer to the found character, or null pointer if not found.
  */
-fun strchr(addr: CPointer<Byte>, c: Int): CPointer<Byte> = CPointer(ai.solace.klang.mem.CLib.strchr(addr.ptr, c))
+fun strchr(addr: CPointer<Byte>, c: Int): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.CLib.strchr(addr.ptr, c))
 
 /**
  * Compares two memory regions byte-by-byte.
@@ -113,7 +113,7 @@ fun strchr(addr: CPointer<Byte>, c: Int): CPointer<Byte> = CPointer(ai.solace.kl
  * @param n Number of bytes to compare.
  * @return Negative if a < b, 0 if equal, positive if a > b.
  */
-fun memcmp(a: CPointer<Byte>, b: CPointer<Byte>, n: Int): Int = ai.solace.klang.mem.CLib.memcmp(a.ptr, b.ptr, n)
+fun memcmp(a: CPointer<Byte>, b: CPointer<Byte>, n: Int): Int = io.github.kotlinmania.llama.lang.mem.CLib.memcmp(a.ptr, b.ptr, n)
 
 /**
  * Copies n bytes from source to destination (regions must not overlap).
@@ -124,7 +124,7 @@ fun memcmp(a: CPointer<Byte>, b: CPointer<Byte>, n: Int): Int = ai.solace.klang.
  * @return The destination pointer.
  */
 fun memcpy(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> {
-    ai.solace.klang.mem.GlobalHeap.memcpy(dst.ptr, src.ptr, n)
+    io.github.kotlinmania.llama.lang.mem.GlobalHeap.memcpy(dst.ptr, src.ptr, n)
     return dst
 }
 /**
@@ -136,7 +136,7 @@ fun memcpy(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> {
  * @return The destination pointer.
  */
 fun memmove(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> {
-    ai.solace.klang.mem.GlobalHeap.memmove(dst.ptr, src.ptr, n)
+    io.github.kotlinmania.llama.lang.mem.GlobalHeap.memmove(dst.ptr, src.ptr, n)
     return dst
 }
 /**
@@ -148,6 +148,6 @@ fun memmove(dst: CPointer<Byte>, src: CPointer<Byte>, n: Int): CPointer<Byte> {
  * @return The destination pointer.
  */
 fun memset(dst: CPointer<Byte>, c: Int, n: Int): CPointer<Byte> {
-    ai.solace.klang.mem.GlobalHeap.memset(dst.ptr, c, n)
+    io.github.kotlinmania.llama.lang.mem.GlobalHeap.memset(dst.ptr, c, n)
     return dst
 }

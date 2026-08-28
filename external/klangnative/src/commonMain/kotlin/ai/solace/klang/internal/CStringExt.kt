@@ -1,6 +1,6 @@
-package ai.solace.klangnative.internal
+package io.github.kotlinmania.llama.lang.internal
 
-import ai.solace.klangnative.internal.runtime.CPointer
+import io.github.kotlinmania.llama.lang.internal.runtime.CPointer
 
 /**
  * C string extension functions for [CPointer]<[Byte]>.
@@ -14,14 +14,14 @@ import ai.solace.klangnative.internal.runtime.CPointer
  *
  * @return The number of bytes before the null terminator.
  */
-fun CPointer<Byte>.strlenz(): Int = ai.solace.klang.mem.CString.strlenz(this.ptr)
+fun CPointer<Byte>.strlenz(): Int = io.github.kotlinmania.llama.lang.mem.CString.strlenz(this.ptr)
 
 /**
  * Reads a C string from memory and converts it to a Kotlin [String].
  *
  * @return The decoded string up to the null terminator.
  */
-fun CPointer<Byte>.readCString(): String = ai.solace.klang.mem.CString.read(this.ptr)
+fun CPointer<Byte>.readCString(): String = io.github.kotlinmania.llama.lang.mem.CString.read(this.ptr)
 
 /**
  * Writes a Kotlin [String] to memory as a null-terminated C string.
@@ -29,7 +29,7 @@ fun CPointer<Byte>.readCString(): String = ai.solace.klang.mem.CString.read(this
  * @param s The string to write.
  * @return The number of bytes written (excluding the null terminator).
  */
-fun CPointer<Byte>.writeCString(s: String): Int = ai.solace.klang.mem.CString.write(this.ptr, s)
+fun CPointer<Byte>.writeCString(s: String): Int = io.github.kotlinmania.llama.lang.mem.CString.write(this.ptr, s)
 
 /**
  * Duplicates a string by allocating new memory and copying the content.
@@ -37,7 +37,7 @@ fun CPointer<Byte>.writeCString(s: String): Int = ai.solace.klang.mem.CString.wr
  * @param s The string to duplicate.
  * @return A new [CPointer] to the allocated memory containing the string copy.
  */
-fun strdupCString(s: String): CPointer<Byte> = CPointer(ai.solace.klang.mem.CString.strdup(s))
+fun strdupCString(s: String): CPointer<Byte> = CPointer(io.github.kotlinmania.llama.lang.mem.CString.strdup(s))
 
 /**
  * Copies a C string from source to destination.
@@ -46,7 +46,7 @@ fun strdupCString(s: String): CPointer<Byte> = CPointer(ai.solace.klang.mem.CStr
  * @return The destination pointer (this).
  */
 fun CPointer<Byte>.strcpy(src: CPointer<Byte>): CPointer<Byte> = 
-    CPointer(ai.solace.klang.mem.CLib.strcpy(this.ptr, src.ptr))
+    CPointer(io.github.kotlinmania.llama.lang.mem.CLib.strcpy(this.ptr, src.ptr))
 
 /**
  * Copies at most [n] bytes from source to destination.
@@ -56,7 +56,7 @@ fun CPointer<Byte>.strcpy(src: CPointer<Byte>): CPointer<Byte> =
  * @return The destination pointer (this).
  */
 fun CPointer<Byte>.strncpy(src: CPointer<Byte>, n: Int): CPointer<Byte> = 
-    CPointer(ai.solace.klang.mem.CLib.strncpy(this.ptr, src.ptr, n))
+    CPointer(io.github.kotlinmania.llama.lang.mem.CLib.strncpy(this.ptr, src.ptr, n))
 
 /**
  * Compares two C strings lexicographically.
@@ -65,7 +65,7 @@ fun CPointer<Byte>.strncpy(src: CPointer<Byte>, n: Int): CPointer<Byte> =
  * @return Negative if this < other, 0 if equal, positive if this > other.
  */
 fun CPointer<Byte>.strcmp(other: CPointer<Byte>): Int = 
-    ai.solace.klang.mem.CLib.strcmp(this.ptr, other.ptr)
+    io.github.kotlinmania.llama.lang.mem.CLib.strcmp(this.ptr, other.ptr)
 
 /**
  * Finds the first occurrence of a character in a C string.
@@ -74,7 +74,7 @@ fun CPointer<Byte>.strcmp(other: CPointer<Byte>): Int =
  * @return Pointer to the found character, or null pointer if not found.
  */
 fun CPointer<Byte>.strchr(c: Int): CPointer<Byte> = 
-    CPointer(ai.solace.klang.mem.CLib.strchr(this.ptr, c))
+    CPointer(io.github.kotlinmania.llama.lang.mem.CLib.strchr(this.ptr, c))
 
 /**
  * Finds the first occurrence of a byte in a memory region.
@@ -84,7 +84,7 @@ fun CPointer<Byte>.strchr(c: Int): CPointer<Byte> =
  * @return Pointer to the found byte, or null pointer if not found.
  */
 fun CPointer<Byte>.memchr(c: Int, n: Int): CPointer<Byte> = 
-    CPointer(ai.solace.klang.mem.CLib.memchr(this.ptr, c, n))
+    CPointer(io.github.kotlinmania.llama.lang.mem.CLib.memchr(this.ptr, c, n))
 
 /**
  * Compares two memory regions byte-by-byte.
@@ -94,4 +94,4 @@ fun CPointer<Byte>.memchr(c: Int, n: Int): CPointer<Byte> =
  * @return Negative if this < other, 0 if equal, positive if this > other.
  */
 fun CPointer<Byte>.memcmp(other: CPointer<Byte>, n: Int): Int = 
-    ai.solace.klang.mem.CLib.memcmp(this.ptr, other.ptr, n)
+    io.github.kotlinmania.llama.lang.mem.CLib.memcmp(this.ptr, other.ptr, n)

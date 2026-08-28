@@ -1,4 +1,4 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
 /** Global configuration for BitShiftEngine defaults. */
 object BitShiftConfig {

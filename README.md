@@ -149,8 +149,8 @@ This project uses **Kotlin Multiplatform** with **Gradle** as the build system.
 
 ## Architecture Overview
 
-- **Source Directory**: `src/nativeMain/kotlin/ai/solace/llamakotlin`
-- **Package Structure**: `ai.solace.llamakotlin.*`
+- **Source Directory**: `src/nativeMain/kotlin/io.github.kotlinmania.llama.
+- **Package Structure**: `io.github.kotlinmania.llama.`
 - **Core Modules**:
   - `core/GGMLTypes.kt` - Core tensor data structures
   - `core/GGMLAlloc.kt` - Memory management
@@ -205,7 +205,7 @@ We welcome contributions to the Kotlin port! Here's how you can help:
 ### Getting Started
 1. Check the current progress in [KOTLIN_PORT_CHECKLIST.md](KOTLIN_PORT_CHECKLIST.md)
 2. Review the [AGENTS.md](AGENTS.md) file for detailed development guidance
-3. Look at existing implementations in `src/nativeMain/kotlin/ai/solace/llamakotlin/`
+3. Look at existing implementations in `src/nativeMain/kotlin/io.github.kotlinmania.llama.
 4. Add tests in `src/commonTest/kotlin/`
 
 ## Relationship to Original llama.cpp
@@ -295,9 +295,8 @@ println("Model validation: ${if (success) "PASSED" else "FAILED"}")
 
 ### Development Setup
 
-1. **Clone the repository**:
+1. **Open a prepared checkout**:
    ```bash
-   git clone https://github.com/KotlinMania/llama.kotlin.git
    cd llama.kotlin
    ```
 

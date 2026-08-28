@@ -8,7 +8,7 @@ find_package(Threads REQUIRED)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.git")
     set(GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.git")
 
-    # Is git submodule
+    # .git may be a file that points to the real Git directory.
     if(NOT IS_DIRECTORY "${GIT_DIR}")
         file(READ ${GIT_DIR} REAL_GIT_DIR_LINK)
         string(REGEX REPLACE "gitdir: (.*)\n$" "\\1" REAL_GIT_DIR ${REAL_GIT_DIR_LINK})

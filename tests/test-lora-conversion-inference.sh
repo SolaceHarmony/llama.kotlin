@@ -9,14 +9,9 @@ declare -a params=(
 )
 
 MODELS_REPO=lora-tests
-MODELS_REPO_URL=https://huggingface.co/ggml-org/$MODELS_REPO
-
-# Clone the Hugging Face repository if the directory does not exist
 if [ ! -d "$MODELS_REPO" ]; then
-    echo "Cloning the Hugging Face repository..."
-    git clone $MODELS_REPO_URL --depth 1
-else
-    echo "Repository already exists. Skipping clone."
+    echo "Missing $MODELS_REPO. Fetch model fixtures outside this script before running it."
+    exit 1
 fi
 
 # Array to store results to print

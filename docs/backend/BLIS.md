@@ -7,10 +7,9 @@ Project URL: https://github.com/flame/blis
 
 ### Prepare:
 
-Compile BLIS:
+Compile BLIS from a prepared checkout:
 
 ```bash
-git clone https://github.com/flame/blis
 cd blis
 ./configure --enable-cblas -t openmp,pthreads auto
 # will install to /usr/local/ by default.

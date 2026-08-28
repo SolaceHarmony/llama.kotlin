@@ -1,4 +1,4 @@
-package ai.solace.klangnative.internal.runtime
+package io.github.kotlinmania.llama.lang.internal.runtime
 
 /**
  * AbstractRuntime: C-compatible runtime environment for transpiled C code.
@@ -71,7 +71,7 @@ package ai.solace.klangnative.internal.runtime
  * @property __syscalls System call implementation (default: no-op).
  *
  * @see RuntimeSyscalls For syscall interface
- * @see ai.solace.klang.mem.KMalloc For heap allocation implementation
+ * @see io.github.kotlinmania.llama.lang.mem.KMalloc For heap allocation implementation
  */
 @Suppress("MemberVisibilityCanBePrivate", "FunctionName", "CanBeVal", "DoubleNegation", "LocalVariableName", "NAME_SHADOWING", "VARIABLE_WITH_REDUNDANT_INITIALIZER", "RemoveRedundantCallsOfConversionMethods", "EXPERIMENTAL_IS_NOT_ENABLED", "RedundantExplicitType", "RemoveExplicitTypeArguments", "RedundantExplicitType", "unused", "UNCHECKED_CAST", "UNUSED_VARIABLE", "UNUSED_PARAMETER", "NOTHING_TO_INLINE", "PropertyName", "ClassName", "USELESS_CAST", "PrivatePropertyName", "CanBeParameter", "UnusedMainParameter")
 @OptIn(ExperimentalUnsignedTypes::class)
@@ -81,8 +81,8 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     var HEAP_PTR: Int = 128
 
     // Bit shift engines for memory operations
-    private val engine32 = ai.solace.klang.bitwise.BitShiftEngine(ai.solace.klang.bitwise.BitShiftConfig.defaultMode, 32)
-    private val engine64 = ai.solace.klang.bitwise.BitShiftEngine(ai.solace.klang.bitwise.BitShiftConfig.defaultMode, 64)
+    private val engine32 = io.github.kotlinmania.llama.lang.bitwise.BitShiftEngine(io.github.kotlinmania.llama.lang.bitwise.BitShiftConfig.defaultMode, 32)
+    private val engine64 = io.github.kotlinmania.llama.lang.bitwise.BitShiftEngine(io.github.kotlinmania.llama.lang.bitwise.BitShiftConfig.defaultMode, 64)
 
     /** //////////////////////////////// */
     // MEMORY TRANSFER / STRING/MEMORY OPERATIONS
@@ -95,11 +95,11 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     abstract fun memcpy(dest: CPointer<Unit>, src: CPointer<Unit>, num: Int): CPointer<Unit>
 
     // Pure-Kotlin heap allocation (KMalloc) shims
-    fun kmalloc(size: Int): CPointer<Unit> = CPointer(ai.solace.klang.mem.KMalloc.malloc(size))
-    fun kcalloc(count: Int, size: Int): CPointer<Unit> = CPointer(ai.solace.klang.mem.KMalloc.calloc(count, size))
-    fun krealloc(ptr: CPointer<Unit>, newSize: Int): CPointer<Unit> = CPointer(ai.solace.klang.mem.KMalloc.realloc(ptr.ptr, newSize))
-    fun kfree(ptr: CPointer<Unit>) { ai.solace.klang.mem.KMalloc.free(ptr.ptr) }
-    fun kdispose() { ai.solace.klang.mem.KMalloc.dispose() }
+    fun kmalloc(size: Int): CPointer<Unit> = CPointer(io.github.kotlinmania.llama.lang.mem.KMalloc.malloc(size))
+    fun kcalloc(count: Int, size: Int): CPointer<Unit> = CPointer(io.github.kotlinmania.llama.lang.mem.KMalloc.calloc(count, size))
+    fun krealloc(ptr: CPointer<Unit>, newSize: Int): CPointer<Unit> = CPointer(io.github.kotlinmania.llama.lang.mem.KMalloc.realloc(ptr.ptr, newSize))
+    fun kfree(ptr: CPointer<Unit>) { io.github.kotlinmania.llama.lang.mem.KMalloc.free(ptr.ptr) }
+    fun kdispose() { io.github.kotlinmania.llama.lang.mem.KMalloc.dispose() }
 
     fun lbu(ptr: Int): Int = lb(ptr).toInt() and 0xFF
     fun lhu(ptr: Int): Int = lh(ptr).toInt() and 0xFFFF
@@ -381,25 +381,25 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
 public/*!*/ open class Runtime(REQUESTED_HEAP_SIZE: Int = 0, REQUESTED_STACK_PTR: Int = 0, __syscalls: RuntimeSyscalls = DummyRuntimeSyscalls) : AbstractRuntime(REQUESTED_HEAP_SIZE, REQUESTED_STACK_PTR, __syscalls) {
     init {
         // Initialize pure-Kotlin heap allocator
-        ai.solace.klang.mem.KMalloc.init(HEAP_SIZE)
+        io.github.kotlinmania.llama.lang.mem.KMalloc.init(HEAP_SIZE)
         // Initialize global DATA/BSS manager (no-op until symbols are defined)
-        ai.solace.klang.mem.GlobalData.init()
+        io.github.kotlinmania.llama.lang.mem.GlobalData.init()
     }
 
-    final override fun lb(ptr: Int): Byte = ai.solace.klang.mem.GlobalHeap.lb(ptr)
-    final override fun sb(ptr: Int, value: Byte): Unit = ai.solace.klang.mem.GlobalHeap.sb(ptr, value)
+    final override fun lb(ptr: Int): Byte = io.github.kotlinmania.llama.lang.mem.GlobalHeap.lb(ptr)
+    final override fun sb(ptr: Int, value: Byte): Unit = io.github.kotlinmania.llama.lang.mem.GlobalHeap.sb(ptr, value)
 
     override fun memset(ptr: CPointer<*>, value: Int, num: Int): CPointer<Unit> {
-        ai.solace.klang.mem.GlobalHeap.memset(ptr.ptr, value, num)
+        io.github.kotlinmania.llama.lang.mem.GlobalHeap.memset(ptr.ptr, value, num)
         @Suppress("UNCHECKED_CAST")
         return ptr as CPointer<Unit>
     }
     override fun memmove(dest: CPointer<Unit>, src: CPointer<Unit>, num: Int): CPointer<Unit> {
-        ai.solace.klang.mem.GlobalHeap.memmove(dest.ptr, src.ptr, num)
+        io.github.kotlinmania.llama.lang.mem.GlobalHeap.memmove(dest.ptr, src.ptr, num)
         return dest
     }
     override fun memcpy(dest: CPointer<Unit>, src: CPointer<Unit>, num: Int): CPointer<Unit> {
-        ai.solace.klang.mem.GlobalHeap.memcpy(dest.ptr, src.ptr, num)
+        io.github.kotlinmania.llama.lang.mem.GlobalHeap.memcpy(dest.ptr, src.ptr, num)
         return dest
     }
 }

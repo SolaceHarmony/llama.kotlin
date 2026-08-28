@@ -151,9 +151,9 @@ extern "C" {
 // on x86, we use uint16_t
 #if defined(__ARM_NEON)
 
-// if YCM cannot find <arm_neon.h>, make a symbolic link to it, for example:
+// if YCM cannot find <arm_neon.h>, copy the header into the source include path, for example:
 //
-//   $ ln -sfn /Library/Developer/CommandLineTools/usr/lib/clang/13.1.6/include/arm_neon.h ./src/
+//   $ cp /Library/Developer/CommandLineTools/usr/lib/clang/13.1.6/include/arm_neon.h ./src/
 //
 #include <arm_neon.h>
 

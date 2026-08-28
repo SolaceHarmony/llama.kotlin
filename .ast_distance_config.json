@@ -6,7 +6,7 @@
     "lang": "cpp"
   },
   "target": {
-    "path": "src/commonMain/kotlin/ai/solace/llamakotlin/core",
+    "path": "src/commonMain/kotlin/io.github.kotlinmania.llama.ore",
     "lang": "kotlin"
   },
   "checks": {

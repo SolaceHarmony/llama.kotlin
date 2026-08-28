@@ -1,4 +1,4 @@
-package ai.solace.klangnative.common
+package io.github.kotlinmania.llama.lang.common
 
 import kotlin.math.abs
 import kotlin.random.Random

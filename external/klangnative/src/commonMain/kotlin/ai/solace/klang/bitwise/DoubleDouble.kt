@@ -1,4 +1,4 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
 /**
  * DoubleDouble: Extended-precision floating-point arithmetic using double-double representation.

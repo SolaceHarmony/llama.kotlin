@@ -1,9 +1,8 @@
 # Build llama.cpp locally
 
-**To get the Code:**
+**Use a prepared llama.cpp checkout:**
 
 ```bash
-git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp
 ```
 

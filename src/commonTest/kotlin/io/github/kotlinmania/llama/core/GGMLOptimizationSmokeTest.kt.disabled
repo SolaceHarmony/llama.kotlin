@@ -1,0 +1,87 @@
+package io.github.kotlinmania.llama.core
+
+import kotlin.test.Test
+import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+
+/**
+ * Basic smoke tests for the new optimization and scheduling functionality
+ */
+class GGMLOptimizationSmokeTest {
+    
+    @Test
+    fun testBackendBasicFunctionality() {
+        val backend = GGMLCpuBackend()
+        assertEquals("CPU", backend.getName())
+        assertTrue(backend.getGuid().isNotEmpty(), "Backend should expose a GUID")
+
+        val buffer = backend.allocBuffer(512uL)
+        assertNotNull(buffer, "CPU backend should allocate host buffer")
+
+        val opTensor = GGMLTensor(type = GGMLType.F32).apply { op = GGMLOp.ADD }
+        assertTrue(backend.supportsOp(opTensor), "CPU backend should report support for ADD")
+
+        buffer?.free()
+        backend.free()
+    }
+
+    @Test
+    fun testBackendManager() {
+        val backend = GGMLCpuBackend()
+        assertEquals("CPU", backend.getName())
+        backend.free()
+    }
+
+    @Test
+    fun testGraphOptimizer() {
+        val context = GGMLContext()
+        val optimizer = GGMLGraphOptimizer()
+        val graph = createGraph(1)
+        
+        val result = optimizer.optimize(graph, context)
+        assertEquals(0, result.iterations, "Empty graph should not require optimization")
+    }
+    
+    @Test
+    fun testSchedulerCreation() {
+        val backends = listOf<GGMLBackend>(GGMLCpuBackend())
+        val scheduler = GGMLScheduler(backends, GGMLSchedulingStrategy.SEQUENTIAL)
+        scheduler.setMaxWorkers(2)
+        
+        val stats = scheduler.getStats()
+        assertEquals(2, stats.maxWorkers)
+        assertEquals(GGMLSchedulingStrategy.SEQUENTIAL, stats.strategy)
+    }
+    
+    @Test
+    fun testDependencyTrackerBasic() {
+        val tracker = GGMLDependencyTracker()
+        val graph = createGraph(1)
+
+        // Test with empty graph
+        tracker.buildDependencies(graph)
+        assertTrue(tracker.getReadyNodes().isEmpty(), "Empty graph should have no ready nodes")
+        assertTrue(tracker.isComplete(), "Empty graph should be complete")
+    }
+    
+    @Test
+    fun testOptimizationPassNames() {
+        val passes = listOf(
+            DeadCodeEliminationPass(),
+            RedundantOpRemovalPass(),
+            ConstantFoldingPass(),
+            MemoryOptimizationPass()
+        )
+        
+        val expectedNames = setOf(
+            "DeadCodeElimination",
+            "RedundantOpRemoval", 
+            "ConstantFolding",
+            "MemoryOptimization"
+        )
+        
+        val actualNames = passes.map { it.getName() }.toSet()
+        assertEquals(expectedNames, actualNames, "Pass names should match expected")
+    }
+}

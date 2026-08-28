@@ -1,4 +1,4 @@
-package ai.solace.klangnative.mem
+package io.github.kotlinmania.llama.lang.mem
 
 /**
  * GlobalData: simple DATA/BSS placement over GlobalHeap.

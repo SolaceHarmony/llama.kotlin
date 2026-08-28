@@ -1,8 +1,8 @@
-package ai.solace.klangnative.float128
+package io.github.kotlinmania.llama.lang.float128
 
-import ai.solace.klangnative.bitwise.Float128Math
-import ai.solace.klangnative.int.SwAR128
-import ai.solace.klangnative.int.hpc.HeapUInt128
+import io.github.kotlinmania.llama.lang.bitwise.Float128Math
+import io.github.kotlinmania.llama.lang.int.SwAR128
+import io.github.kotlinmania.llama.lang.int.hpc.HeapUInt128
 
 /**
  * Float128 – IEEE-754 binary128 placeholder backed by limb arithmetic.

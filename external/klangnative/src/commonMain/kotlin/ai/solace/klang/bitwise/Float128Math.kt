@@ -1,7 +1,7 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
-import ai.solace.klangnative.int.SwAR128
-import ai.solace.klangnative.int.hpc.HeapUInt128
+import io.github.kotlinmania.llama.lang.int.SwAR128
+import io.github.kotlinmania.llama.lang.int.hpc.HeapUInt128
 import kotlin.math.abs
 
 /**

@@ -1,6 +1,6 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
-import ai.solace.klangnative.fp.Float32Math
+import io.github.kotlinmania.llama.lang.fp.Float32Math
 
 /**
  * Float16Math - IEEE-754 binary16 (half precision) arithmetic operations.

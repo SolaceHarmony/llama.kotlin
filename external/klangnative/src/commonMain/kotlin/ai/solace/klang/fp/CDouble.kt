@@ -1,6 +1,6 @@
-package ai.solace.klangnative.fp
+package io.github.kotlinmania.llama.lang.fp
 
-import ai.solace.klangnative.bitwise.Float64Math
+import io.github.kotlinmania.llama.lang.bitwise.Float64Math
 
 /**
  * CDouble: IEEE-754 binary64 floating-point with deterministic cross-platform behavior.

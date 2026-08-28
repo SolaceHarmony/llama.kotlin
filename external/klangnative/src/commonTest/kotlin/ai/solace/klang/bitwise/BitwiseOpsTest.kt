@@ -1,7 +1,7 @@
-package ai.solace.klangnative.bitwise
+package io.github.kotlinmania.llama.lang.bitwise
 
-import ai.solace.klangnative.mem.GlobalHeap
-import ai.solace.klangnative.mem.KMalloc
+import io.github.kotlinmania.llama.lang.mem.GlobalHeap
+import io.github.kotlinmania.llama.lang.mem.KMalloc
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
