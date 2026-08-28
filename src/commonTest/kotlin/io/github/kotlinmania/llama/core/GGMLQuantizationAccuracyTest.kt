@@ -10,7 +10,7 @@ import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
 class GGMLQuantizationAccuracyTest {
 
-    private lateinit var graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator
+    private lateinit var graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator
     private lateinit var testBuffer: ByteArray
     private val bufferSize = 1 * 1024 * 1024 // 1MB
 
@@ -21,7 +21,7 @@ class GGMLQuantizationAccuracyTest {
     // Use shared utility for stride calculation
 
     // Removed local helper calculateTensorByteSize(tensor: GGMLTensor)
-    // Will use global io.github.kotlinmania.llama.ore.calculateTensorByteSize(tensor: GGMLTensor)
+    // Will use global io.github.kotlinmania.llama.core.calculateTensorByteSize(tensor: GGMLTensor)
 
     // Copied from GGMLComputeOpsTest.kt - should be in a common test util
     internal fun applyNDIter(
@@ -80,10 +80,10 @@ class GGMLQuantizationAccuracyTest {
 
     @BeforeTest
     fun setup() {
-        graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
         testBuffer = ByteArray(bufferSize)
         if (graphAllocator.buffers.isEmpty()) graphAllocator.buffers.add(null)
-        if (graphAllocator.tensorAllocators.isEmpty()) graphAllocator.tensorAllocators.add(io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator())
+        if (graphAllocator.tensorAllocators.isEmpty()) graphAllocator.tensorAllocators.add(io.github.kotlinmania.llama.core.GGMLDynTensorAllocator())
         graphAllocator.buffers[0] = testBuffer
         graphAllocator.tensorAllocators[0].reset(bufferSize.toULong())
     }
@@ -94,14 +94,14 @@ class GGMLQuantizationAccuracyTest {
         values: FloatArray,
         dataOffset: ULong = 0uL,
         bufferId: Int = 0
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
         val tensor =
-            io.github.kotlinmania.llama.ore.GGMLTensor(io.github.kotlinmania.llama.ore.GGMLType.F32)
+            io.github.kotlinmania.llama.core.GGMLTensor(io.github.kotlinmania.llama.core.GGMLType.F32)
         tensor.name = name
 
-        tensor.ne = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L }
+        tensor.ne = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L }
         dims.forEachIndexed { index, dimSize ->
-            if (index < io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) tensor.ne[index] = dimSize
+            if (index < io.github.kotlinmania.llama.core.GGML_MAX_DIMS) tensor.ne[index] = dimSize
         }
         tensor.nb = GGMLTestUtils.calculateStrides(tensor.type, tensor.ne)
         tensor.bufferId = bufferId
@@ -125,9 +125,9 @@ class GGMLQuantizationAccuracyTest {
         return tensor
     }
 
-    internal fun getTensorDataAsFloatArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): FloatArray {
+    internal fun getTensorDataAsFloatArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): FloatArray {
         val numElements = tensor.numElements().toInt()
-        if (tensor.type == io.github.kotlinmania.llama.ore.GGMLType.F32 && tensor.data is FloatArray) {
+        if (tensor.type == io.github.kotlinmania.llama.core.GGMLType.F32 && tensor.data is FloatArray) {
             val fa = tensor.data as FloatArray
             if (fa.size == numElements) return fa.copyOf() // Return a copy to prevent external modification
         }
@@ -138,8 +138,8 @@ class GGMLQuantizationAccuracyTest {
         applyNDIter(tensor.ne, tensor.rank(), numElements) { _, indices ->
             if (idx < numElements) {
                 floatArray[idx++] = when (tensor.type) {
-                    io.github.kotlinmania.llama.ore.GGMLType.F32 -> tensor.getFloat(graphAllocator, *indices)
-                    io.github.kotlinmania.llama.ore.GGMLType.F16 -> tensor.getHalf(graphAllocator, *indices)
+                    io.github.kotlinmania.llama.core.GGMLType.F32 -> tensor.getFloat(graphAllocator, *indices)
+                    io.github.kotlinmania.llama.core.GGMLType.F16 -> tensor.getHalf(graphAllocator, *indices)
                     else -> throw IllegalArgumentException("Unsupported tensor type ${tensor.type} for direct float array extraction. Dequantize to F32 first.")
                 }
             }
@@ -189,19 +189,19 @@ class GGMLQuantizationAccuracyTest {
 
     @Test
     fun testQ8_0Accuracy() {
-        val numElements = io.github.kotlinmania.llama.ore.QK8_0 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
+        val numElements = io.github.kotlinmania.llama.core.QK8_0 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
         val originalF32Data = FloatArray(numElements) { idx ->
             // Create a diverse range of values
             when {
-                idx % io.github.kotlinmania.llama.ore.QK8_0 == 0 -> 0.0f // Start of a block with zero
-                idx % io.github.kotlinmania.llama.ore.QK8_0 == 1 -> 127.0f // Max positive for Q8 scaling
-                idx % io.github.kotlinmania.llama.ore.QK8_0 == 2 -> -128.0f // Min negative for Q8 scaling (won't be hit if scale is from abs max)
+                idx % io.github.kotlinmania.llama.core.QK8_0 == 0 -> 0.0f // Start of a block with zero
+                idx % io.github.kotlinmania.llama.core.QK8_0 == 1 -> 127.0f // Max positive for Q8 scaling
+                idx % io.github.kotlinmania.llama.core.QK8_0 == 2 -> -128.0f // Min negative for Q8 scaling (won't be hit if scale is from abs max)
                                          // Actually, scale is based on amax / 127. So values map to [-127, 127] ideally.
                                          // Let's use values that will result in diverse q values.
-                idx < io.github.kotlinmania.llama.ore.QK8_0 -> (idx.toFloat() / (io.github.kotlinmania.llama.ore.QK8_0 -1).toFloat()) * 10.0f // 0 to 10
-                idx < io.github.kotlinmania.llama.ore.QK8_0 * 2 -> ( (idx- io.github.kotlinmania.llama.ore.QK8_0).toFloat() / (io.github.kotlinmania.llama.ore.QK8_0 -1).toFloat() ) * -10.0f // 0 to -10
-                idx < io.github.kotlinmania.llama.ore.QK8_0 * 3 -> if (idx % 2 == 0) 50.5f else -50.5f // Alternating large
-                else -> (idx - io.github.kotlinmania.llama.ore.QK8_0 * 3).toFloat() * 0.1f - 1.0f // Small values around -1
+                idx < io.github.kotlinmania.llama.core.QK8_0 -> (idx.toFloat() / (io.github.kotlinmania.llama.core.QK8_0 -1).toFloat()) * 10.0f // 0 to 10
+                idx < io.github.kotlinmania.llama.core.QK8_0 * 2 -> ( (idx- io.github.kotlinmania.llama.core.QK8_0).toFloat() / (io.github.kotlinmania.llama.core.QK8_0 -1).toFloat() ) * -10.0f // 0 to -10
+                idx < io.github.kotlinmania.llama.core.QK8_0 * 3 -> if (idx % 2 == 0) 50.5f else -50.5f // Alternating large
+                else -> (idx - io.github.kotlinmania.llama.core.QK8_0 * 3).toFloat() * 0.1f - 1.0f // Small values around -1
             }
         }
 
@@ -209,20 +209,20 @@ class GGMLQuantizationAccuracyTest {
         val f32SrcTensor = createAndPopulateF32Tensor("f32Src_Q8Test", dims, originalF32Data, dataOffset = 0uL)
 
         // 1. Quantize to Q8_0
-        val q8Tensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q8Tensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32SrcTensor,
-            io.github.kotlinmania.llama.ore.GGMLType.Q8_0
+            io.github.kotlinmania.llama.core.GGMLType.Q8_0
         )
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.Q8_0, q8Tensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.Q8_0, q8Tensor.type)
         assertTrue(q8Tensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q8_0 quantization")
         assertNotNull(q8Tensor.data, "Q8_0 tensor data should not be null after quantization")
         assertTrue(q8Tensor.data is ByteArray, "Q8_0 tensor data should be ByteArray")
 
         // 2. Dequantize Q8_0 back to F32
         val f32DequantizedTensor =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, q8Tensor)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, f32DequantizedTensor.type)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, q8Tensor)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, f32DequantizedTensor.type)
         assertTrue(f32DequantizedTensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q8_0 dequantization")
         assertNotNull(f32DequantizedTensor.data, "Dequantized F32 tensor data should not be null")
         assertTrue(f32DequantizedTensor.data is FloatArray, "Dequantized F32 tensor data should be FloatArray")
@@ -255,17 +255,17 @@ class GGMLQuantizationAccuracyTest {
 
     @Test
     fun testQ4_0Accuracy() {
-        val numElements = io.github.kotlinmania.llama.ore.QK4_0 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
+        val numElements = io.github.kotlinmania.llama.core.QK4_0 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
         val originalF32Data = FloatArray(numElements) { i ->
             // Create a diverse range of values, similar to Q8_0 test but scaled for Q4_0's effective range (-8 to +7)
             when {
-                i % io.github.kotlinmania.llama.ore.QK4_0 == 0 -> 0.0f
-                i % io.github.kotlinmania.llama.ore.QK4_0 == 1 -> 7.0f  // Test max positive scaled value
-                i % io.github.kotlinmania.llama.ore.QK4_0 == 2 -> -8.0f // Test min negative scaled value
-                i < io.github.kotlinmania.llama.ore.QK4_0 -> (i.toFloat() / (io.github.kotlinmania.llama.ore.QK4_0 -1).toFloat()) * 1.0f // Block 1: 0 to 1
-                i < io.github.kotlinmania.llama.ore.QK4_0 * 2 -> ( (i- io.github.kotlinmania.llama.ore.QK4_0).toFloat() / (io.github.kotlinmania.llama.ore.QK4_0 -1).toFloat() ) * -1.0f // Block 2: 0 to -1
-                i < io.github.kotlinmania.llama.ore.QK4_0 * 3 -> if (i % 2 == 0) 0.75f else -0.75f // Block 3: Alternating
-                else -> ((i - io.github.kotlinmania.llama.ore.QK4_0 * 3).toFloat() / (io.github.kotlinmania.llama.ore.QK4_0 -1).toFloat() * 16.0f) - 8.0f // Block 4: Spread across -8 to +8
+                i % io.github.kotlinmania.llama.core.QK4_0 == 0 -> 0.0f
+                i % io.github.kotlinmania.llama.core.QK4_0 == 1 -> 7.0f  // Test max positive scaled value
+                i % io.github.kotlinmania.llama.core.QK4_0 == 2 -> -8.0f // Test min negative scaled value
+                i < io.github.kotlinmania.llama.core.QK4_0 -> (i.toFloat() / (io.github.kotlinmania.llama.core.QK4_0 -1).toFloat()) * 1.0f // Block 1: 0 to 1
+                i < io.github.kotlinmania.llama.core.QK4_0 * 2 -> ( (i- io.github.kotlinmania.llama.core.QK4_0).toFloat() / (io.github.kotlinmania.llama.core.QK4_0 -1).toFloat() ) * -1.0f // Block 2: 0 to -1
+                i < io.github.kotlinmania.llama.core.QK4_0 * 3 -> if (i % 2 == 0) 0.75f else -0.75f // Block 3: Alternating
+                else -> ((i - io.github.kotlinmania.llama.core.QK4_0 * 3).toFloat() / (io.github.kotlinmania.llama.core.QK4_0 -1).toFloat() * 16.0f) - 8.0f // Block 4: Spread across -8 to +8
             }
         }
 
@@ -276,12 +276,12 @@ class GGMLQuantizationAccuracyTest {
         val f32SrcTensor = createAndPopulateF32Tensor("f32Src_Q4Test", dims, originalF32Data, dataOffset = 0uL)
 
         // 1. Quantize to Q4_0
-        val q4Tensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q4Tensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32SrcTensor,
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_0
+            io.github.kotlinmania.llama.core.GGMLType.Q4_0
         )
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.Q4_0, q4Tensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.Q4_0, q4Tensor.type)
         assertTrue(q4Tensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q4_0 quantization")
         assertNotNull(q4Tensor.data, "Q4_0 tensor data should not be null after quantization")
         assertTrue(q4Tensor.data is ByteArray, "Q4_0 tensor data should be ByteArray")
@@ -289,8 +289,8 @@ class GGMLQuantizationAccuracyTest {
 
         // 2. Dequantize Q4_0 back to F32
         val f32DequantizedTensor =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, q4Tensor)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, f32DequantizedTensor.type)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, q4Tensor)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, f32DequantizedTensor.type)
         assertTrue(f32DequantizedTensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q4_0 dequantization")
         assertNotNull(f32DequantizedTensor.data, "Dequantized F32 tensor data should not be null")
         assertTrue(f32DequantizedTensor.data is FloatArray, "Dequantized F32 tensor data should be FloatArray")
@@ -332,18 +332,18 @@ class GGMLQuantizationAccuracyTest {
 
     @Test
     fun testQ4_1Accuracy() {
-        val numElements = io.github.kotlinmania.llama.ore.QK4_1 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
+        val numElements = io.github.kotlinmania.llama.core.QK4_1 * 4 // Test with a few blocks, e.g., 4 blocks = 128 elements
         val originalF32Data = FloatArray(numElements) { i ->
             // Create a diverse range of values for Q4_1 testing
             // Q4_1 uses d*nibble + m. Nibble is 0-15.
             // Test data that results in varied min/max per block.
-            val blockNum = i / io.github.kotlinmania.llama.ore.QK4_1
-            val withinBlockIdx = i % io.github.kotlinmania.llama.ore.QK4_1
+            val blockNum = i / io.github.kotlinmania.llama.core.QK4_1
+            val withinBlockIdx = i % io.github.kotlinmania.llama.core.QK4_1
             when (blockNum) {
-                0 -> (withinBlockIdx.toFloat() / (io.github.kotlinmania.llama.ore.QK4_1 -1).toFloat()) * 2.0f - 1.0f // Block 0: -1.0 to 1.0
-                1 -> (withinBlockIdx.toFloat() / (io.github.kotlinmania.llama.ore.QK4_1 -1).toFloat()) * 0.5f + 0.25f // Block 1: 0.25 to 0.75
+                0 -> (withinBlockIdx.toFloat() / (io.github.kotlinmania.llama.core.QK4_1 -1).toFloat()) * 2.0f - 1.0f // Block 0: -1.0 to 1.0
+                1 -> (withinBlockIdx.toFloat() / (io.github.kotlinmania.llama.core.QK4_1 -1).toFloat()) * 0.5f + 0.25f // Block 1: 0.25 to 0.75
                 2 -> if (withinBlockIdx % 2 == 0) 5.0f else 4.0f // Block 2: Alternating 5.0, 4.0
-                else -> (withinBlockIdx - io.github.kotlinmania.llama.ore.QK4_1 /2).toFloat() * 0.1f // Block 3: Centered around 0, small range
+                else -> (withinBlockIdx - io.github.kotlinmania.llama.core.QK4_1 /2).toFloat() * 0.1f // Block 3: Centered around 0, small range
             }
         }
 
@@ -355,12 +355,12 @@ class GGMLQuantizationAccuracyTest {
 
         // 1. Quantize to Q4_1
         // quantizeTensor returns a new tensor with its own .data ByteArray
-        val q4_1Tensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q4_1Tensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32SrcTensor,
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_1
+            io.github.kotlinmania.llama.core.GGMLType.Q4_1
         )
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.Q4_1, q4_1Tensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.Q4_1, q4_1Tensor.type)
         assertTrue(q4_1Tensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q4_1 quantization")
         assertNotNull(q4_1Tensor.data, "Q4_1 tensor data should not be null after quantization")
         assertTrue(q4_1Tensor.data is ByteArray, "Q4_1 tensor data should be ByteArray")
@@ -369,8 +369,8 @@ class GGMLQuantizationAccuracyTest {
         // 2. Dequantize Q4_1 back to F32
         // dequantizeTensor also returns a new tensor with its own .data FloatArray
         val f32DequantizedTensor =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, q4_1Tensor)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, f32DequantizedTensor.type)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, q4_1Tensor)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, f32DequantizedTensor.type)
         assertTrue(f32DequantizedTensor.ne.contentEquals(f32SrcTensor.ne), "Dimensions should match after Q4_1 dequantization")
         assertNotNull(f32DequantizedTensor.data, "F32 dequantized tensor data should not be null")
         assertTrue(f32DequantizedTensor.data is FloatArray, "Dequantized F32 tensor data should be FloatArray")

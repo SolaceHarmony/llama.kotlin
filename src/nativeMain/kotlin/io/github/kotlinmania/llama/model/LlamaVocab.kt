@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-vocab.h llama.cpp/src/llama-vocab.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import kotlin.math.max
 import kotlin.math.min
 

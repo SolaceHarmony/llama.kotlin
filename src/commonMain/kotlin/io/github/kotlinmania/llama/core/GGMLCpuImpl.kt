@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
  * Kotlin port of ggml-cpu-impl.h — CPU backend implementation internals.
  *
  * Contains:
- * - [io.github.kotlinmania.llama.ore.GGMLComputeParams]: per-thread compute context passed to every CPU kernel.
+ * - [io.github.kotlinmania.llama.core.GGMLComputeParams]: per-thread compute context passed to every CPU kernel.
  * - Threadpool barrier and chunk-scheduling functions.
  * - Scalar FP16 ↔ FP32 helpers.
  * - SIMD vector type wrappers (scalar fallbacks for NEON, VXE, LoongArch).
@@ -44,7 +44,7 @@ data class GGMLComputeParams(
     val nth: Int,
     val wsize: ULong = 0uL,
     val wdata: ByteArray? = null,
-    val threadpool: io.github.kotlinmania.llama.ore.GGMLThreadpool? = null,
+    val threadpool: io.github.kotlinmania.llama.core.GGMLThreadpool? = null,
     val useRef: Boolean = false
 ) {
     override fun equals(other: Any?): Boolean {
@@ -66,16 +66,16 @@ data class GGMLComputeParams(
 // Threadpool helpers — C: ggml-cpu-impl.h line 532-535
 // ============================================================================
 
-fun ggmlBarrier(tp: io.github.kotlinmania.llama.ore.GGMLThreadpool) {
+fun ggmlBarrier(tp: io.github.kotlinmania.llama.core.GGMLThreadpool) {
     if (tp.nThreads == 1) return
     // Multi-threaded spin barrier deferred until threading is wired up
 }
 
-fun ggmlThreadpoolChunkSet(tp: io.github.kotlinmania.llama.ore.GGMLThreadpool, value: Int) {
+fun ggmlThreadpoolChunkSet(tp: io.github.kotlinmania.llama.core.GGMLThreadpool, value: Int) {
     tp.chunkSet(value)
 }
 
-fun ggmlThreadpoolChunkAdd(tp: io.github.kotlinmania.llama.ore.GGMLThreadpool, value: Int): Int {
+fun ggmlThreadpoolChunkAdd(tp: io.github.kotlinmania.llama.core.GGMLThreadpool, value: Int): Int {
     return tp.chunkAdd(value)
 }
 
@@ -83,8 +83,8 @@ fun ggmlThreadpoolChunkAdd(tp: io.github.kotlinmania.llama.ore.GGMLThreadpool, v
 // Scalar FP16 helpers
 // ============================================================================
 
-fun ggmlCpuFp32ToFp16(x: Float): UShort = io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(x)
-fun ggmlCpuFp16ToFp32(x: UShort): Float = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(x)
+fun ggmlCpuFp32ToFp16(x: Float): UShort = io.github.kotlinmania.llama.core.ggmlFp32ToFp16(x)
+fun ggmlCpuFp16ToFp32(x: UShort): Float = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(x)
 
 // ============================================================================
 // NEON scalar fallbacks — C: ggml-cpu-impl.h line 87-331

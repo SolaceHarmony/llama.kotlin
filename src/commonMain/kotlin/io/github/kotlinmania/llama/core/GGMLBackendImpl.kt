@@ -34,7 +34,7 @@ const val GGML_BACKEND_API_VERSION: Int = 2
  * Internal vtable that a backend buffer type must implement.
  *
  * Mirrors `ggml_backend_buffer_type_i` in the C source.
- * The public convenience API is [io.github.kotlinmania.llama.ore.GGMLBackendBufferType] in `GGMLBackend.kt`;
+ * The public convenience API is [io.github.kotlinmania.llama.core.GGMLBackendBufferType] in `GGMLBackend.kt`;
  * this interface adds the lower-level hooks that only backend authors need.
  */
 interface GGMLBackendBufferTypeImpl {
@@ -45,9 +45,9 @@ interface GGMLBackendBufferTypeImpl {
     /**
      * Allocate a buffer of [size] bytes.
      *
-     * @return a new [io.github.kotlinmania.llama.ore.GGMLBackendBufferImpl], or `null` on failure.
+     * @return a new [io.github.kotlinmania.llama.core.GGMLBackendBufferImpl], or `null` on failure.
      */
-    fun allocBuffer(size: ULong): io.github.kotlinmania.llama.ore.GGMLBackendBufferImpl?
+    fun allocBuffer(size: ULong): io.github.kotlinmania.llama.core.GGMLBackendBufferImpl?
 
     /** Tensor alignment in bytes required by this buffer type. */
     fun getAlignment(): ULong
@@ -64,7 +64,7 @@ interface GGMLBackendBufferTypeImpl {
      *
      * Defaults to `ggml_nbytes(tensor)`.
      */
-    fun getAllocSize(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): ULong { return io.github.kotlinmania.llama.ore.ggmlNbytes(
+    fun getAllocSize(tensor: io.github.kotlinmania.llama.core.GGMLTensor): ULong { return io.github.kotlinmania.llama.core.ggmlNbytes(
         tensor
     )
     }
@@ -90,9 +90,9 @@ interface GGMLBackendBufferTypeImpl {
  */
 open class GGMLBackendBufferTypeHolder(
     /** The implementation vtable. */
-    val iface: io.github.kotlinmania.llama.ore.GGMLBackendBufferTypeImpl,
+    val iface: io.github.kotlinmania.llama.core.GGMLBackendBufferTypeImpl,
     /** The device that owns this buffer type (`null` until assigned). */
-    var device: io.github.kotlinmania.llama.ore.GGMLBackendDeviceHolder? = null,
+    var device: io.github.kotlinmania.llama.core.GGMLBackendDeviceHolder? = null,
     /** Opaque backend-specific context. */
     var context: Any? = null
 )
@@ -118,13 +118,13 @@ interface GGMLBackendBufferImpl {
      * (optional) Initialise a tensor that resides in this buffer
      * (e.g. attach tensor extras).
      *
-     * @return [io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS] on success.
+     * @return [io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS] on success.
      */
-    fun initTensor(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.GGMLStatus = io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS
+    fun initTensor(tensor: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.GGMLStatus = io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS
 
     /** Fill [size] bytes of [tensor] data starting at [offset] with [value]. */
     fun memsetTensor(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         value: UByte,
         offset: ULong,
         size: ULong
@@ -139,7 +139,7 @@ interface GGMLBackendBufferImpl {
      * @param size   number of bytes to copy.
      */
     fun setTensor(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong
@@ -153,7 +153,7 @@ interface GGMLBackendBufferImpl {
      * @param size   number of bytes to copy.
      */
     fun getTensor(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong
@@ -170,7 +170,7 @@ interface GGMLBackendBufferImpl {
      * @param strideData    byte stride between chunks in [data].
      */
     fun setTensor2D(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong,
@@ -186,7 +186,7 @@ interface GGMLBackendBufferImpl {
      * Parameters mirror [setTensor2D].
      */
     fun getTensor2D(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong,
@@ -203,7 +203,7 @@ interface GGMLBackendBufferImpl {
      *
      * @return `true` if the copy was performed, `false` if unsupported.
      */
-    fun cpyTensor(src: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean = false
+    fun cpyTensor(src: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor): Boolean = false
 
     /** Clear the entire buffer by filling every byte with [value]. */
     fun clear(value: UByte)
@@ -226,15 +226,15 @@ interface GGMLBackendBufferImpl {
  */
 open class GGMLBackendBufferHolder(
     /** The implementation vtable. */
-    val iface: io.github.kotlinmania.llama.ore.GGMLBackendBufferImpl,
+    val iface: io.github.kotlinmania.llama.core.GGMLBackendBufferImpl,
     /** The buffer type that created this buffer. */
-    val buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferTypeHolder,
+    val buft: io.github.kotlinmania.llama.core.GGMLBackendBufferTypeHolder,
     /** Opaque backend-specific context. */
     var context: Any? = null,
     /** Total size of the buffer in bytes. */
     var size: ULong = 0UL,
     /** How this buffer will be used. */
-    var usage: io.github.kotlinmania.llama.ore.GGMLBackendBufferUsage = io.github.kotlinmania.llama.ore.GGMLBackendBufferUsage.COMPUTE
+    var usage: io.github.kotlinmania.llama.core.GGMLBackendBufferUsage = io.github.kotlinmania.llama.core.GGMLBackendBufferUsage.COMPUTE
 )
 
 // ---------------------------------------------------------------------------
@@ -242,17 +242,17 @@ open class GGMLBackendBufferHolder(
 // ---------------------------------------------------------------------------
 
 /**
- * Create and initialise a new [io.github.kotlinmania.llama.ore.GGMLBackendBufferHolder].
+ * Create and initialise a new [io.github.kotlinmania.llama.core.GGMLBackendBufferHolder].
  *
  * Mirrors `ggml_backend_buffer_init()` in C.
  */
 fun ggmlBackendBufferInit(
-    buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferTypeHolder,
-    iface: io.github.kotlinmania.llama.ore.GGMLBackendBufferImpl,
+    buft: io.github.kotlinmania.llama.core.GGMLBackendBufferTypeHolder,
+    iface: io.github.kotlinmania.llama.core.GGMLBackendBufferImpl,
     context: Any?,
     size: ULong
-): io.github.kotlinmania.llama.ore.GGMLBackendBufferHolder {
-    return io.github.kotlinmania.llama.ore.GGMLBackendBufferHolder(
+): io.github.kotlinmania.llama.core.GGMLBackendBufferHolder {
+    return io.github.kotlinmania.llama.core.GGMLBackendBufferHolder(
         iface = iface,
         buft = buft,
         context = context,
@@ -281,7 +281,7 @@ interface GGMLBackendIface {
 
     /** Asynchronously copy host [data] into [tensor]. */
     fun setTensorAsync(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong
@@ -290,7 +290,7 @@ interface GGMLBackendIface {
 
     /** Asynchronously copy [tensor] data back to host [data]. */
     fun getTensorAsync(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong
@@ -299,7 +299,7 @@ interface GGMLBackendIface {
 
     /** Asynchronously set tensor with 2-D strided layout. */
     fun setTensor2DAsync(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong,
@@ -311,7 +311,7 @@ interface GGMLBackendIface {
 
     /** Asynchronously get tensor with 2-D strided layout. */
     fun getTensor2DAsync(
-        tensor: io.github.kotlinmania.llama.ore.GGMLTensor,
+        tensor: io.github.kotlinmania.llama.core.GGMLTensor,
         data: ByteArray,
         offset: ULong,
         size: ULong,
@@ -327,10 +327,10 @@ interface GGMLBackendIface {
      * @return `true` if the copy was initiated, `false` if unsupported.
      */
     fun cpyTensorAsync(
-        backendSrc: io.github.kotlinmania.llama.ore.GGMLBackendHolder,
-        backendDst: io.github.kotlinmania.llama.ore.GGMLBackendHolder,
-        src: io.github.kotlinmania.llama.ore.GGMLTensor,
-        dst: io.github.kotlinmania.llama.ore.GGMLTensor
+        backendSrc: io.github.kotlinmania.llama.core.GGMLBackendHolder,
+        backendDst: io.github.kotlinmania.llama.core.GGMLBackendHolder,
+        src: io.github.kotlinmania.llama.core.GGMLTensor,
+        dst: io.github.kotlinmania.llama.core.GGMLTensor
     ): Boolean = false
 
     /**
@@ -343,7 +343,7 @@ interface GGMLBackendIface {
     // -- graph plans (not currently used) --
 
     /** Create an execution plan for [cgraph]. */
-    fun graphPlanCreate(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph): Any? { return null }
+    fun graphPlanCreate(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph): Any? { return null }
 
     /** Free a previously created [plan]. */
     fun graphPlanFree(plan: Any?) {}
@@ -352,32 +352,32 @@ interface GGMLBackendIface {
      * Update an existing [plan] with a new [cgraph] that shares the same
      * topology — faster than creating a fresh plan.
      */
-    fun graphPlanUpdate(plan: Any?, cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {}
+    fun graphPlanUpdate(plan: Any?, cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {}
 
     /** Execute the pre-compiled [plan]. */
-    fun graphPlanCompute(plan: Any?): io.github.kotlinmania.llama.ore.GGMLStatus { return io.github.kotlinmania.llama.ore.GGMLStatus.FAILED }
+    fun graphPlanCompute(plan: Any?): io.github.kotlinmania.llama.core.GGMLStatus { return io.github.kotlinmania.llama.core.GGMLStatus.FAILED }
 
     /**
      * Compute [cgraph] — always asynchronous when the backend supports it.
      *
      * This is the primary entry point for graph execution.
      */
-    fun graphCompute(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph): io.github.kotlinmania.llama.ore.GGMLStatus
+    fun graphCompute(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph): io.github.kotlinmania.llama.core.GGMLStatus
 
     // -- (optional) event synchronisation --
 
     /** Record an event on this stream. */
-    fun eventRecord(event: io.github.kotlinmania.llama.ore.GGMLBackendEventHolder) {
+    fun eventRecord(event: io.github.kotlinmania.llama.core.GGMLBackendEventHolder) {
     }
 
     /** Wait for an event that was recorded on a different stream. */
-    fun eventWait(event: io.github.kotlinmania.llama.ore.GGMLBackendEventHolder) {
+    fun eventWait(event: io.github.kotlinmania.llama.core.GGMLBackendEventHolder) {
     }
 
     // -- (optional) graph optimisation --
 
     /** Sort / optimise the nodes in [cgraph] before execution. */
-    fun graphOptimize(cgraph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+    fun graphOptimize(cgraph: io.github.kotlinmania.llama.core.GGMLCGraph) {
         // identity by default
     }
 }
@@ -398,8 +398,8 @@ interface GGMLBackendIface {
  */
 open class GGMLBackendHolder(
     val guid: String,
-    val iface: io.github.kotlinmania.llama.ore.GGMLBackendIface,
-    var device: io.github.kotlinmania.llama.ore.GGMLBackendDeviceHolder? = null,
+    val iface: io.github.kotlinmania.llama.core.GGMLBackendIface,
+    var device: io.github.kotlinmania.llama.core.GGMLBackendDeviceHolder? = null,
     var context: Any? = null
 )
 
@@ -414,7 +414,7 @@ open class GGMLBackendHolder(
  */
 open class GGMLBackendEventHolder(
     /** The device that created this event. */
-    val device: io.github.kotlinmania.llama.ore.GGMLBackendDeviceHolder,
+    val device: io.github.kotlinmania.llama.core.GGMLBackendDeviceHolder,
     /** Opaque backend-specific context. */
     var context: Any? = null
 )
@@ -436,7 +436,7 @@ enum class GGMLBackendDevType(val value: Int) {
 }
 
 /**
- * Memory information returned by [io.github.kotlinmania.llama.ore.GGMLBackendDeviceIface.getMemory].
+ * Memory information returned by [io.github.kotlinmania.llama.core.GGMLBackendDeviceIface.getMemory].
  */
 data class GGMLBackendDevMemory(
     /** Free device memory in bytes (0 = not reported). */
@@ -453,8 +453,8 @@ data class GGMLBackendDevMemory(
 data class GGMLBackendDevProps(
     val name: String = "",
     val description: String = "",
-    val memory: io.github.kotlinmania.llama.ore.GGMLBackendDevMemory = io.github.kotlinmania.llama.ore.GGMLBackendDevMemory(),
-    val type: io.github.kotlinmania.llama.ore.GGMLBackendDevType = io.github.kotlinmania.llama.ore.GGMLBackendDevType.CPU
+    val memory: io.github.kotlinmania.llama.core.GGMLBackendDevMemory = io.github.kotlinmania.llama.core.GGMLBackendDevMemory(),
+    val type: io.github.kotlinmania.llama.core.GGMLBackendDevType = io.github.kotlinmania.llama.core.GGMLBackendDevType.CPU
 )
 
 /**
@@ -473,32 +473,32 @@ interface GGMLBackendDeviceIface {
     /**
      * Query device memory.
      *
-     * Return [io.github.kotlinmania.llama.ore.GGMLBackendDevMemory] with both fields set to 0 when the
+     * Return [io.github.kotlinmania.llama.core.GGMLBackendDevMemory] with both fields set to 0 when the
      * device has no memory to report.
      */
-    fun getMemory(): io.github.kotlinmania.llama.ore.GGMLBackendDevMemory
+    fun getMemory(): io.github.kotlinmania.llama.core.GGMLBackendDevMemory
 
     /** Classify the device. */
-    fun getType(): io.github.kotlinmania.llama.ore.GGMLBackendDevType
+    fun getType(): io.github.kotlinmania.llama.core.GGMLBackendDevType
 
     /** Retrieve the full set of device properties. */
-    fun getProps(): io.github.kotlinmania.llama.ore.GGMLBackendDevProps
+    fun getProps(): io.github.kotlinmania.llama.core.GGMLBackendDevProps
 
     /**
      * Create a new backend (stream) on this device.
      *
      * @param params optional backend-specific parameter string.
      */
-    fun initBackend(params: String?): io.github.kotlinmania.llama.ore.GGMLBackendHolder?
+    fun initBackend(params: String?): io.github.kotlinmania.llama.core.GGMLBackendHolder?
 
     /** Return the preferred buffer type for this device. */
-    fun getBufferType(): io.github.kotlinmania.llama.ore.GGMLBackendBufferTypeHolder
+    fun getBufferType(): io.github.kotlinmania.llama.core.GGMLBackendBufferTypeHolder
 
     /**
      * (optional) Return a host-memory buffer type, typically a pinned-memory
      * buffer for faster host↔device transfers.
      */
-    fun getHostBufferType(): io.github.kotlinmania.llama.ore.GGMLBackendBufferTypeHolder? = null
+    fun getHostBufferType(): io.github.kotlinmania.llama.core.GGMLBackendBufferTypeHolder? = null
 
     /**
      * (optional) Create a buffer directly from a host pointer.
@@ -514,13 +514,13 @@ interface GGMLBackendDeviceIface {
         ptr: Any?,
         size: ULong,
         maxTensorSize: ULong
-    ): io.github.kotlinmania.llama.ore.GGMLBackendBufferHolder? = null
+    ): io.github.kotlinmania.llama.core.GGMLBackendBufferHolder? = null
 
     /** Check whether this device can compute [op]. */
-    fun supportsOp(op: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean
+    fun supportsOp(op: io.github.kotlinmania.llama.core.GGMLTensor): Boolean
 
     /** Check whether this device can use tensors in a [buft] buffer. */
-    fun supportsBuft(buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferTypeHolder): Boolean
+    fun supportsBuft(buft: io.github.kotlinmania.llama.core.GGMLBackendBufferTypeHolder): Boolean
 
     /**
      * (optional) Check whether this device **wants** to run [op], even when
@@ -529,19 +529,19 @@ interface GGMLBackendDeviceIface {
      * Typically returns `true` only for expensive operations that benefit
      * significantly from running on an accelerator.
      */
-    fun offloadOp(op: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean = false
+    fun offloadOp(op: io.github.kotlinmania.llama.core.GGMLTensor): Boolean = false
 
     // -- (optional) event synchronisation --
 
     /** Create a new synchronisation event. */
-    fun eventNew(): io.github.kotlinmania.llama.ore.GGMLBackendEventHolder? { return null }
+    fun eventNew(): io.github.kotlinmania.llama.core.GGMLBackendEventHolder? { return null }
 
     /** Free a previously created [event]. */
-    fun eventFree(event: io.github.kotlinmania.llama.ore.GGMLBackendEventHolder) {
+    fun eventFree(event: io.github.kotlinmania.llama.core.GGMLBackendEventHolder) {
     }
 
     /** Block until [event] has completed. */
-    fun eventSynchronize(event: io.github.kotlinmania.llama.ore.GGMLBackendEventHolder) {
+    fun eventSynchronize(event: io.github.kotlinmania.llama.core.GGMLBackendEventHolder) {
     }
 }
 
@@ -556,9 +556,9 @@ interface GGMLBackendDeviceIface {
  */
 open class GGMLBackendDeviceHolder(
     /** The device implementation vtable. */
-    val iface: io.github.kotlinmania.llama.ore.GGMLBackendDeviceIface,
+    val iface: io.github.kotlinmania.llama.core.GGMLBackendDeviceIface,
     /** The registry entry that owns this device. */
-    var reg: io.github.kotlinmania.llama.ore.GGMLBackendRegHolder? = null,
+    var reg: io.github.kotlinmania.llama.core.GGMLBackendRegHolder? = null,
     /** Opaque backend-specific context. */
     var context: Any? = null
 )
@@ -581,7 +581,7 @@ interface GGMLBackendRegIface {
     fun getDeviceCount(): ULong
 
     /** Return the device at [index]. */
-    fun getDevice(index: ULong): io.github.kotlinmania.llama.ore.GGMLBackendDeviceHolder
+    fun getDevice(index: ULong): io.github.kotlinmania.llama.core.GGMLBackendDeviceHolder
 
     /**
      * (optional) Look up a custom extension function by [name].
@@ -603,11 +603,11 @@ interface GGMLBackendRegIface {
  *
  * Mirrors `struct ggml_backend_reg` in C.
  *
- * @property apiVersion must equal [io.github.kotlinmania.llama.ore.GGML_BACKEND_API_VERSION].
+ * @property apiVersion must equal [io.github.kotlinmania.llama.core.GGML_BACKEND_API_VERSION].
  */
 open class GGMLBackendRegHolder(
-    val apiVersion: Int = io.github.kotlinmania.llama.ore.GGML_BACKEND_API_VERSION,
-    val iface: io.github.kotlinmania.llama.ore.GGMLBackendRegIface,
+    val apiVersion: Int = io.github.kotlinmania.llama.core.GGML_BACKEND_API_VERSION,
+    val iface: io.github.kotlinmania.llama.core.GGMLBackendRegIface,
     var context: Any? = null
 )
 
@@ -622,7 +622,7 @@ open class GGMLBackendRegHolder(
  * In Kotlin/Native there is no direct equivalent of `dlsym`-based loading,
  * but the alias is kept for documentation parity with the C header.
  */
-typealias GGMLBackendInitFn = () -> io.github.kotlinmania.llama.ore.GGMLBackendRegHolder?
+typealias GGMLBackendInitFn = () -> io.github.kotlinmania.llama.core.GGMLBackendRegHolder?
 
 /**
  * Type alias for the optional backend score function
@@ -644,22 +644,22 @@ typealias GGMLBackendScoreFn = () -> Int
 interface GGMLMetaBackendMarker
 
 /** Port of `ggml_backend_is_meta` from ggml-backend-meta.cpp line 1953. */
-fun ggmlBackendIsMeta(backend: io.github.kotlinmania.llama.ore.GGMLBackend?): Boolean =
-    backend is io.github.kotlinmania.llama.ore.GGMLMetaBackendMarker
+fun ggmlBackendIsMeta(backend: io.github.kotlinmania.llama.core.GGMLBackend?): Boolean =
+    backend is io.github.kotlinmania.llama.core.GGMLMetaBackendMarker
 
 /** Port of `ggml_backend_buffer_is_meta` from ggml-backend-meta.cpp line 1372. */
-fun ggmlBackendBufferIsMeta(buf: io.github.kotlinmania.llama.ore.GGMLBackendBuffer?): Boolean =
-    buf is io.github.kotlinmania.llama.ore.GGMLMetaBackendMarker
+fun ggmlBackendBufferIsMeta(buf: io.github.kotlinmania.llama.core.GGMLBackendBuffer?): Boolean =
+    buf is io.github.kotlinmania.llama.core.GGMLMetaBackendMarker
 
 /** Port of `ggml_backend_buft_is_meta` from ggml-backend-meta.cpp line 339. */
-fun ggmlBackendBuftIsMeta(buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferType?): Boolean =
-    buft is io.github.kotlinmania.llama.ore.GGMLMetaBackendMarker
+fun ggmlBackendBuftIsMeta(buft: io.github.kotlinmania.llama.core.GGMLBackendBufferType?): Boolean =
+    buft is io.github.kotlinmania.llama.core.GGMLMetaBackendMarker
 
 /**
  * Port of `ggml_backend_meta_n_backends`.
  * Awaiting meta backend port — depends on holder/context plumbing not yet ported.
  */
-fun ggmlBackendMetaNBackends(@Suppress("UNUSED_PARAMETER") metaBackend: io.github.kotlinmania.llama.ore.GGMLBackend): Int =
+fun ggmlBackendMetaNBackends(@Suppress("UNUSED_PARAMETER") metaBackend: io.github.kotlinmania.llama.core.GGMLBackend): Int =
     error("ggmlBackendMetaNBackends not yet ported")
 
 /**
@@ -667,18 +667,18 @@ fun ggmlBackendMetaNBackends(@Suppress("UNUSED_PARAMETER") metaBackend: io.githu
  * Awaiting meta backend port.
  */
 fun ggmlBackendMetaSimpleBackend(
-    @Suppress("UNUSED_PARAMETER") metaBackend: io.github.kotlinmania.llama.ore.GGMLBackend,
+    @Suppress("UNUSED_PARAMETER") metaBackend: io.github.kotlinmania.llama.core.GGMLBackend,
     @Suppress("UNUSED_PARAMETER") index: Int
-): io.github.kotlinmania.llama.ore.GGMLBackend = error("ggmlBackendMetaSimpleBackend not yet ported")
+): io.github.kotlinmania.llama.core.GGMLBackend = error("ggmlBackendMetaSimpleBackend not yet ported")
 
 /**
  * Port of `ggml_backend_meta_alloc_ctx_tensors_from_buft`.
  * Awaiting meta backend port.
  */
 fun ggmlBackendMetaAllocCtxTensorsFromBuft(
-    @Suppress("UNUSED_PARAMETER") ctx: io.github.kotlinmania.llama.ore.GGMLContext,
-    @Suppress("UNUSED_PARAMETER") buft: io.github.kotlinmania.llama.ore.GGMLBackendBufferType
-): io.github.kotlinmania.llama.ore.GGMLBackendBuffer = error("ggmlBackendMetaAllocCtxTensorsFromBuft not yet ported")
+    @Suppress("UNUSED_PARAMETER") ctx: io.github.kotlinmania.llama.core.GGMLContext,
+    @Suppress("UNUSED_PARAMETER") buft: io.github.kotlinmania.llama.core.GGMLBackendBufferType
+): io.github.kotlinmania.llama.core.GGMLBackendBuffer = error("ggmlBackendMetaAllocCtxTensorsFromBuft not yet ported")
 
 // --- Functions declared in ggml-backend-impl.h, moved here for ast_distance parity ---
 
@@ -686,7 +686,7 @@ fun ggmlBackendMetaAllocCtxTensorsFromBuft(
  * ggml_backend_buffer_copy_tensor — ggml-backend-impl.h line 79 / ggml-backend.cpp line 205.
  * Copies src tensor data using the destination buffer's copyTensor hook.
  */
-fun ggmlBackendBufferCopyTensor(src: io.github.kotlinmania.llama.ore.GGMLTensor, dst: io.github.kotlinmania.llama.ore.GGMLTensor): Boolean {
+fun ggmlBackendBufferCopyTensor(src: io.github.kotlinmania.llama.core.GGMLTensor, dst: io.github.kotlinmania.llama.core.GGMLTensor): Boolean {
     val dstBuf = dst.viewSrc?.buffer ?: dst.buffer ?: return false
     return dstBuf.copyTensor(src, dst)
 }
@@ -695,8 +695,8 @@ fun ggmlBackendBufferCopyTensor(src: io.github.kotlinmania.llama.ore.GGMLTensor,
  * ggml_backend_buffer_is_multi_buffer — ggml-backend-impl.h line 84 / ggml-backend.cpp line 723.
  * Returns true if [buffer] is a multi-buffer wrapper.
  */
-fun ggmlBackendBufferIsMultiBuffer(buffer: io.github.kotlinmania.llama.ore.GGMLBackendBuffer): Boolean {
-    return buffer is io.github.kotlinmania.llama.ore.GGMLBackendMultiBufferWrapper
+fun ggmlBackendBufferIsMultiBuffer(buffer: io.github.kotlinmania.llama.core.GGMLBackendBuffer): Boolean {
+    return buffer is io.github.kotlinmania.llama.core.GGMLBackendMultiBufferWrapper
 }
 
 // ggmlBackendMultiBufferSetUsage moved to GGMLBackendUtils.kt

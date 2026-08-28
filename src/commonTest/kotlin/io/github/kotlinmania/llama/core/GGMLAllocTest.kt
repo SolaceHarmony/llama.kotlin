@@ -8,27 +8,27 @@ import kotlin.test.*
 
 class GGMLAllocTest {
 
-    private fun io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator.snapshot(): List<Pair<ULong, ULong>> =
+    private fun io.github.kotlinmania.llama.core.GGMLDynTensorAllocator.snapshot(): List<Pair<ULong, ULong>> =
         freeBlocks.map { it.offset to it.size }
 
-    private fun createDummyTensor(name: String = "dummy", type: io.github.kotlinmania.llama.ore.GGMLType = io.github.kotlinmania.llama.ore.GGMLType.F32): io.github.kotlinmania.llama.ore.GGMLTensor {
+    private fun createDummyTensor(name: String = "dummy", type: io.github.kotlinmania.llama.core.GGMLType = io.github.kotlinmania.llama.core.GGMLType.F32): io.github.kotlinmania.llama.core.GGMLTensor {
         val tensor =
-            io.github.kotlinmania.llama.ore.GGMLTensor(type = type) // ne defaults to [0,0,0,0]
+            io.github.kotlinmania.llama.core.GGMLTensor(type = type) // ne defaults to [0,0,0,0]
         tensor.name = name
         // For tests, we mainly care about size, not ne/nb structure unless specifically testing views.
         // The allocator uses the size passed to allocate(), not from tensor.ne/nb directly.
         // However, for completeness if any part of allocator might inspect ne/nb:
-        tensor.ne = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L } // Treat as scalar for simplicity of ne/nb
+        tensor.ne = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L } // Treat as scalar for simplicity of ne/nb
         if (type.byteSize > 0u) {
             tensor.nb[0] = type.byteSize
-            for (i in 1 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+            for (i in 1 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                 tensor.nb[i] = tensor.nb[i-1] * tensor.ne[i-1].toULong() // Will be type.byteSize for all nb if ne is all 1s
             }
         }
         return tensor
     }
 
-    private val dummyTensorF32 = createDummyTensor("tF32", io.github.kotlinmania.llama.ore.GGMLType.F32) // size 4
+    private val dummyTensorF32 = createDummyTensor("tF32", io.github.kotlinmania.llama.core.GGMLType.F32) // size 4
     // private val dummyTensorI16 = createDummyTensor("tI16", GGMLType.I16) // size 2 // Not used in current tests explicitly
 
     // --- GGMLDynTensorAllocator Tests End ---
@@ -37,32 +37,32 @@ class GGMLAllocTest {
 
     private fun setupTensorForGraph(
         name: String,
-        type: io.github.kotlinmania.llama.ore.GGMLType,
+        type: io.github.kotlinmania.llama.core.GGMLType,
         dims: LongArray,
-        op: io.github.kotlinmania.llama.ore.GGMLOp = io.github.kotlinmania.llama.ore.GGMLOp.NONE,
+        op: io.github.kotlinmania.llama.core.GGMLOp = io.github.kotlinmania.llama.core.GGMLOp.NONE,
         isOutput: Boolean = false
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
-        val tensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = type)
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
+        val tensor = io.github.kotlinmania.llama.core.GGMLTensor(type = type)
         tensor.name = name
         tensor.op = op
         if (isOutput) {
-            tensor.flags = tensor.flags or io.github.kotlinmania.llama.ore.GGML_TENSOR_FLAG_OUTPUT
+            tensor.flags = tensor.flags or io.github.kotlinmania.llama.core.GGML_TENSOR_FLAG_OUTPUT
         }
 
         // Ensure dims is GGML_MAX_DIMS long
-        if (dims.size < io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
-            tensor.ne = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L }
+        if (dims.size < io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
+            tensor.ne = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L }
             dims.copyInto(tensor.ne, 0, 0, dims.size)
-        } else if (dims.size == io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+        } else if (dims.size == io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
             tensor.ne = dims.copyOf()
         } else {
-            throw IllegalArgumentException("Dimensions array size ${dims.size} exceeds GGML_MAX_DIMS ${io.github.kotlinmania.llama.ore.GGML_MAX_DIMS}")
+            throw IllegalArgumentException("Dimensions array size ${dims.size} exceeds GGML_MAX_DIMS ${io.github.kotlinmania.llama.core.GGML_MAX_DIMS}")
         }
 
         // Simplified stride calculation for test setup
         if (type.byteSize > 0u) {
             tensor.nb[0] = type.byteSize
-            for (i in 1 until io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) {
+            for (i in 1 until io.github.kotlinmania.llama.core.GGML_MAX_DIMS) {
                 tensor.nb[i] = tensor.nb[i-1] * (if (tensor.ne[i-1] > 0) tensor.ne[i-1].toULong() else 1uL)
             }
         } else { // For types with 0 byteSize (like quantized), set nb to 0 or based on some convention if needed for tests
@@ -97,7 +97,7 @@ class GGMLAllocTest {
 
     @Test
     fun testInitialState() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(bufferSize = 1024uL)
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(bufferSize = 1024uL)
         assertEquals(0uL, allocator.getMaxSize(), "Initial maxSize should be 0")
         assertEquals(1, allocator.freeBlocks.size, "Should have one initial free block")
         assertEquals(0uL, allocator.freeBlocks[0].offset, "Initial free block offset should be 0")
@@ -106,7 +106,7 @@ class GGMLAllocTest {
 
     @Test
     fun testSingleAllocationAndMaxSize() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             bufferSize = 1024uL,
             alignment = 16u
         )
@@ -127,7 +127,7 @@ class GGMLAllocTest {
 
     @Test
     fun testAllocationExceedsBuffer() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             bufferSize = 100uL,
             alignment = 16u
         ) // Buffer 100
@@ -143,7 +143,7 @@ class GGMLAllocTest {
 
     @Test
     fun testAllocationExceedsBufferImmediately() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(bufferSize = 100uL)
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(bufferSize = 100uL)
         assertFailsWith<IllegalStateException>("Should fail if allocation exceeds buffer size") {
             allocator.allocate(120uL, dummyTensorF32)
         }
@@ -151,7 +151,7 @@ class GGMLAllocTest {
 
     @Test
     fun testFreeAndReuseExactSize() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             bufferSize = 1024uL,
             alignment = 16u
         )
@@ -174,7 +174,7 @@ class GGMLAllocTest {
 
     @Test
     fun testFreeAndReuseSmallerThanFreed() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             bufferSize = 1024uL,
             alignment = 16u
         )
@@ -215,7 +215,7 @@ class GGMLAllocTest {
     @Test
     fun testFreeAndMergeAdjacentBlocks() {
         // Use alignment = 1u to make sizes exact and predictable without padding interference for this test
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             alignment = 1u,
             bufferSize = 1024uL
         )
@@ -250,7 +250,7 @@ class GGMLAllocTest {
 
     @Test
     fun testFreeMergeMoreComplex() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             alignment = 1u,
             bufferSize = 500uL
         )
@@ -313,7 +313,7 @@ class GGMLAllocTest {
 
     @Test
     fun testResetAllocator() {
-        val allocator = io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+        val allocator = io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
             bufferSize = 1024uL,
             alignment = 16u
         )
@@ -341,12 +341,12 @@ class GGMLAllocTest {
 
     @Test
     fun testReserveGraphSimple() {
-        val graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
-        val graph = io.github.kotlinmania.llama.ore.GGMLCGraph()
+        val graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
+        val graph = io.github.kotlinmania.llama.core.GGMLCGraph()
 
-        val tensorA = setupTensorForGraph("A", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10))    // 10*4 = 40 bytes
-        val tensorB = setupTensorForGraph("B", io.github.kotlinmania.llama.ore.GGMLType.I16, longArrayOf(5, 2)) // 5*2*2 = 20 bytes
-        val tensorC = setupTensorForGraph("C", io.github.kotlinmania.llama.ore.GGMLType.I8, longArrayOf(3))     // 3*1 = 3 bytes
+        val tensorA = setupTensorForGraph("A", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10))    // 10*4 = 40 bytes
+        val tensorB = setupTensorForGraph("B", io.github.kotlinmania.llama.core.GGMLType.I16, longArrayOf(5, 2)) // 5*2*2 = 20 bytes
+        val tensorC = setupTensorForGraph("C", io.github.kotlinmania.llama.core.GGMLType.I8, longArrayOf(3))     // 3*1 = 3 bytes
 
         graph.leafs = arrayOf(tensorA, tensorB, tensorC)
         graph.nLeafs = 3
@@ -368,12 +368,12 @@ class GGMLAllocTest {
 
     @Test
     fun testAllocateGraphBasic_TwoInputs_OneAddOutput() {
-        val graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
-        val graph = io.github.kotlinmania.llama.ore.GGMLCGraph()
+        val graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
+        val graph = io.github.kotlinmania.llama.core.GGMLCGraph()
 
-        val tensorA = setupTensorForGraph("A", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.ore.GGMLOp.NONE)  // 40 bytes
-        val tensorB = setupTensorForGraph("B", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.ore.GGMLOp.NONE)  // 40 bytes
-        val tensorC = setupTensorForGraph("C", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.ore.GGMLOp.ADD, isOutput = true) // 40 bytes
+        val tensorA = setupTensorForGraph("A", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.core.GGMLOp.NONE)  // 40 bytes
+        val tensorB = setupTensorForGraph("B", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.core.GGMLOp.NONE)  // 40 bytes
+        val tensorC = setupTensorForGraph("C", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.core.GGMLOp.ADD, isOutput = true) // 40 bytes
 
         tensorC.src[0] = tensorA
         tensorC.src[1] = tensorB
@@ -429,11 +429,11 @@ class GGMLAllocTest {
 
     @Test
     fun testAllocateGraphInplace() {
-        val graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
-        val graph = io.github.kotlinmania.llama.ore.GGMLCGraph()
+        val graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
+        val graph = io.github.kotlinmania.llama.core.GGMLCGraph()
 
-        val tensorInput = setupTensorForGraph("INPUT", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10)) // 40 bytes
-        val tensorReluOut = setupTensorForGraph("RELU_OUT", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.ore.GGMLOp.RELU, isOutput = true)
+        val tensorInput = setupTensorForGraph("INPUT", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10)) // 40 bytes
+        val tensorReluOut = setupTensorForGraph("RELU_OUT", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.core.GGMLOp.RELU, isOutput = true)
 
         tensorReluOut.src[0] = tensorInput
 
@@ -444,7 +444,7 @@ class GGMLAllocTest {
         graph.nNodes = 2
 
         // Ensure RELU is inplace for this test
-        assertTrue(io.github.kotlinmania.llama.ore.GGMLOp.RELU.canBeInplace, "RELU op should be marked as canBeInplace for this test to be valid")
+        assertTrue(io.github.kotlinmania.llama.core.GGMLOp.RELU.canBeInplace, "RELU op should be marked as canBeInplace for this test to be valid")
 
         graphAllocator.allocateGraph(graph)
 
@@ -468,20 +468,20 @@ class GGMLAllocTest {
 
     @Test
     fun testAllocateGraphMemoryFreeing() {
-        val graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
-        val graph = io.github.kotlinmania.llama.ore.GGMLCGraph()
+        val graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
+        val graph = io.github.kotlinmania.llama.core.GGMLCGraph()
         val alignment = 16u // Default
 
         // Setup tensors
-        val tensorA = setupTensorForGraph("A", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10)) // 40 bytes, padded 48
-        val tensorB = setupTensorForGraph("B", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10)) // 40 bytes, padded 48
+        val tensorA = setupTensorForGraph("A", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10)) // 40 bytes, padded 48
+        val tensorB = setupTensorForGraph("B", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10)) // 40 bytes, padded 48
         // Ensure ADD is NOT inplace for this test to make TEMP distinct.
         // We can achieve this by making its output different or ensuring conditions aren't met,
         // or by temporarily overriding canBeInplace (not clean for test).
         // For this test, we assume ADD is not inplace or its conditions for inplace are not met.
         // (e.g. if we were to add another child to A or B before TEMP is computed)
-        val tensorTemp = setupTensorForGraph("TEMP", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.ore.GGMLOp.ADD)
-        val tensorOutput = setupTensorForGraph("OUTPUT", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.ore.GGMLOp.RELU, isOutput = true)
+        val tensorTemp = setupTensorForGraph("TEMP", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.core.GGMLOp.ADD)
+        val tensorOutput = setupTensorForGraph("OUTPUT", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10), op = io.github.kotlinmania.llama.core.GGMLOp.RELU, isOutput = true)
 
         tensorTemp.src[0] = tensorA
         tensorTemp.src[1] = tensorB
@@ -493,8 +493,8 @@ class GGMLAllocTest {
         graph.nodes = arrayOf(tensorA, tensorB, tensorTemp, tensorOutput)
         graph.nNodes = 4
 
-        val originalAddCanBeInplace = io.github.kotlinmania.llama.ore.GGMLOp.ADD.canBeInplace
-        val originalReluCanBeInplace = io.github.kotlinmania.llama.ore.GGMLOp.RELU.canBeInplace
+        val originalAddCanBeInplace = io.github.kotlinmania.llama.core.GGMLOp.ADD.canBeInplace
+        val originalReluCanBeInplace = io.github.kotlinmania.llama.core.GGMLOp.RELU.canBeInplace
 
         // Force ADD to not be inplace for this test if it was marked as such
         // This is a bit hacky for a test; ideally, the graph structure would ensure this.
@@ -502,7 +502,7 @@ class GGMLAllocTest {
         // A better way is to ensure inplace conditions for ADD are not met (e.g. A or B has other children).
         // For simplicity here, we rely on default ADD behavior or assume it won't be inplace.
         // And ensure RELU is inplace.
-        if (!io.github.kotlinmania.llama.ore.GGMLOp.RELU.canBeInplace) {
+        if (!io.github.kotlinmania.llama.core.GGMLOp.RELU.canBeInplace) {
             // This would be a test setup issue, not a library issue.
             // For this test, we'll assume it's true or skip.
             println("Warning: RELU not marked as canBeInplace, testAllocateGraphMemoryFreeing might not be fully valid.")
@@ -586,8 +586,8 @@ class GGMLAllocTest {
         }
 
         // Try to allocate new tensors of same size as A and B
-        val newTensorX = setupTensorForGraph("X", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10))
-        val newTensorY = setupTensorForGraph("Y", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(10))
+        val newTensorX = setupTensorForGraph("X", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10))
+        val newTensorY = setupTensorForGraph("Y", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(10))
 
         val (expectedOffsetX, blocksAfterX) = simulateAllocate(
             freeBlocksBefore,

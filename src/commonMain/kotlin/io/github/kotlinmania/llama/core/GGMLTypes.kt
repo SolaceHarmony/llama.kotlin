@@ -1,18 +1,18 @@
 // port-lint: source ggml/include/ggml.h
 package io.github.kotlinmania.llama.ore
 
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getLongLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getShortLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setLongLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setShortLe
-import io.github.kotlinmania.llama.ore.insertBits
-import io.github.kotlinmania.llama.ore.readBits
-import io.github.kotlinmania.llama.ore.toUnsignedInt
-import io.github.kotlinmania.llama.ore.withBits
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getLongLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setLongLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setShortLe
+import io.github.kotlinmania.llama.core.insertBits
+import io.github.kotlinmania.llama.core.readBits
+import io.github.kotlinmania.llama.core.toUnsignedInt
+import io.github.kotlinmania.llama.core.withBits
 import kotlin.Short.Companion.SIZE_BYTES
 
 /**
@@ -126,21 +126,21 @@ enum class GGMLType(val description: String, val byteSize: ULong) {
     // The ggml library itself has type_size and block_size fields and functions like ggml_type_size() / ggml_blck_size().
     // For now, these are templates. The stride logic will primarily rely on non-zero byteSize for unquantized types.
     // Q4_0 byteSize is per block: sizeof(F16 scale) + (QK4_0/2) * sizeof(I8 weights_packed)
-    Q4_0("q4_0", 2uL + (io.github.kotlinmania.llama.ore.QK4_0 / 2).toULong()),   // 4-bit quantized, 18 bytes per block (2 + 32/2*1)
+    Q4_0("q4_0", 2uL + (io.github.kotlinmania.llama.core.QK4_0 / 2).toULong()),   // 4-bit quantized, 18 bytes per block (2 + 32/2*1)
     // Q4_1 byteSize is per block: 2 * sizeof(F16 scale/min) + (QK4_1/2) * sizeof(I8 weights_packed)
-    Q4_1("q4_1", (2uL * Short.SIZE_BYTES.toULong()) + (io.github.kotlinmania.llama.ore.QK4_1 / 2).toULong()),   // 4-bit quantized: 2*F16 (scale d, min m) + QK4_1/2 bytes for packed weights = 4 + 16 = 20 bytes per block
+    Q4_1("q4_1", (2uL * Short.SIZE_BYTES.toULong()) + (io.github.kotlinmania.llama.core.QK4_1 / 2).toULong()),   // 4-bit quantized: 2*F16 (scale d, min m) + QK4_1/2 bytes for packed weights = 4 + 16 = 20 bytes per block
     Q5_0("q5_0", 0uL),   // 5-bit quantized
     Q5_1("q5_1", 0uL),   // 5-bit quantized with different scaling
     // Q8_0 byteSize is per block: sizeof(Float16 for scale) + QK8_0 * sizeof(Int8 for weights)
-    Q8_0("q8_0", 2uL + io.github.kotlinmania.llama.ore.QK8_0.toULong()),   // 8-bit quantized, 34 bytes per block (2 + 32*1)
+    Q8_0("q8_0", 2uL + io.github.kotlinmania.llama.core.QK8_0.toULong()),   // 8-bit quantized, 34 bytes per block (2 + 32*1)
     Q8_1("q8_1", 0uL),   // 8-bit quantized with different scaling
     // K-Quant types with correct block sizes (based on ggml-common.h)
-    Q2_K("q2_k", (2uL * Short.SIZE_BYTES.toULong()) + (io.github.kotlinmania.llama.ore.QK_K / 16).toULong() + (io.github.kotlinmania.llama.ore.QK_K / 4).toULong()),   // 2*F16 + QK_K/16 + QK_K/4 = 4 + 16 + 64 = 84 bytes
-    Q3_K("q3_k", Short.SIZE_BYTES.toULong() + (io.github.kotlinmania.llama.ore.QK_K / 4).toULong() + (io.github.kotlinmania.llama.ore.QK_K / 8).toULong() + 12uL),   // F16 + QK_K/4 + QK_K/8 + 12 = 2 + 64 + 32 + 12 = 110 bytes
-    Q4_K("q4_k", (2uL * Short.SIZE_BYTES.toULong()) + io.github.kotlinmania.llama.ore.K_SCALE_SIZE.toULong() + (io.github.kotlinmania.llama.ore.QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/2 = 4 + 12 + 128 = 144 bytes
-    Q5_K("q5_k", (2uL * Short.SIZE_BYTES.toULong()) + io.github.kotlinmania.llama.ore.K_SCALE_SIZE.toULong() + (io.github.kotlinmania.llama.ore.QK_K / 8).toULong() + (io.github.kotlinmania.llama.ore.QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/8 + QK_K/2 = 4 + 12 + 32 + 128 = 176 bytes
-    Q6_K("q6_k", Short.SIZE_BYTES.toULong() + (io.github.kotlinmania.llama.ore.QK_K / 16).toULong() + ((3 * io.github.kotlinmania.llama.ore.QK_K) / 4).toULong()),   // F16 + QK_K/16 + 3*QK_K/4 = 2 + 16 + 192 = 210 bytes
-    Q8_K("q8_k", 4uL + io.github.kotlinmania.llama.ore.QK_K.toULong() + ((io.github.kotlinmania.llama.ore.QK_K / 16) * 2).toULong()),   // (15) F32 + QK_K + QK_K/16*sizeof(int16_t)
+    Q2_K("q2_k", (2uL * Short.SIZE_BYTES.toULong()) + (io.github.kotlinmania.llama.core.QK_K / 16).toULong() + (io.github.kotlinmania.llama.core.QK_K / 4).toULong()),   // 2*F16 + QK_K/16 + QK_K/4 = 4 + 16 + 64 = 84 bytes
+    Q3_K("q3_k", Short.SIZE_BYTES.toULong() + (io.github.kotlinmania.llama.core.QK_K / 4).toULong() + (io.github.kotlinmania.llama.core.QK_K / 8).toULong() + 12uL),   // F16 + QK_K/4 + QK_K/8 + 12 = 2 + 64 + 32 + 12 = 110 bytes
+    Q4_K("q4_k", (2uL * Short.SIZE_BYTES.toULong()) + io.github.kotlinmania.llama.core.K_SCALE_SIZE.toULong() + (io.github.kotlinmania.llama.core.QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/2 = 4 + 12 + 128 = 144 bytes
+    Q5_K("q5_k", (2uL * Short.SIZE_BYTES.toULong()) + io.github.kotlinmania.llama.core.K_SCALE_SIZE.toULong() + (io.github.kotlinmania.llama.core.QK_K / 8).toULong() + (io.github.kotlinmania.llama.core.QK_K / 2).toULong()),   // 2*F16 + K_SCALE_SIZE + QK_K/8 + QK_K/2 = 4 + 12 + 32 + 128 = 176 bytes
+    Q6_K("q6_k", Short.SIZE_BYTES.toULong() + (io.github.kotlinmania.llama.core.QK_K / 16).toULong() + ((3 * io.github.kotlinmania.llama.core.QK_K) / 4).toULong()),   // F16 + QK_K/16 + 3*QK_K/4 = 2 + 16 + 192 = 210 bytes
+    Q8_K("q8_k", 4uL + io.github.kotlinmania.llama.core.QK_K.toULong() + ((io.github.kotlinmania.llama.core.QK_K / 16) * 2).toULong()),   // (15) F32 + QK_K + QK_K/16*sizeof(int16_t)
     IQ2_XXS("iq2_xxs", 0uL), // (16)
     IQ2_XS("iq2_xs", 0uL),   // (17)
     IQ3_XXS("iq3_xxs", 0uL), // (18)
@@ -370,40 +370,40 @@ data class GGMLBF16(val bits: UShort)
  * Base object structure
  */
 class GGMLObject(
-    var type: io.github.kotlinmania.llama.ore.GGMLObjectType = io.github.kotlinmania.llama.ore.GGMLObjectType.TENSOR,
+    var type: io.github.kotlinmania.llama.core.GGMLObjectType = io.github.kotlinmania.llama.core.GGMLObjectType.TENSOR,
     var offs: Long = 0L,
     var offset: ULong = 0u,
     var size: ULong = 0u,
     var next: GGMLObject? = null,
-    var tensor: io.github.kotlinmania.llama.ore.GGMLTensor? = null
+    var tensor: io.github.kotlinmania.llama.core.GGMLTensor? = null
 )
 
 /**
  * Tensor data structure
  */
 class GGMLTensor(
-    var type: io.github.kotlinmania.llama.ore.GGMLType = io.github.kotlinmania.llama.ore.GGMLType.F32,
-    var buffer: io.github.kotlinmania.llama.ore.GGMLBackendBuffer? = null,
-    var ne: LongArray = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 0L },
-    var nb: ULongArray = ULongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 0u },
-    var op: io.github.kotlinmania.llama.ore.GGMLOp = io.github.kotlinmania.llama.ore.GGMLOp.NONE,
-    var opParams: IntArray = IntArray(io.github.kotlinmania.llama.ore.GGML_MAX_OP_PARAMS / Int.SIZE_BYTES) { 0 },
+    var type: io.github.kotlinmania.llama.core.GGMLType = io.github.kotlinmania.llama.core.GGMLType.F32,
+    var buffer: io.github.kotlinmania.llama.core.GGMLBackendBuffer? = null,
+    var ne: LongArray = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 0L },
+    var nb: ULongArray = ULongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 0u },
+    var op: io.github.kotlinmania.llama.core.GGMLOp = io.github.kotlinmania.llama.core.GGMLOp.NONE,
+    var opParams: IntArray = IntArray(io.github.kotlinmania.llama.core.GGML_MAX_OP_PARAMS / Int.SIZE_BYTES) { 0 },
     var flags: Int = 0,
     var grad: GGMLTensor? = null,
-    var src: Array<GGMLTensor?> = Array(io.github.kotlinmania.llama.ore.GGML_MAX_SRC) { null },
+    var src: Array<GGMLTensor?> = Array(io.github.kotlinmania.llama.core.GGML_MAX_SRC) { null },
     var viewSrc: GGMLTensor? = null,
     var viewOffs: ULong = 0u,
     var data: Any? = null,
     var name: String = "",
     var bufferId: Int = -1,
     var dataOffset: ULong = 0u,
-    var parentObject: io.github.kotlinmania.llama.ore.GGMLObject? = null
+    var parentObject: io.github.kotlinmania.llama.core.GGMLObject? = null
 ) {
     var offset: ULong
         get() = dataOffset
         set(value) { dataOffset = value }
 
-    fun isOutput(): Boolean = (this.flags and io.github.kotlinmania.llama.ore.GGML_TENSOR_FLAG_OUTPUT) != 0
+    fun isOutput(): Boolean = (this.flags and io.github.kotlinmania.llama.core.GGML_TENSOR_FLAG_OUTPUT) != 0
 
     /**
      * Total number of bytes used by this tensor's data.
@@ -484,7 +484,7 @@ class GGMLTensor(
 
     internal fun isValidZeroSizedTensor(): Boolean {
         // COUNT type is a valid zero-sized tensor (conceptual, no data).
-        if (this.type == io.github.kotlinmania.llama.ore.GGMLType.COUNT) {
+        if (this.type == io.github.kotlinmania.llama.core.GGMLType.COUNT) {
             return true
         }
         // If any dimension (ne[i]) for the actual rank of the tensor is 0,
@@ -526,11 +526,11 @@ class GGMLTensor(
 
         // Iterating up to indices.size assumes that the provided indices match the intended dimensions.
         for (d in indices.indices) {
-            if (d >= io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { // Should not happen if indices.size is checked against rank based on ne
+            if (d >= io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { // Should not happen if indices.size is checked against rank based on ne
                 throw IllegalArgumentException("Dimension index $d exceeds GGML_MAX_DIMS.")
             }
             if (indices[d] < 0 || indices[d] >= ne[d]) {
-                val shapeString = ne.joinToString(limit = io.github.kotlinmania.llama.ore.GGML_MAX_DIMS)
+                val shapeString = ne.joinToString(limit = io.github.kotlinmania.llama.core.GGML_MAX_DIMS)
                 throw IllegalArgumentException("Index ${indices[d]} for dimension $d is out of bounds (0 to ${ne[d] - 1}) for tensor shape [$shapeString]")
             }
             finalOffset += indices[d].toULong() * nb[d]
@@ -539,7 +539,7 @@ class GGMLTensor(
     }
 
     // Accessor methods for F32
-    fun getFloat(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, vararg indices: Int): Float {
+    fun getFloat(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, vararg indices: Int): Float {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -550,7 +550,7 @@ class GGMLTensor(
         return buffer.getFloatLe(finalByteOffset.toInt())
     }
 
-    fun setFloat(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, value: Float, vararg indices: Int) {
+    fun setFloat(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, value: Float, vararg indices: Int) {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -562,7 +562,7 @@ class GGMLTensor(
     }
 
     // Accessor methods for I32
-    fun getInt(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, vararg indices: Int): Int {
+    fun getInt(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, vararg indices: Int): Int {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -573,7 +573,7 @@ class GGMLTensor(
         return buffer.getIntLe(finalByteOffset.toInt())
     }
 
-    fun setInt(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, value: Int, vararg indices: Int) {
+    fun setInt(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, value: Int, vararg indices: Int) {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -585,7 +585,7 @@ class GGMLTensor(
     }
 
     // Accessor methods for I16
-    fun getShort(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, vararg indices: Int): Short {
+    fun getShort(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, vararg indices: Int): Short {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -596,7 +596,7 @@ class GGMLTensor(
         return buffer.getShortLe(finalByteOffset.toInt())
     }
 
-    fun setShort(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, value: Short, vararg indices: Int) {
+    fun setShort(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, value: Short, vararg indices: Int) {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -608,7 +608,7 @@ class GGMLTensor(
     }
 
     // Accessor methods for F16 (Half Float)
-    fun getHalf(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, vararg indices: Int): Float {
+    fun getHalf(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, vararg indices: Int): Float {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -618,10 +618,10 @@ class GGMLTensor(
             throw IndexOutOfBoundsException("Attempt to read Short at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - SIZE_BYTES})")
         }
         val shortBits = buffer.getShortLe(finalByteOffset.toInt())
-        return io.github.kotlinmania.llama.ore.halfToFloat(shortBits) // halfToFloat is in NumericConversions.kt, assumed imported or accessible
+        return io.github.kotlinmania.llama.core.halfToFloat(shortBits) // halfToFloat is in NumericConversions.kt, assumed imported or accessible
     }
 
-    fun setHalf(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, value: Float, vararg indices: Int) {
+    fun setHalf(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, value: Float, vararg indices: Int) {
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId. Ensure graphAllocator.buffers is populated.")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -631,12 +631,12 @@ class GGMLTensor(
             throw IndexOutOfBoundsException("Attempt to write Short at offset ${finalByteOffset.toInt()} (tensor offset $dataOffset + element offset $elementByteOffset) is out of buffer bounds (0-${buffer.size - SIZE_BYTES})")
         }
         val shortBits =
-            io.github.kotlinmania.llama.ore.floatToHalf(value) // floatToHalf is in NumericConversions.kt, assumed imported or accessible
+            io.github.kotlinmania.llama.core.floatToHalf(value) // floatToHalf is in NumericConversions.kt, assumed imported or accessible
         buffer.setShortLe(finalByteOffset.toInt(), shortBits)
     }
 
     // Accessor methods for I8 (Byte)
-    fun getByte(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, vararg indices: Int): Byte {
+    fun getByte(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, vararg indices: Int): Byte {
         // require(type == GGMLType.I8) { "getByte() called on non-I8 tensor: $type" }
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -647,7 +647,7 @@ class GGMLTensor(
         return buffer[finalByteOffset.toInt()]
     }
 
-    fun setByte(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, value: Byte, vararg indices: Int) {
+    fun setByte(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, value: Byte, vararg indices: Int) {
         // require(type == GGMLType.I8) { "setByte() called on non-I8 tensor: $type" }
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -659,7 +659,7 @@ class GGMLTensor(
     }
 
     // Accessor methods for I64 (Long)
-    fun getLong(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, vararg indices: Int): Long {
+    fun getLong(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, vararg indices: Int): Long {
         // require(type == GGMLType.I64) { "getLong() called on non-I64 tensor: $type" }
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -670,7 +670,7 @@ class GGMLTensor(
         return buffer.getLongLe(finalByteOffset.toInt()) // Uses new ByteArray extension
     }
 
-    fun setLong(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, value: Long, vararg indices: Int) {
+    fun setLong(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, value: Long, vararg indices: Int) {
         // require(type == GGMLType.I64) { "setLong() called on non-I64 tensor: $type" }
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
         val elementByteOffset = getElementByteOffset(*indices)
@@ -692,13 +692,13 @@ class GGMLTensor(
         if (totalElements == 0L) return 0L
 
         val elementsPerBlock = when (type) {
-            io.github.kotlinmania.llama.ore.GGMLType.Q8_0 -> io.github.kotlinmania.llama.ore.QK8_0.toLong()
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_0 -> io.github.kotlinmania.llama.ore.QK4_0.toLong()
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_1 -> io.github.kotlinmania.llama.ore.QK4_1.toLong()
+            io.github.kotlinmania.llama.core.GGMLType.Q8_0 -> io.github.kotlinmania.llama.core.QK8_0.toLong()
+            io.github.kotlinmania.llama.core.GGMLType.Q4_0 -> io.github.kotlinmania.llama.core.QK4_0.toLong()
+            io.github.kotlinmania.llama.core.GGMLType.Q4_1 -> io.github.kotlinmania.llama.core.QK4_1.toLong()
             // BitNet 1.58 quantization
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58 -> io.github.kotlinmania.llama.ore.QK_BITNET_1_58.toLong()
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58 -> io.github.kotlinmania.llama.core.QK_BITNET_1_58.toLong()
             // K-Quant types
-            io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K -> io.github.kotlinmania.llama.ore.QK_K.toLong()
+            io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K -> io.github.kotlinmania.llama.core.QK_K.toLong()
             else -> {
                 // Or throw IllegalArgumentException("getNumBlocks is only for block-quantized types")
                 return 0L
@@ -723,8 +723,8 @@ class GGMLTensor(
      * @param blockIndex The 0-based index of the block.
      * @return The scale value as a Float.
      */
-    fun getQ8_0BlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "Tensor type must be Q8_0 to get block scale." }
+    fun getQ8_0BlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "Tensor type must be Q8_0 to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -741,7 +741,7 @@ class GGMLTensor(
         }
 
         val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
-        return io.github.kotlinmania.llama.ore.halfToFloat(scaleBits)
+        return io.github.kotlinmania.llama.core.halfToFloat(scaleBits)
     }
 
     /**
@@ -751,11 +751,11 @@ class GGMLTensor(
      * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK8_0 - 1).
      * @return The quantized weight as a Byte.
      */
-    fun getQ8_0Weight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) { "Tensor type must be Q8_0 to get weight." }
+    fun getQ8_0Weight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) { "Tensor type must be Q8_0 to get weight." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
-        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.ore.QK8_0) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.ore.QK8_0 -1}) for Q8_0 block in tensor '$name'."}
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.core.QK8_0) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.core.QK8_0 -1}) for Q8_0 block in tensor '$name'."}
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize // type.byteSize is block size for Q8_0
         val qsArrayBaseOffsetInBlock = 2uL // The F16 scale takes the first 2 bytes of the block
@@ -778,8 +778,8 @@ class GGMLTensor(
      * @param blockIndex The 0-based index of the block.
      * @return The scale value as a Float.
      */
-    fun getQ4_0BlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0) { "Tensor type must be Q4_0 to get block scale." }
+    fun getQ4_0BlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_0) { "Tensor type must be Q4_0 to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -796,7 +796,7 @@ class GGMLTensor(
         }
 
         val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
-        return io.github.kotlinmania.llama.ore.halfToFloat(scaleBits)
+        return io.github.kotlinmania.llama.core.halfToFloat(scaleBits)
     }
 
     /**
@@ -807,11 +807,11 @@ class GGMLTensor(
      * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK4_0 - 1).
      * @return The quantized 4-bit weight as a Byte (value 0-15).
      */
-    fun getQ4_0NibbleWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_0) { "Tensor type must be Q4_0 to get nibble weight." }
+    fun getQ4_0NibbleWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_0) { "Tensor type must be Q4_0 to get nibble weight." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
-        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.ore.QK4_0) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.ore.QK4_0 -1}) for Q4_0 block in tensor '$name'."}
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.core.QK4_0) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.core.QK4_0 -1}) for Q4_0 block in tensor '$name'."}
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         val qsArrayBaseOffsetInBlock = 2uL // The F16 scale takes the first 2 bytes
@@ -840,8 +840,8 @@ class GGMLTensor(
     /**
      * Retrieves the F16 scale ('d') for a specific block in a Q4_1 quantized tensor.
      */
-    fun getQ4_1BlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "Tensor type must be Q4_1 to get block scale 'd'." }
+    fun getQ4_1BlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "Tensor type must be Q4_1 to get block scale 'd'." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -856,14 +856,14 @@ class GGMLTensor(
         }
 
         val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
-        return io.github.kotlinmania.llama.ore.halfToFloat(scaleBits)
+        return io.github.kotlinmania.llama.core.halfToFloat(scaleBits)
     }
 
     /**
      * Retrieves the F16 min value ('m') for a specific block in a Q4_1 quantized tensor.
      */
-    fun getQ4_1BlockMin(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "Tensor type must be Q4_1 to get block min 'm'." }
+    fun getQ4_1BlockMin(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "Tensor type must be Q4_1 to get block min 'm'." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -879,18 +879,18 @@ class GGMLTensor(
         }
 
         val minBits = buffer.getShortLe(finalMinByteOffset.toInt())
-        return io.github.kotlinmania.llama.ore.halfToFloat(minBits)
+        return io.github.kotlinmania.llama.core.halfToFloat(minBits)
     }
 
     /**
      * Retrieves a single 4-bit quantized weight (nibble) from a specific block in a Q4_1 tensor.
      * The returned Byte contains the raw 4-bit value (0-15).
      */
-    fun getQ4_1NibbleWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_1) { "Tensor type must be Q4_1 to get nibble weight." }
+    fun getQ4_1NibbleWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_1) { "Tensor type must be Q4_1 to get nibble weight." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
-        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.ore.QK4_1) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.ore.QK4_1 -1}) for Q4_1 block in tensor '$name'."}
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.core.QK4_1) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.core.QK4_1 -1}) for Q4_1 block in tensor '$name'."}
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         val qsBaseOffsetWithinBlock = (2 * SIZE_BYTES).toULong() // Weights start after two F16s (d and m)
@@ -920,39 +920,39 @@ class GGMLTensor(
      * Retrieves the super-block scale (d) for a Q2_K block.
      * Q2_K structure: scales[QK_K/16], qs[QK_K/4], d (F16), dmin (F16)
      */
-    fun getQ2_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q2_K) { "Tensor type must be Q2_K to get block scale." }
+    fun getQ2_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q2_K) { "Tensor type must be Q2_K to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
-        val finalByteOffset = dataOffset + blockByteOffset + (io.github.kotlinmania.llama.ore.QK_K /16 + io.github.kotlinmania.llama.ore.QK_K /4).toULong()
+        val finalByteOffset = dataOffset + blockByteOffset + (io.github.kotlinmania.llama.core.QK_K /16 + io.github.kotlinmania.llama.core.QK_K /4).toULong()
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
     
     /**
      * Retrieves the super-block scale for mins (dmin) for a Q2_K block.
      */
-    fun getQ2_KBlockScaleMin(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q2_K) { "Tensor type must be Q2_K to get block scale min." }
+    fun getQ2_KBlockScaleMin(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q2_K) { "Tensor type must be Q2_K to get block scale min." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
-        val finalByteOffset = dataOffset + blockByteOffset + (io.github.kotlinmania.llama.ore.QK_K /16 + io.github.kotlinmania.llama.ore.QK_K /4).toULong() + 2uL
+        val finalByteOffset = dataOffset + blockByteOffset + (io.github.kotlinmania.llama.core.QK_K /16 + io.github.kotlinmania.llama.core.QK_K /4).toULong() + 2uL
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
     
     /**
      * Retrieves the packed scale/min byte for a Q2_K sub-block (lower 4 bits = scale, upper 4 bits = min).
      */
-    fun getQ2_KScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, scaleIndex: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q2_K) { "Tensor type must be Q2_K to get scale/min." }
-        require(scaleIndex >= 0 && scaleIndex < io.github.kotlinmania.llama.ore.QK_K /16) { "scaleIndex $scaleIndex out of bounds for Q2_K scales" }
+    fun getQ2_KScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, scaleIndex: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q2_K) { "Tensor type must be Q2_K to get scale/min." }
+        require(scaleIndex >= 0 && scaleIndex < io.github.kotlinmania.llama.core.QK_K /16) { "scaleIndex $scaleIndex out of bounds for Q2_K scales" }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         val scalesOffsetWithinBlock = scaleIndex.toULong()
@@ -966,12 +966,12 @@ class GGMLTensor(
     /**
      * Retrieves a quantized weight byte from a Q2_K block (contains 4 weights, 2 bits each).
      */
-    fun getQ2_KQuant(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, quantIndex: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q2_K) { "Tensor type must be Q2_K to get quant." }
-        require(quantIndex >= 0 && quantIndex < io.github.kotlinmania.llama.ore.QK_K /4) { "quantIndex $quantIndex out of bounds for Q2_K quants" }
+    fun getQ2_KQuant(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, quantIndex: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q2_K) { "Tensor type must be Q2_K to get quant." }
+        require(quantIndex >= 0 && quantIndex < io.github.kotlinmania.llama.core.QK_K /4) { "quantIndex $quantIndex out of bounds for Q2_K quants" }
         
         val blockByteOffset = blockIndex.toULong() * type.byteSize
-        val quantOffsetWithinBlock = (io.github.kotlinmania.llama.ore.QK_K /16).toULong() + quantIndex.toULong()
+        val quantOffsetWithinBlock = (io.github.kotlinmania.llama.core.QK_K /16).toULong() + quantIndex.toULong()
         val finalByteOffset = dataOffset + blockByteOffset + quantOffsetWithinBlock
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
@@ -982,26 +982,26 @@ class GGMLTensor(
      * Retrieves the super-block scale (d) for a Q3_K block.
      * Q3_K structure: hmask[QK_K/8], qs[QK_K/4], scales[12], d (F16)
      */
-    fun getQ3_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q3_K) { "Tensor type must be Q3_K to get block scale." }
+    fun getQ3_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q3_K) { "Tensor type must be Q3_K to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         // d is located after hmask[QK_K/8] + qs[QK_K/4] + scales[12]
-        val scaleOffsetWithinBlock = (io.github.kotlinmania.llama.ore.QK_K /8).toULong() + (io.github.kotlinmania.llama.ore.QK_K /4).toULong() + 12uL
+        val scaleOffsetWithinBlock = (io.github.kotlinmania.llama.core.QK_K /8).toULong() + (io.github.kotlinmania.llama.core.QK_K /4).toULong() + 12uL
         val finalByteOffset = dataOffset + blockByteOffset + scaleOffsetWithinBlock
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
 
     /**
      * Retrieves the super-block scale (d) for a Q4_K block.
-     * Q4_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.ore.K_SCALE_SIZE], qs[QK_K/2]
+     * Q4_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.core.K_SCALE_SIZE], qs[QK_K/2]
      */
-    fun getQ4_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to get block scale." }
+    fun getQ4_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -1010,14 +1010,14 @@ class GGMLTensor(
         val finalByteOffset = dataOffset + blockByteOffset
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
     
     /**
      * Retrieves the super-block scale for mins (dmin) for a Q4_K block.
      */
-    fun getQ4_KBlockScaleMin(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to get block scale min." }
+    fun getQ4_KBlockScaleMin(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to get block scale min." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -1026,7 +1026,7 @@ class GGMLTensor(
         val finalByteOffset = dataOffset + blockByteOffset + 2uL
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
 
     /**
@@ -1036,8 +1036,8 @@ class GGMLTensor(
      * @param subBlockIndex The sub-block index within the block (0-7)
      * @return The quantized scale value (6 bits, 0-63 range)
      */
-    fun getQ4_KQuantizedScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, subBlockIndex: Int): Int {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to get quantized scale." }
+    fun getQ4_KQuantizedScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, subBlockIndex: Int): Int {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to get quantized scale." }
         require(subBlockIndex in 0..7) { "subBlockIndex must be in range 0-7, got $subBlockIndex" }
         
         val numBlocks = getNumBlocks()
@@ -1059,8 +1059,8 @@ class GGMLTensor(
      * @param subBlockIndex The sub-block index within the block (0-7)
      * @return The quantized min value (6 bits, 0-63 range)
      */
-    fun getQ4_KQuantizedMin(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, subBlockIndex: Int): Int {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to get quantized min." }
+    fun getQ4_KQuantizedMin(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, subBlockIndex: Int): Int {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to get quantized min." }
         require(subBlockIndex in 0..7) { "subBlockIndex must be in range 0-7, got $subBlockIndex" }
         
         val numBlocks = getNumBlocks()
@@ -1092,9 +1092,9 @@ class GGMLTensor(
      * @param elementIndex The element index within the block (0 to QK_K-1)
      * @return The quantized weight value (4 bits, 0-15 range)
      */
-    fun getQ4_KWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, elementIndex: Int): Int {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to get weight." }
-        require(elementIndex in 0 until io.github.kotlinmania.llama.ore.QK_K) { "elementIndex must be in range 0 until ${io.github.kotlinmania.llama.ore.QK_K}, got $elementIndex" }
+    fun getQ4_KWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, elementIndex: Int): Int {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to get weight." }
+        require(elementIndex in 0 until io.github.kotlinmania.llama.core.QK_K) { "elementIndex must be in range 0 until ${io.github.kotlinmania.llama.core.QK_K}, got $elementIndex" }
         
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks" }
@@ -1103,7 +1103,7 @@ class GGMLTensor(
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
         
         // Weights start after d (F16) + dmin (F16) + scales[K_SCALE_SIZE] = 4 + 12 = 16 bytes
-        val weightsStartOffset = blockByteOffset + 4uL + io.github.kotlinmania.llama.ore.K_SCALE_SIZE.toULong()
+        val weightsStartOffset = blockByteOffset + 4uL + io.github.kotlinmania.llama.core.K_SCALE_SIZE.toULong()
         
         // Each byte contains 2 weights (4 bits each)
         val byteOffset = weightsStartOffset + (elementIndex / 2).toULong()
@@ -1119,8 +1119,8 @@ class GGMLTensor(
     /**
      * Sets the super-block scale (d) for a Q4_K block.
      */
-    fun setQ4_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, scale: Float) {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to set block scale." }
+    fun setQ4_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, scale: Float) {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to set block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks" }
 
@@ -1129,15 +1129,15 @@ class GGMLTensor(
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
         buffer.setShortLe(finalByteOffset.toInt(),
-            io.github.kotlinmania.llama.ore.floatToHalf(scale)
+            io.github.kotlinmania.llama.core.floatToHalf(scale)
         )
     }
 
     /**
      * Sets the super-block scale for mins (dmin) for a Q4_K block.
      */
-    fun setQ4_KBlockScaleMin(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, scaleMin: Float) {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to set block scale min." }
+    fun setQ4_KBlockScaleMin(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, scaleMin: Float) {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to set block scale min." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks" }
 
@@ -1146,7 +1146,7 @@ class GGMLTensor(
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
         buffer.setShortLe(finalByteOffset.toInt(),
-            io.github.kotlinmania.llama.ore.floatToHalf(scaleMin)
+            io.github.kotlinmania.llama.core.floatToHalf(scaleMin)
         )
     }
 
@@ -1158,8 +1158,8 @@ class GGMLTensor(
      * @param quantizedScale The quantized scale value (6 bits, 0-63 range)
      * @param quantizedMin The quantized min value (6 bits, 0-63 range)
      */
-    fun setQ4_KQuantizedScaleAndMin(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, subBlockIndex: Int, quantizedScale: Int, quantizedMin: Int) {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to set quantized scale and min." }
+    fun setQ4_KQuantizedScaleAndMin(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, subBlockIndex: Int, quantizedScale: Int, quantizedMin: Int) {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to set quantized scale and min." }
         require(subBlockIndex in 0..7) { "subBlockIndex must be in range 0-7, got $subBlockIndex" }
         require(quantizedScale in 0..63) { "quantizedScale must be in range 0-63, got $quantizedScale" }
         require(quantizedMin in 0..63) { "quantizedMin must be in range 0-63, got $quantizedMin" }
@@ -1196,9 +1196,9 @@ class GGMLTensor(
      * @param elementIndex The element index within the block (0 to QK_K-1)
      * @param weight The quantized weight value (4 bits, 0-15 range)
      */
-    fun setQ4_KWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, elementIndex: Int, weight: Int) {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q4_K) { "Tensor type must be Q4_K to set weight." }
-        require(elementIndex in 0 until io.github.kotlinmania.llama.ore.QK_K) { "elementIndex must be in range 0 until ${io.github.kotlinmania.llama.ore.QK_K}, got $elementIndex" }
+    fun setQ4_KWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, elementIndex: Int, weight: Int) {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q4_K) { "Tensor type must be Q4_K to set weight." }
+        require(elementIndex in 0 until io.github.kotlinmania.llama.core.QK_K) { "elementIndex must be in range 0 until ${io.github.kotlinmania.llama.core.QK_K}, got $elementIndex" }
         require(weight in 0..15) { "weight must be in range 0-15, got $weight" }
         
         val numBlocks = getNumBlocks()
@@ -1208,7 +1208,7 @@ class GGMLTensor(
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found")
         
         // Weights start after d (F16) + dmin (F16) + scales[K_SCALE_SIZE] = 4 + 12 = 16 bytes
-        val weightsStartOffset = blockByteOffset + 4uL + io.github.kotlinmania.llama.ore.K_SCALE_SIZE.toULong()
+        val weightsStartOffset = blockByteOffset + 4uL + io.github.kotlinmania.llama.core.K_SCALE_SIZE.toULong()
         val byteOffset = weightsStartOffset + (elementIndex / 2).toULong()
         val byteIndex = (dataOffset + byteOffset).toInt()
         
@@ -1218,10 +1218,10 @@ class GGMLTensor(
 
     /**
      * Retrieves the super-block scale (d) for a Q5_K block.
-     * Q5_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.ore.K_SCALE_SIZE], qh[QK_K/8], qs[QK_K/2]
+     * Q5_K structure: d (F16), dmin (F16), scales[io.github.kotlinmania.llama.core.K_SCALE_SIZE], qh[QK_K/8], qs[QK_K/2]
      */
-    fun getQ5_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q5_K) { "Tensor type must be Q5_K to get block scale." }
+    fun getQ5_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q5_K) { "Tensor type must be Q5_K to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -1229,33 +1229,33 @@ class GGMLTensor(
         val finalByteOffset = dataOffset + blockByteOffset
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
 
     /**
      * Retrieves the super-block scale (d) for a Q6_K block.
      * Q6_K structure: ql[QK_K/2], qh[QK_K/4], scales[QK_K/16], d (F16)
      */
-    fun getQ6_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q6_K) { "Tensor type must be Q6_K to get block scale." }
+    fun getQ6_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q6_K) { "Tensor type must be Q6_K to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         // d is located after ql[QK_K/2] + qh[QK_K/4] + scales[QK_K/16]
-        val scaleOffsetWithinBlock = (io.github.kotlinmania.llama.ore.QK_K /2).toULong() + (io.github.kotlinmania.llama.ore.QK_K /4).toULong() + (io.github.kotlinmania.llama.ore.QK_K /16).toULong()
+        val scaleOffsetWithinBlock = (io.github.kotlinmania.llama.core.QK_K /2).toULong() + (io.github.kotlinmania.llama.core.QK_K /4).toULong() + (io.github.kotlinmania.llama.core.QK_K /16).toULong()
         val finalByteOffset = dataOffset + blockByteOffset + scaleOffsetWithinBlock
 
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId")
-        return io.github.kotlinmania.llama.ore.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
+        return io.github.kotlinmania.llama.core.halfToFloat(buffer.getShortLe(finalByteOffset.toInt()))
     }
 
     /**
      * Retrieves the super-block scale (d) for a Q8_K block.
-     * Q8_K structure: d (F32), qs[io.github.kotlinmania.llama.ore.QK_K], bsums[QK_K/16]
+     * Q8_K structure: d (F32), qs[io.github.kotlinmania.llama.core.QK_K], bsums[QK_K/16]
      */
-    fun getQ8_KBlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q8_K) { "Tensor type must be Q8_K to get block scale." }
+    fun getQ8_KBlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q8_K) { "Tensor type must be Q8_K to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -1269,11 +1269,11 @@ class GGMLTensor(
     /**
      * Retrieves a quantized weight from a Q8_K block.
      */
-    fun getQ8_KWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.Q8_K) { "Tensor type must be Q8_K to get weight." }
+    fun getQ8_KWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.Q8_K) { "Tensor type must be Q8_K to get weight." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
-        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.ore.QK_K) { "itemIndexInBlock $itemIndexInBlock out of bounds for Q8_K block" }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.core.QK_K) { "itemIndexInBlock $itemIndexInBlock out of bounds for Q8_K block" }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         // qs starts after d (F32)
@@ -1292,8 +1292,8 @@ class GGMLTensor(
      * @param blockIndex The 0-based index of the block.
      * @return The scale value as a Float.
      */
-    fun getBitNet158BlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int): Float {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to get block scale." }
+    fun getBitNet158BlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int): Float {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to get block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -1309,7 +1309,7 @@ class GGMLTensor(
         }
 
         val scaleBits = buffer.getShortLe(finalScaleByteOffset.toInt())
-        return io.github.kotlinmania.llama.ore.halfToFloat(scaleBits)
+        return io.github.kotlinmania.llama.core.halfToFloat(scaleBits)
     }
 
     /**
@@ -1319,11 +1319,11 @@ class GGMLTensor(
      * @param itemIndexInBlock The 0-based index of the weight within the block (0 to QK_BITNET_1_58 - 1).
      * @return The ternary weight as a Byte (-1, 0, or +1).
      */
-    fun getBitNet158TernaryWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to get ternary weight." }
+    fun getBitNet158TernaryWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int): Byte {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to get ternary weight." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
-        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.ore.QK_BITNET_1_58) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.ore.QK_BITNET_1_58 - 1}) for BitNet 1.58 block in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.core.QK_BITNET_1_58) { "itemIndexInBlock $itemIndexInBlock out of bounds (0-${io.github.kotlinmania.llama.core.QK_BITNET_1_58 - 1}) for BitNet 1.58 block in tensor '$name'." }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         val ternaryDataBaseOffsetInBlock = Short.SIZE_BYTES.toULong() // The F16 scale takes the first 2 bytes
@@ -1375,12 +1375,12 @@ class GGMLTensor(
      * @param itemIndexInBlock The 0-based index of the weight within the block.
      * @param ternaryValue The ternary weight to set (-1, 0, or +1).
      */
-    fun setBitNet158TernaryWeight(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int, ternaryValue: Byte) {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to set ternary weight." }
+    fun setBitNet158TernaryWeight(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, itemIndexInBlock: Int, ternaryValue: Byte) {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to set ternary weight." }
         require(ternaryValue in -1..1) { "BitNet 1.58 ternary value must be -1, 0, or +1. Got $ternaryValue" }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
-        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.ore.QK_BITNET_1_58) { "itemIndexInBlock $itemIndexInBlock out of bounds for BitNet 1.58 block in tensor '$name'." }
+        require(itemIndexInBlock >= 0 && itemIndexInBlock < io.github.kotlinmania.llama.core.QK_BITNET_1_58) { "itemIndexInBlock $itemIndexInBlock out of bounds for BitNet 1.58 block in tensor '$name'." }
 
         val blockByteOffset = blockIndex.toULong() * type.byteSize
         val ternaryDataBaseOffsetInBlock = Short.SIZE_BYTES.toULong()
@@ -1429,8 +1429,8 @@ class GGMLTensor(
     /**
      * Sets the F16 scale for a specific block in a BitNet 1.58 quantized tensor.
      */
-    fun setBitNet158BlockScale(graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator, blockIndex: Int, scale: Float) {
-        require(type == io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to set block scale." }
+    fun setBitNet158BlockScale(graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator, blockIndex: Int, scale: Float) {
+        require(type == io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58) { "Tensor type must be BITNET_1_58 to set block scale." }
         val numBlocks = getNumBlocks()
         require(blockIndex >= 0 && blockIndex < numBlocks) { "blockIndex $blockIndex out of bounds for $numBlocks blocks in tensor '$name'." }
 
@@ -1440,7 +1440,7 @@ class GGMLTensor(
         val buffer = graphAllocator.buffers[bufferId] as? ByteArray
             ?: throw IllegalStateException("Tensor buffer not found for bufferId $bufferId for tensor '$name'.")
 
-        val scaleBits = io.github.kotlinmania.llama.ore.floatToHalf(scale)
+        val scaleBits = io.github.kotlinmania.llama.core.floatToHalf(scale)
         buffer.setShortLe(finalScaleByteOffset.toInt(), scaleBits)
     }
 }
@@ -1464,10 +1464,10 @@ class GGMLContext(
     var noAlloc: Boolean = false,
     var noAllocSave: Boolean = false,
     var nObjects: Int = 0,
-    var objectsBegin: io.github.kotlinmania.llama.ore.GGMLObject? = null,
-    var objectsEnd: io.github.kotlinmania.llama.ore.GGMLObject? = null,
-    var scratch: io.github.kotlinmania.llama.ore.GGMLScratch = io.github.kotlinmania.llama.ore.GGMLScratch(),
-    var scratchSave: io.github.kotlinmania.llama.ore.GGMLScratch = io.github.kotlinmania.llama.ore.GGMLScratch(),
+    var objectsBegin: io.github.kotlinmania.llama.core.GGMLObject? = null,
+    var objectsEnd: io.github.kotlinmania.llama.core.GGMLObject? = null,
+    var scratch: io.github.kotlinmania.llama.core.GGMLScratch = io.github.kotlinmania.llama.core.GGMLScratch(),
+    var scratchSave: io.github.kotlinmania.llama.core.GGMLScratch = io.github.kotlinmania.llama.core.GGMLScratch(),
     var computeImmediately: Boolean = true
 )
 
@@ -1487,17 +1487,17 @@ class GGMLCGraph(
     var size: Int = 0,
     var nNodes: Int = 0,
     var nLeafs: Int = 0,
-    var nodes: Array<io.github.kotlinmania.llama.ore.GGMLTensor?> = emptyArray(),
-    var grads: Array<io.github.kotlinmania.llama.ore.GGMLTensor?> = emptyArray(),
-    var gradAccs: Array<io.github.kotlinmania.llama.ore.GGMLTensor?> = emptyArray(),
-    var leafs: Array<io.github.kotlinmania.llama.ore.GGMLTensor?> = emptyArray(),
+    var nodes: Array<io.github.kotlinmania.llama.core.GGMLTensor?> = emptyArray(),
+    var grads: Array<io.github.kotlinmania.llama.core.GGMLTensor?> = emptyArray(),
+    var gradAccs: Array<io.github.kotlinmania.llama.core.GGMLTensor?> = emptyArray(),
+    var leafs: Array<io.github.kotlinmania.llama.core.GGMLTensor?> = emptyArray(),
     /** Number of uses of each tensor, indexed by hash table slot. */
     var useCounts: IntArray? = null,
     var visitedHashSet: Any? = null,
-    var order: io.github.kotlinmania.llama.ore.GGMLCGraphEvalOrder = io.github.kotlinmania.llama.ore.GGMLCGraphEvalOrder.NONE,
+    var order: io.github.kotlinmania.llama.core.GGMLCGraphEvalOrder = io.github.kotlinmania.llama.core.GGMLCGraphEvalOrder.NONE,
     /** An optional identifier to recognize same graphs; 0 means unset. */
     var uid: Long = 0L,
-    var allocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator? = null
+    var allocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator? = null
 )
 
 /**
@@ -1506,7 +1506,7 @@ class GGMLCGraph(
  * For regular types, it's num_elements * type_byte_size.
  * For COUNT type or tensors with 0 elements, it's 0.
  */
-internal fun calculateTensorByteSize(tensor: io.github.kotlinmania.llama.ore.GGMLTensor): ULong {
+internal fun calculateTensorByteSize(tensor: io.github.kotlinmania.llama.core.GGMLTensor): ULong {
     val numElements = tensor.numElements().toULong()
 
     // If a tensor has zero elements (e.g. ne = [0, ...]), its byte size is 0.
@@ -1515,7 +1515,7 @@ internal fun calculateTensorByteSize(tensor: io.github.kotlinmania.llama.ore.GGM
         return 0uL
     }
     // For types like GGMLType.COUNT, type.byteSize is 0, which correctly yields 0.
-    if (tensor.type.byteSize == 0uL && tensor.type != io.github.kotlinmania.llama.ore.GGMLType.COUNT) {
+    if (tensor.type.byteSize == 0uL && tensor.type != io.github.kotlinmania.llama.core.GGMLType.COUNT) {
         // This case indicates an issue with a new/custom type definition if it has elements but no byteSize.
         // Standard block types have non-zero byteSize (representing block size).
         println("Warning: Tensor ${tensor.name} of type ${tensor.type} has $numElements elements but type.byteSize is 0. Effective byte size will be 0.")
@@ -1524,16 +1524,16 @@ internal fun calculateTensorByteSize(tensor: io.github.kotlinmania.llama.ore.GGM
 
     return when (tensor.type) {
         // Explicitly list block-quantized types. Their type.byteSize is "bytes per block".
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0, io.github.kotlinmania.llama.ore.GGMLType.Q4_1, io.github.kotlinmania.llama.ore.GGMLType.Q8_0, io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58,
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K -> {
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0, io.github.kotlinmania.llama.core.GGMLType.Q4_1, io.github.kotlinmania.llama.core.GGMLType.Q8_0, io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58,
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K -> {
             // These constants should be defined in GGMLTypes.kt or accessible.
             val elementsPerBlock = when(tensor.type) {
-                io.github.kotlinmania.llama.ore.GGMLType.Q4_0 -> io.github.kotlinmania.llama.ore.QK4_0.toULong()
-                io.github.kotlinmania.llama.ore.GGMLType.Q4_1 -> io.github.kotlinmania.llama.ore.QK4_1.toULong()
-                io.github.kotlinmania.llama.ore.GGMLType.Q8_0 -> io.github.kotlinmania.llama.ore.QK8_0.toULong()
-                io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58 -> io.github.kotlinmania.llama.ore.QK_BITNET_1_58.toULong()
+                io.github.kotlinmania.llama.core.GGMLType.Q4_0 -> io.github.kotlinmania.llama.core.QK4_0.toULong()
+                io.github.kotlinmania.llama.core.GGMLType.Q4_1 -> io.github.kotlinmania.llama.core.QK4_1.toULong()
+                io.github.kotlinmania.llama.core.GGMLType.Q8_0 -> io.github.kotlinmania.llama.core.QK8_0.toULong()
+                io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58 -> io.github.kotlinmania.llama.core.QK_BITNET_1_58.toULong()
                 // K-Quant types all use QK_K as block size
-                io.github.kotlinmania.llama.ore.GGMLType.Q2_K, io.github.kotlinmania.llama.ore.GGMLType.Q3_K, io.github.kotlinmania.llama.ore.GGMLType.Q4_K, io.github.kotlinmania.llama.ore.GGMLType.Q5_K, io.github.kotlinmania.llama.ore.GGMLType.Q6_K, io.github.kotlinmania.llama.ore.GGMLType.Q8_K -> io.github.kotlinmania.llama.ore.QK_K.toULong()
+                io.github.kotlinmania.llama.core.GGMLType.Q2_K, io.github.kotlinmania.llama.core.GGMLType.Q3_K, io.github.kotlinmania.llama.core.GGMLType.Q4_K, io.github.kotlinmania.llama.core.GGMLType.Q5_K, io.github.kotlinmania.llama.core.GGMLType.Q6_K, io.github.kotlinmania.llama.core.GGMLType.Q8_K -> io.github.kotlinmania.llama.core.QK_K.toULong()
                 else -> {
                     // This path should ideally not be reached if the outer 'when' is exhaustive for block types
                     println("Warning: Unhandled block-quantized type ${tensor.type} in calculateTensorByteSize. Assuming elementsPerBlock = 1.")

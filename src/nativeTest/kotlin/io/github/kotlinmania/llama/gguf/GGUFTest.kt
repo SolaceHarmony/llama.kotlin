@@ -1,7 +1,7 @@
 package io.github.kotlinmania.llama.gguf
 
-import io.github.kotlinmania.llama.ore.*
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.*
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -50,7 +50,7 @@ class GGUFTest {
         val tensor0 = context.findTensor("weight.0")
         assertNotNull(tensor0)
         assertEquals("weight.0", tensor0.name)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, tensor0.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, tensor0.type)
         assertEquals(2, tensor0.dimensions.size)
         assertEquals(2, tensor0.dimensions[0])
         assertEquals(2, tensor0.dimensions[1])
@@ -59,7 +59,7 @@ class GGUFTest {
         val tensor1 = context.findTensor("weight.1")
         assertNotNull(tensor1)
         assertEquals("weight.1", tensor1.name)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, tensor1.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, tensor1.type)
         assertEquals(3, tensor1.dimensions[0])
         assertEquals(3, tensor1.dimensions[1])
         assertEquals(16L, tensor1.offset)
@@ -115,7 +115,7 @@ class GGUFTest {
         val model = loader.loadFromBytes(testData)
         
         // Create context for tensor creation
-        val context = io.github.kotlinmania.llama.ore.GGMLContext(
+        val context = io.github.kotlinmania.llama.core.GGMLContext(
             memSize = 1024uL,
             noAlloc = false
         )
@@ -123,7 +123,7 @@ class GGUFTest {
         val tensor = model.getTensor("weight.0", context)
         assertNotNull(tensor)
         assertEquals("weight.0", tensor.name)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, tensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, tensor.type)
         assertEquals(2, tensor.ne[0])
         assertEquals(2, tensor.ne[1])
         
@@ -146,7 +146,7 @@ class GGUFTest {
         val model = loader.loadFromBytes(testData)
         
         // Create context for tensor creation
-        val context = io.github.kotlinmania.llama.ore.GGMLContext(
+        val context = io.github.kotlinmania.llama.core.GGMLContext(
             memSize = 2048uL,
             noAlloc = false
         )

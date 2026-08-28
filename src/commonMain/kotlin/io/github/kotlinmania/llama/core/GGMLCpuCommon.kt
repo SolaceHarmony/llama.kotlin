@@ -7,9 +7,9 @@ package io.github.kotlinmania.llama.ore
  * This file contains:
  * - Flash-attention tile configuration constants.
  * - Type-conversion helpers (FP16 ↔ FP32, BF16 ↔ FP32, I32 ↔ FP32, identity).
- * - [io.github.kotlinmania.llama.ore.TypeConversionTable] — a sealed interface that lets generic code convert
+ * - [io.github.kotlinmania.llama.core.TypeConversionTable] — a sealed interface that lets generic code convert
  *   between storage types and F32 without runtime dispatch.
- * - [io.github.kotlinmania.llama.ore.getThreadRange] — the standard utility for splitting row-based work across
+ * - [io.github.kotlinmania.llama.core.getThreadRange] — the standard utility for splitting row-based work across
  *   threads, used by almost every CPU kernel.
  */
 
@@ -32,21 +32,21 @@ const val GGML_FA_TILE_KV: Int = 64
  */
 object GGMLFaTileConfig {
     /** Query tile size. */
-    val Q: ULong = io.github.kotlinmania.llama.ore.GGML_FA_TILE_Q.toULong()
+    val Q: ULong = io.github.kotlinmania.llama.core.GGML_FA_TILE_Q.toULong()
 
     /** Key/Value tile size. */
-    val KV: ULong = io.github.kotlinmania.llama.ore.GGML_FA_TILE_KV.toULong()
+    val KV: ULong = io.github.kotlinmania.llama.core.GGML_FA_TILE_KV.toULong()
 }
 
 // ============================================================================
 // Scalar type-conversion helpers
 // ============================================================================
 
-/** FP16 → FP32 conversion — delegates to [io.github.kotlinmania.llama.ore.ggmlCpuFp16ToFp32]. */
-fun f16ToF32(x: UShort): Float = io.github.kotlinmania.llama.ore.ggmlCpuFp16ToFp32(x)
+/** FP16 → FP32 conversion — delegates to [io.github.kotlinmania.llama.core.ggmlCpuFp16ToFp32]. */
+fun f16ToF32(x: UShort): Float = io.github.kotlinmania.llama.core.ggmlCpuFp16ToFp32(x)
 
-/** FP32 → FP16 conversion — delegates to [io.github.kotlinmania.llama.ore.ggmlCpuFp32ToFp16]. */
-fun f32ToF16(x: Float): UShort = io.github.kotlinmania.llama.ore.ggmlCpuFp32ToFp16(x)
+/** FP32 → FP16 conversion — delegates to [io.github.kotlinmania.llama.core.ggmlCpuFp32ToFp16]. */
+fun f32ToF16(x: Float): UShort = io.github.kotlinmania.llama.core.ggmlCpuFp32ToFp16(x)
 
 /**
  * BF16 → FP32 conversion.
@@ -54,7 +54,7 @@ fun f32ToF16(x: Float): UShort = io.github.kotlinmania.llama.ore.ggmlCpuFp32ToFp
  * BF16 is the upper 16 bits of an IEEE-754 float, so conversion is a
  * simple shift.
  */
-fun bf16ToF32(x: io.github.kotlinmania.llama.ore.GGMLBF16): Float =
+fun bf16ToF32(x: io.github.kotlinmania.llama.core.GGMLBF16): Float =
     Float.fromBits(x.bits.toInt() shl 16)
 
 /**
@@ -62,11 +62,11 @@ fun bf16ToF32(x: io.github.kotlinmania.llama.ore.GGMLBF16): Float =
  *
  * Mirrors `GGML_FP32_TO_BF16` from ggml-impl.h.
  */
-fun f32ToBf16(x: Float): io.github.kotlinmania.llama.ore.GGMLBF16 {
+fun f32ToBf16(x: Float): io.github.kotlinmania.llama.core.GGMLBF16 {
     val bits = x.toBits()
     // Round-to-nearest-even: add rounding bias then truncate.
     val rounded = bits + 0x7FFF + ((bits shr 16) and 1)
-    return io.github.kotlinmania.llama.ore.GGMLBF16((rounded ushr 16).toUShort())
+    return io.github.kotlinmania.llama.core.GGMLBF16((rounded ushr 16).toUShort())
 }
 
 /** Identity conversion for I32 → FP32. */
@@ -99,41 +99,41 @@ sealed interface TypeConversionTable<T> {
 
     companion object {
         /** Conversion table for FP16 (stored as [UShort]). */
-        fun fp16(): TypeConversionTable<UShort> = io.github.kotlinmania.llama.ore.Fp16Conversion
+        fun fp16(): TypeConversionTable<UShort> = io.github.kotlinmania.llama.core.Fp16Conversion
 
-        /** Conversion table for BF16 (stored as [io.github.kotlinmania.llama.ore.GGMLBF16]). */
-        fun bf16(): TypeConversionTable<io.github.kotlinmania.llama.ore.GGMLBF16> =
-            io.github.kotlinmania.llama.ore.Bf16Conversion
+        /** Conversion table for BF16 (stored as [io.github.kotlinmania.llama.core.GGMLBF16]). */
+        fun bf16(): TypeConversionTable<io.github.kotlinmania.llama.core.GGMLBF16> =
+            io.github.kotlinmania.llama.core.Bf16Conversion
 
         /** Conversion table for FP32 (identity). */
-        fun fp32(): TypeConversionTable<Float> = io.github.kotlinmania.llama.ore.Fp32Conversion
+        fun fp32(): TypeConversionTable<Float> = io.github.kotlinmania.llama.core.Fp32Conversion
 
         /** Conversion table for I32. */
-        fun i32(): TypeConversionTable<Int> = io.github.kotlinmania.llama.ore.I32Conversion
+        fun i32(): TypeConversionTable<Int> = io.github.kotlinmania.llama.core.I32Conversion
     }
 }
 
-private object Fp16Conversion : io.github.kotlinmania.llama.ore.TypeConversionTable<UShort> {
-    override fun toF32(value: UShort): Float = io.github.kotlinmania.llama.ore.f16ToF32(value)
-    override fun fromF32(value: Float): UShort = io.github.kotlinmania.llama.ore.f32ToF16(value)
+private object Fp16Conversion : io.github.kotlinmania.llama.core.TypeConversionTable<UShort> {
+    override fun toF32(value: UShort): Float = io.github.kotlinmania.llama.core.f16ToF32(value)
+    override fun fromF32(value: Float): UShort = io.github.kotlinmania.llama.core.f32ToF16(value)
 }
 
 private object Bf16Conversion :
-    io.github.kotlinmania.llama.ore.TypeConversionTable<io.github.kotlinmania.llama.ore.GGMLBF16> {
-    override fun toF32(value: io.github.kotlinmania.llama.ore.GGMLBF16): Float =
-        io.github.kotlinmania.llama.ore.bf16ToF32(value)
-    override fun fromF32(value: Float): io.github.kotlinmania.llama.ore.GGMLBF16 =
-        io.github.kotlinmania.llama.ore.f32ToBf16(value)
+    io.github.kotlinmania.llama.core.TypeConversionTable<io.github.kotlinmania.llama.core.GGMLBF16> {
+    override fun toF32(value: io.github.kotlinmania.llama.core.GGMLBF16): Float =
+        io.github.kotlinmania.llama.core.bf16ToF32(value)
+    override fun fromF32(value: Float): io.github.kotlinmania.llama.core.GGMLBF16 =
+        io.github.kotlinmania.llama.core.f32ToBf16(value)
 }
 
-private object Fp32Conversion : io.github.kotlinmania.llama.ore.TypeConversionTable<Float> {
+private object Fp32Conversion : io.github.kotlinmania.llama.core.TypeConversionTable<Float> {
     override fun toF32(value: Float): Float = value
     override fun fromF32(value: Float): Float = value
 }
 
-private object I32Conversion : io.github.kotlinmania.llama.ore.TypeConversionTable<Int> {
-    override fun toF32(value: Int): Float = io.github.kotlinmania.llama.ore.i32ToF32(value)
-    override fun fromF32(value: Float): Int = io.github.kotlinmania.llama.ore.f32ToI32(value)
+private object I32Conversion : io.github.kotlinmania.llama.core.TypeConversionTable<Int> {
+    override fun toF32(value: Int): Float = io.github.kotlinmania.llama.core.i32ToF32(value)
+    override fun fromF32(value: Float): Int = io.github.kotlinmania.llama.core.f32ToI32(value)
 }
 
 // ============================================================================
@@ -151,11 +151,11 @@ private object I32Conversion : io.github.kotlinmania.llama.ore.TypeConversionTab
  * @return A [Pair] of `(ir0, ir1)` — the start (inclusive) and end (exclusive)
  *         row indices for this thread.
  */
-fun getThreadRange(params: io.github.kotlinmania.llama.ore.GGMLComputeParams, src0: io.github.kotlinmania.llama.ore.GGMLTensor): Pair<Long, Long> {
+fun getThreadRange(params: io.github.kotlinmania.llama.core.GGMLComputeParams, src0: io.github.kotlinmania.llama.core.GGMLTensor): Pair<Long, Long> {
     val ith = params.ith.toLong()
     val nth = params.nth.toLong()
 
-    val nr = io.github.kotlinmania.llama.ore.ggmlNrows(src0)
+    val nr = io.github.kotlinmania.llama.core.ggmlNrows(src0)
 
     // rows per thread (ceiling division)
     val dr = (nr + nth - 1) / nth

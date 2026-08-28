@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-model-saver.h llama.cpp/src/llama-model-saver.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.GGMLTensor
+import io.github.kotlinmania.llama.core.GGMLTensor
 import io.github.kotlinmania.llama.platform.nativeWriteBytesToFile
 
 // =============================================================================
@@ -46,7 +46,7 @@ data class GGUFTensorEntry(
     val name: String,
     val nDims: Int,
     val ne: LongArray,
-    val type: io.github.kotlinmania.llama.ore.GGMLType,
+    val type: io.github.kotlinmania.llama.core.GGMLType,
     val dataBytes: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {

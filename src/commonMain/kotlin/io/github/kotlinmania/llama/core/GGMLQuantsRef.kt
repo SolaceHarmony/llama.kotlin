@@ -41,9 +41,9 @@ private fun best_index_int8(n: Int, `val`: ByteArray, valOff: Int, x: Float): In
 // C line 295
 private fun best_index_mxfp4(x: Float, e: Float): Int {
     var bestIndex = 0
-    var bestErr = kotlin.math.abs(io.github.kotlinmania.llama.ore.kvalues_mxfp4[0].toInt() * e - x)
+    var bestErr = kotlin.math.abs(io.github.kotlinmania.llama.core.kvalues_mxfp4[0].toInt() * e - x)
     for (i in 1 until 16) {
-        val err = kotlin.math.abs(io.github.kotlinmania.llama.ore.kvalues_mxfp4[i].toInt() * e - x)
+        val err = kotlin.math.abs(io.github.kotlinmania.llama.core.kvalues_mxfp4[i].toInt() * e - x)
         if (err < bestErr) {
             bestIndex = i
             bestErr = err
@@ -59,14 +59,14 @@ private fun best_index_mxfp4(x: Float, e: Float): Int {
 private data class ScaleMin(val d: Int, val m: Int)
 
 /** Port of `get_scale_min_k4` from ggml-quants.c. */
-private fun get_scale_min_k4(j: Int, q: ByteArray, qOff: Int): io.github.kotlinmania.llama.ore.ScaleMin {
+private fun get_scale_min_k4(j: Int, q: ByteArray, qOff: Int): io.github.kotlinmania.llama.core.ScaleMin {
     return if (j < 4) {
-        io.github.kotlinmania.llama.ore.ScaleMin(
+        io.github.kotlinmania.llama.core.ScaleMin(
             d = (q[qOff + j].toInt() and 0xFF) and 63,
             m = (q[qOff + j + 4].toInt() and 0xFF) and 63
         )
     } else {
-        io.github.kotlinmania.llama.ore.ScaleMin(
+        io.github.kotlinmania.llama.core.ScaleMin(
             d = ((q[qOff + j + 4].toInt() and 0xFF) and 0xF) or ((((q[qOff + j - 4].toInt() and 0xFF) shr 6) and 3) shl 4),
             m = ((q[qOff + j + 4].toInt() and 0xFF) shr 4) or ((((q[qOff + j].toInt() and 0xFF) shr 6) and 3) shl 4)
         )
@@ -96,7 +96,7 @@ private fun make_qx_quants(
         val ax = kotlin.math.abs(x[xOff + i])
         if (ax > amax) { amax = ax; max = x[xOff + i] }
     }
-    if (amax < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+    if (amax < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
         for (i in 0 until n) L[lOff + i] = 0
         return 0f
     }
@@ -104,7 +104,7 @@ private fun make_qx_quants(
     var rmseTypeVar = rmseType
     if (rmseTypeVar == 0) {
         for (i in 0 until n) {
-            val l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+            val l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
             L[lOff + i] = (nmax + maxOf(-nmax, minOf(nmax - 1, l))).toByte()
         }
         return 1f / iscale
@@ -117,7 +117,7 @@ private fun make_qx_quants(
     var sumlx = 0f
     var suml2 = 0f
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+        var l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
         l = maxOf(-nmax, minOf(nmax - 1, l))
         L[lOff + i] = (l + nmax).toByte()
         val w = if (qw != null) qw[qwOff + i]
@@ -136,7 +136,7 @@ private fun make_qx_quants(
         iscale = -(nmax + 0.1f * is_) / max
         sumlx = 0f; suml2 = 0f
         for (i in 0 until n) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+            var l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
             l = maxOf(-nmax, minOf(nmax - 1, l))
             val w = if (qw != null) qw[qwOff + i]
                     else if (rmseTypeVar == 1) x[xOff + i] * x[xOff + i]
@@ -148,7 +148,7 @@ private fun make_qx_quants(
         }
         if (suml2 > 0 && sumlx * sumlx > best * suml2) {
             for (i in 0 until n) {
-                val l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+                val l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
                 L[lOff + i] = (nmax + maxOf(-nmax, minOf(nmax - 1, l))).toByte()
             }
             scale = sumlx / suml2; best = scale * sumlx
@@ -168,7 +168,7 @@ private fun make_q3_quants(
         val ax = kotlin.math.abs(x[xOff + i])
         if (ax > amax) { amax = ax; max = x[xOff + i] }
     }
-    if (amax < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+    if (amax < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
         for (i in 0 until n) L[lOff + i] = 0
         return 0f
     }
@@ -177,7 +177,7 @@ private fun make_q3_quants(
         var sumlx = 0f
         var suml2 = 0f
         for (i in 0 until n) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+            var l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
             l = maxOf(-nmax, minOf(nmax - 1, l))
             L[lOff + i] = l.toByte()
             val w = x[xOff + i] * x[xOff + i]
@@ -191,7 +191,7 @@ private fun make_q3_quants(
                 val slx0 = sumlx - w * x[xOff + i] * L[lOff + i]
                 if (slx0 > 0) {
                     var sl2 = suml2 - w * L[lOff + i] * L[lOff + i]
-                    var newL = io.github.kotlinmania.llama.ore.nearest_int(x[xOff + i] * sl2 / slx0)
+                    var newL = io.github.kotlinmania.llama.core.nearest_int(x[xOff + i] * sl2 / slx0)
                     newL = maxOf(-nmax, minOf(nmax - 1, newL))
                     if (newL != L[lOff + i].toInt()) {
                         val slx = slx0 + w * x[xOff + i] * newL
@@ -211,7 +211,7 @@ private fun make_q3_quants(
         return if (suml2 > 0f) sumlx / suml2 else 0f
     }
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+        var l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
         l = maxOf(-nmax, minOf(nmax - 1, l))
         L[lOff + i] = (l + nmax).toByte()
     }
@@ -242,7 +242,7 @@ private fun make_qkx1_quants(
         var sumlx = 0f; var suml2 = 0
         var didChange = false
         for (i in 0 until n) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * (x[xOff + i] - min))
+            var l = io.github.kotlinmania.llama.core.nearest_int(iscale * (x[xOff + i] - min))
             l = maxOf(0, minOf(nmax, l))
             if (l.toUByte() != L[lOff + i]) {
                 L[lOff + i] = l.toUByte()
@@ -293,7 +293,7 @@ private fun make_qkx2_quants(
     var scale = 1f / iscale
     var bestError = 0f
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * (x[xOff + i] - min))
+        var l = io.github.kotlinmania.llama.core.nearest_int(iscale * (x[xOff + i] - min))
         L[lOff + i] = maxOf(0, minOf(nmax, l)).toUByte()
         var diff = scale * L[lOff + i].toInt() + min - x[xOff + i]
         diff = if (useMad) kotlin.math.abs(diff) else diff * diff
@@ -308,7 +308,7 @@ private fun make_qkx2_quants(
         iscale = (rmin + rdelta * is_ + nmax) / (max - min)
         var sumL = 0f; var sumL2 = 0f; var sumXL = 0f
         for (i in 0 until n) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * (x[xOff + i] - min))
+            var l = io.github.kotlinmania.llama.core.nearest_int(iscale * (x[xOff + i] - min))
             l = maxOf(0, minOf(nmax, l))
             Laux[lauxOff + i] = l.toUByte()
             val w = weights[wOff + i]
@@ -371,7 +371,7 @@ private fun make_qkx3_quants(
     var scale = 1f / iscale
     var bestMad = 0f
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * (x[xOff + i] - min))
+        var l = io.github.kotlinmania.llama.core.nearest_int(iscale * (x[xOff + i] - min))
         L[lOff + i] = maxOf(0, minOf(nmax, l)).toUByte()
         var diff = scale * L[lOff + i].toInt() + min - x[xOff + i]
         diff = if (useMad) kotlin.math.abs(diff) else diff * diff
@@ -386,7 +386,7 @@ private fun make_qkx3_quants(
         iscale = (rmin + rdelta * is_ + nmax) / (max - min)
         var sumL = 0f; var sumL2 = 0f; var sumXL = 0f
         for (i in 0 until n) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * (x[xOff + i] - min))
+            var l = io.github.kotlinmania.llama.core.nearest_int(iscale * (x[xOff + i] - min))
             l = maxOf(0, minOf(nmax, l))
             Laux[lauxOff + i] = l.toUByte()
             val w = if (weights != null) weights[wOff + i] else x[xOff + i] * x[xOff + i]
@@ -430,13 +430,13 @@ private fun make_qp_quants(
     for (i in 0 until n) {
         max = maxOf(max, x[xOff + i])
     }
-    if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+    if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
         for (i in 0 until n) L[lOff + i] = 0u
         return 0f
     }
     var iscale = nmax.toFloat() / max
     for (i in 0 until n) {
-        L[lOff + i] = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i]).toUByte()
+        L[lOff + i] = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i]).toUByte()
     }
     var scale = 1f / iscale
     var bestMse = 0f
@@ -451,7 +451,7 @@ private fun make_qp_quants(
         val scaleIs = 1f / iscaleIs
         var mse = 0f
         for (i in 0 until n) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(iscaleIs * x[xOff + i])
+            var l = io.github.kotlinmania.llama.core.nearest_int(iscaleIs * x[xOff + i])
             l = minOf(nmax, l)
             val diff = x[xOff + i] - scaleIs * l
             val w = quantWeights[qwOff + i]
@@ -465,7 +465,7 @@ private fun make_qp_quants(
     var sumlx = 0f
     var suml2 = 0f
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xOff + i])
+        var l = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xOff + i])
         l = minOf(nmax, l)
         L[lOff + i] = l.toUByte()
         val w = quantWeights[qwOff + i]
@@ -479,7 +479,7 @@ private fun make_qp_quants(
             val slx = sumlx - w * x[xOff + i] * L[lOff + i].toInt()
             val sl2 = suml2 - w * L[lOff + i].toInt() * L[lOff + i].toInt()
             if (slx > 0 && sl2 > 0) {
-                var newL = io.github.kotlinmania.llama.ore.nearest_int(x[xOff + i] * sl2 / slx)
+                var newL = io.github.kotlinmania.llama.core.nearest_int(x[xOff + i] * sl2 / slx)
                 newL = minOf(nmax, newL)
                 if (newL != L[lOff + i].toInt()) {
                     val slxNew = slx + w * x[xOff + i] * newL
@@ -530,10 +530,10 @@ private fun writeIntLE(data: ByteArray, off: Int, v: Int) {
 }
 
 private fun writeFp16(data: ByteArray, off: Int, v: Float) {
-    io.github.kotlinmania.llama.ore.writeShortLE(
+    io.github.kotlinmania.llama.core.writeShortLE(
         data,
         off,
-        io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(v)
+        io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(v)
     )
 }
 
@@ -541,8 +541,8 @@ private fun readUShortLE(data: ByteArray, off: Int): Int =
     (data[off].toInt() and 0xFF) or ((data[off + 1].toInt() and 0xFF) shl 8)
 
 private fun fp16ToF32(data: ByteArray, off: Int): Float =
-    io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(
-        io.github.kotlinmania.llama.ore.readShortLE(
+    io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(
+        io.github.kotlinmania.llama.core.readShortLE(
             data,
             off
         )
@@ -556,14 +556,14 @@ private fun fp16ToF32(data: ByteArray, off: Int): Float =
 // QK1_0 = 64, block size = 2 + 8 = 10 bytes (but actual block size from GGMLCommon)
 
 fun dequantize_row_q1_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK1_0
+    val qk = io.github.kotlinmania.llama.core.QK1_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + qk / 8  // d(2) + qs(qk/8)
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         val negD = -d
         val qsOff = bOff + 2
         for (j in 0 until qk) {
@@ -578,14 +578,14 @@ fun dequantize_row_q1_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q4_0: d(2) + qs(QK4_0/2) = 18 bytes ---
 
 fun dequantize_row_q4_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK4_0
+    val qk = io.github.kotlinmania.llama.core.QK4_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + qk / 2
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         val qsOff = bOff + 2
         for (j in 0 until qk / 2) {
             val x0 = (x[qsOff + j].toInt() and 0x0F) - 8
@@ -599,15 +599,15 @@ fun dequantize_row_q4_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q4_1: d(2) + m(2) + qs(QK4_1/2) = 20 bytes ---
 
 fun dequantize_row_q4_1(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK4_1
+    val qk = io.github.kotlinmania.llama.core.QK4_1
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 4 + qk / 2
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
-        val m = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 2)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
+        val m = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 2)
         val qsOff = bOff + 4
         for (j in 0 until qk / 2) {
             val x0 = x[qsOff + j].toInt() and 0x0F
@@ -621,15 +621,15 @@ fun dequantize_row_q4_1(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q5_0: d(2) + qh(4) + qs(QK5_0/2) = 22 bytes ---
 
 fun dequantize_row_q5_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK5_0
+    val qk = io.github.kotlinmania.llama.core.QK5_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + 4 + qk / 2
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
-        val qh = io.github.kotlinmania.llama.ore.readIntLE(x, bOff + 2).toLong() and 0xFFFFFFFFL
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
+        val qh = io.github.kotlinmania.llama.core.readIntLE(x, bOff + 2).toLong() and 0xFFFFFFFFL
         val qsOff = bOff + 6
         for (j in 0 until qk / 2) {
             val xh0 = (((qh shr (j + 0)) shl 4) and 0x10L).toInt()
@@ -645,16 +645,16 @@ fun dequantize_row_q5_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q5_1: d(2) + m(2) + qh(4) + qs(QK5_1/2) = 24 bytes ---
 
 fun dequantize_row_q5_1(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK5_1
+    val qk = io.github.kotlinmania.llama.core.QK5_1
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 4 + 4 + qk / 2
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
-        val m = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 2)
-        val qh = io.github.kotlinmania.llama.ore.readIntLE(x, bOff + 4).toLong() and 0xFFFFFFFFL
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
+        val m = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 2)
+        val qh = io.github.kotlinmania.llama.core.readIntLE(x, bOff + 4).toLong() and 0xFFFFFFFFL
         val qsOff = bOff + 8
         for (j in 0 until qk / 2) {
             val xh0 = (((qh shr (j + 0)) shl 4) and 0x10L).toInt()
@@ -670,14 +670,14 @@ fun dequantize_row_q5_1(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q8_0: d(2) + qs(QK8_0) = 34 bytes ---
 
 fun dequantize_row_q8_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + qk
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         val qsOff = bOff + 2
         for (j in 0 until qk) {
             y[yOff + i * qk + j] = x[qsOff + j].toInt() * d
@@ -688,7 +688,7 @@ fun dequantize_row_q8_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_mxfp4: e(1) + qs(QK_MXFP4/2) ---
 
 fun dequantize_row_mxfp4(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK_MXFP4
+    val qk = io.github.kotlinmania.llama.core.QK_MXFP4
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 1 + qk / 2
@@ -696,11 +696,11 @@ fun dequantize_row_mxfp4(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         val d =
-            io.github.kotlinmania.llama.ore.GGML_E8M0_TO_FP32_HALF((x[bOff].toInt() and 0xFF).toUByte())
+            io.github.kotlinmania.llama.core.GGML_E8M0_TO_FP32_HALF((x[bOff].toInt() and 0xFF).toUByte())
         val qsOff = bOff + 1
         for (j in 0 until qk / 2) {
-            val x0 = io.github.kotlinmania.llama.ore.kvalues_mxfp4[(x[qsOff + j].toInt() and 0xFF) and 0x0F]
-            val x1 = io.github.kotlinmania.llama.ore.kvalues_mxfp4[(x[qsOff + j].toInt() and 0xFF) shr 4]
+            val x0 = io.github.kotlinmania.llama.core.kvalues_mxfp4[(x[qsOff + j].toInt() and 0xFF) and 0x0F]
+            val x1 = io.github.kotlinmania.llama.core.kvalues_mxfp4[(x[qsOff + j].toInt() and 0xFF) shr 4]
             y[yOff + i * qk + j] = x0 * d
             y[yOff + i * qk + j + qk / 2] = x1 * d
         }
@@ -710,8 +710,8 @@ fun dequantize_row_mxfp4(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 // --- block_nvfp4: d(QK_NVFP4/QK_NVFP4_SUB) + qs(QK_NVFP4/2) ---
 
 fun dequantize_row_nvfp4(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK_NVFP4
-    val qkSub = io.github.kotlinmania.llama.ore.QK_NVFP4_SUB
+    val qk = io.github.kotlinmania.llama.core.QK_NVFP4
+    val qkSub = io.github.kotlinmania.llama.core.QK_NVFP4_SUB
     val nSub = qk / qkSub
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
@@ -721,12 +721,12 @@ fun dequantize_row_nvfp4(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
         val bOff = xOff + i * blockSize
         for (s in 0 until nSub) {
             val d =
-                io.github.kotlinmania.llama.ore.ggml_ue4m3_to_fp32((x[bOff + s].toInt() and 0xFF).toUByte())
+                io.github.kotlinmania.llama.core.ggml_ue4m3_to_fp32((x[bOff + s].toInt() and 0xFF).toUByte())
             val yBase = yOff + i * qk + s * qkSub
             val qsBase = bOff + nSub + s * (qkSub / 2)
             for (j in 0 until qkSub / 2) {
-                val v0 = io.github.kotlinmania.llama.ore.kvalues_mxfp4[(x[qsBase + j].toInt() and 0xFF) and 0x0F]
-                val v1 = io.github.kotlinmania.llama.ore.kvalues_mxfp4[(x[qsBase + j].toInt() and 0xFF) shr 4]
+                val v0 = io.github.kotlinmania.llama.core.kvalues_mxfp4[(x[qsBase + j].toInt() and 0xFF) and 0x0F]
+                val v1 = io.github.kotlinmania.llama.core.kvalues_mxfp4[(x[qsBase + j].toInt() and 0xFF) shr 4]
                 y[yBase + j] = v0 * d
                 y[yBase + j + qkSub / 2] = v1 * d
             }
@@ -743,9 +743,9 @@ fun dequantize_row_nvfp4(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 // Actual layout from ggml-common.h: scales(16), qs(64), d(2), dmin(2)
 
 fun dequantize_row_q2_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ2K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ2K.SIZE_BYTES
 
     var yIdx = yOff
     for (i in 0 until nb) {
@@ -753,12 +753,12 @@ fun dequantize_row_q2_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
         // Layout: scales(16) at 0, qs(64) at 16, d(2) at 80, dmin(2) at 82
         val scalesOff = bOff + 0
         val qsOff = bOff + 16
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 80)
-        val min = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 82)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 80)
+        val min = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 82)
 
         var qIdx = qsOff
         var is_ = 0
-        for (n in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (n in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             var shift = 0
             for (j in 0 until 4) {
                 val sc = x[scalesOff + is_].toInt() and 0xFF; is_++
@@ -784,9 +784,9 @@ fun dequantize_row_q2_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q3_K: hmask(32) + qs(64) + scales(12) + d(2) = 110 bytes ---
 
 fun dequantize_row_q3_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ3K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ3K.SIZE_BYTES
 
     val kmask1 = 0x03030303
     val kmask2 = 0x0f0f0f0f
@@ -797,13 +797,13 @@ fun dequantize_row_q3_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
         val hmOff = bOff + 0
         val qsOff = bOff + 32
         val scOff = bOff + 96
-        val dAll = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 108)
+        val dAll = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 108)
 
         // Decode scales from 12 bytes into 16 int8 values via aux[4]
         val aux = IntArray(4)
-        aux[0] = io.github.kotlinmania.llama.ore.readIntLE(x, scOff + 0)
-        aux[1] = io.github.kotlinmania.llama.ore.readIntLE(x, scOff + 4)
-        aux[2] = io.github.kotlinmania.llama.ore.readIntLE(x, scOff + 8)
+        aux[0] = io.github.kotlinmania.llama.core.readIntLE(x, scOff + 0)
+        aux[1] = io.github.kotlinmania.llama.core.readIntLE(x, scOff + 4)
+        aux[2] = io.github.kotlinmania.llama.core.readIntLE(x, scOff + 8)
         val tmp = aux[2]
         aux[2] = ((aux[0] shr 4) and kmask2) or (((tmp shr 4) and kmask1) shl 4)
         aux[3] = ((aux[1] shr 4) and kmask2) or (((tmp shr 6) and kmask1) shl 4)
@@ -819,11 +819,11 @@ fun dequantize_row_q3_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
             scales[si * 4 + 3] = ((aux[si] shr 24) and 0xFF).toByte()
         }
 
-        var yIdx = yOff + i * io.github.kotlinmania.llama.ore.QK_K
+        var yIdx = yOff + i * io.github.kotlinmania.llama.core.QK_K
         var qIdx = qsOff
         var m = 1
         var is_ = 0
-        for (n in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (n in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             var shift = 0
             for (j in 0 until 4) {
                 val dl = dAll * (scales[is_].toInt() - 32); is_++
@@ -849,24 +849,24 @@ fun dequantize_row_q3_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q4_K: d(2) + dmin(2) + scales(12) + qs(128) = 144 bytes ---
 
 fun dequantize_row_q4_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ4K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ4K.SIZE_BYTES
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // Layout: d(2) at 0, dmin(2) at 2, scales(12) at 4, qs(128) at 16
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
-        val min = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 2)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
+        val min = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 2)
         val scOff = bOff + 4
         var qIdx = bOff + 16
-        var yIdx = yOff + i * io.github.kotlinmania.llama.ore.QK_K
+        var yIdx = yOff + i * io.github.kotlinmania.llama.core.QK_K
 
         var is_ = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
-            val sm1 = io.github.kotlinmania.llama.ore.get_scale_min_k4(is_ + 0, x, scOff)
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
+            val sm1 = io.github.kotlinmania.llama.core.get_scale_min_k4(is_ + 0, x, scOff)
             val d1 = d * sm1.d; val m1 = min * sm1.m
-            val sm2 = io.github.kotlinmania.llama.ore.get_scale_min_k4(is_ + 1, x, scOff)
+            val sm2 = io.github.kotlinmania.llama.core.get_scale_min_k4(is_ + 1, x, scOff)
             val d2 = d * sm2.d; val m2 = min * sm2.m
             for (l in 0 until 32) {
                 y[yIdx++] = d1 * ((x[qIdx + l].toInt() and 0xFF) and 0xF) - m1
@@ -882,26 +882,26 @@ fun dequantize_row_q4_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q5_K: d(2) + dmin(2) + scales(12) + qh(32) + qs(128) = 176 bytes ---
 
 fun dequantize_row_q5_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ5K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ5K.SIZE_BYTES
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // Layout: d(2) at 0, dmin(2) at 2, scales(12) at 4, qh(32) at 16, qs(128) at 48
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
-        val min = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 2)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
+        val min = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 2)
         val scOff = bOff + 4
         val qhOff = bOff + 16
         var qlIdx = bOff + 48
-        var yIdx = yOff + i * io.github.kotlinmania.llama.ore.QK_K
+        var yIdx = yOff + i * io.github.kotlinmania.llama.core.QK_K
 
         var is_ = 0
         var u1 = 1; var u2 = 2
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
-            val sm1 = io.github.kotlinmania.llama.ore.get_scale_min_k4(is_ + 0, x, scOff)
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
+            val sm1 = io.github.kotlinmania.llama.core.get_scale_min_k4(is_ + 0, x, scOff)
             val d1 = d * sm1.d; val m1 = min * sm1.m
-            val sm2 = io.github.kotlinmania.llama.ore.get_scale_min_k4(is_ + 1, x, scOff)
+            val sm2 = io.github.kotlinmania.llama.core.get_scale_min_k4(is_ + 1, x, scOff)
             val d2 = d * sm2.d; val m2 = min * sm2.m
             for (l in 0 until 32) {
                 val ql = x[qlIdx + l].toInt() and 0xFF
@@ -922,20 +922,20 @@ fun dequantize_row_q5_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q6_K: ql(128) + qh(64) + scales(16) + d(2) = 210 bytes ---
 
 fun dequantize_row_q6_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ6K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ6K.SIZE_BYTES
 
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // Layout: ql(128) at 0, qh(64) at 128, scales(16) at 192, d(2) at 208
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff + 208)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff + 208)
         var qlIdx = bOff + 0
         var qhIdx = bOff + 128
         var scIdx = bOff + 192
-        var yIdx = yOff + i * io.github.kotlinmania.llama.ore.QK_K
+        var yIdx = yOff + i * io.github.kotlinmania.llama.core.QK_K
 
-        for (n in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (n in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 val isv = l / 16
                 val qlLo = x[qlIdx + l].toInt() and 0xFF
@@ -958,17 +958,17 @@ fun dequantize_row_q6_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_q8_K: d(4 float) + qs(256) + bsums(32) = 292 bytes ---
 
 fun dequantize_row_q8_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // Layout: d(4 bytes float) at 0, qs(256) at 4
-        val d = Float.fromBits(io.github.kotlinmania.llama.ore.readIntLE(x, bOff))
+        val d = Float.fromBits(io.github.kotlinmania.llama.core.readIntLE(x, bOff))
         val qsOff = bOff + 4
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
             y[yIdx++] = d * x[qsOff + j].toInt()
         }
     }
@@ -977,19 +977,19 @@ fun dequantize_row_q8_K(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Lo
 // --- block_tq1_0 ---
 
 fun dequantize_row_tq1_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockTQ1_0.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockTQ1_0.SIZE_BYTES
     val pow3 = intArrayOf(1, 3, 9, 27, 81, 243)
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // block_tq1_0: qs[(QK_K-4*QK_K/64)/5] + qh[QK_K/64] + d(2)
-        val qsSize = (io.github.kotlinmania.llama.ore.QK_K - 4 * io.github.kotlinmania.llama.ore.QK_K / 64) / 5
-        val qhSize = io.github.kotlinmania.llama.ore.QK_K / 64
+        val qsSize = (io.github.kotlinmania.llama.core.QK_K - 4 * io.github.kotlinmania.llama.core.QK_K / 64) / 5
+        val qhSize = io.github.kotlinmania.llama.core.QK_K / 64
         val dOff = bOff + qsSize + qhSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, dOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, dOff)
 
         // Process qs in 32-byte chunks
         val fullChunks = qsSize - qsSize % 32
@@ -1030,16 +1030,16 @@ fun dequantize_row_tq1_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 // --- block_tq2_0 ---
 
 fun dequantize_row_tq2_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockTQ2_0.SIZE_BYTES
-    val qsSize = io.github.kotlinmania.llama.ore.QK_K / 4
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockTQ2_0.SIZE_BYTES
+    val qsSize = io.github.kotlinmania.llama.core.QK_K / 4
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         val dOff = bOff + qsSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, dOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, dOff)
 
         var qsIdx = bOff
         for (j in 0 until qsSize step 32) {
@@ -1059,47 +1059,47 @@ fun dequantize_row_tq2_0(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 // ════════════════════════════════════════════════════════════════════════════════
 
 fun dequantize_row_iq4_nl(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK4_NL == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK4_NL).toInt()
-    val blockSize = 2 + io.github.kotlinmania.llama.ore.QK4_NL / 2  // d(2) + qs(QK4_NL/2)
+    require(k % io.github.kotlinmania.llama.core.QK4_NL == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK4_NL).toInt()
+    val blockSize = 2 + io.github.kotlinmania.llama.core.QK4_NL / 2  // d(2) + qs(QK4_NL/2)
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         val qsOff = bOff + 2
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK4_NL / 2) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK4_NL / 2) {
             val qByte = x[qsOff + j].toInt() and 0xFF
-            y[yIdx + j] = d * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qByte and 0xf]
-            y[yIdx + j + io.github.kotlinmania.llama.ore.QK4_NL / 2] = d * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qByte shr 4]
+            y[yIdx + j] = d * io.github.kotlinmania.llama.core.kvalues_iq4nl[qByte and 0xf]
+            y[yIdx + j + io.github.kotlinmania.llama.core.QK4_NL / 2] = d * io.github.kotlinmania.llama.core.kvalues_iq4nl[qByte shr 4]
         }
-        yIdx += io.github.kotlinmania.llama.ore.QK4_NL
+        yIdx += io.github.kotlinmania.llama.core.QK4_NL
     }
 }
 
 fun dequantize_row_iq4_xs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ4XS.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ4XS.SIZE_BYTES
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // Layout: d(2) at 0, scales_h(2) at 2, scales_l(QK_K/64) at 4, qs(QK_K/2) at 4+QK_K/64
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
-        val scalesH = io.github.kotlinmania.llama.ore.readUShortLE(x, bOff + 2)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
+        val scalesH = io.github.kotlinmania.llama.core.readUShortLE(x, bOff + 2)
         val slOff = bOff + 4
-        val qsOff = slOff + io.github.kotlinmania.llama.ore.QK_K / 64
+        val qsOff = slOff + io.github.kotlinmania.llama.core.QK_K / 64
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val slByte = x[slOff + ib / 2].toInt() and 0xFF
             val ls = ((slByte shr (4 * (ib % 2))) and 0xf) or (((scalesH shr (2 * ib)) and 3) shl 4)
             val dl = d * (ls - 32)
             val qBase = qsOff + ib * 16
             for (j in 0 until 16) {
                 val qByte = x[qBase + j].toInt() and 0xFF
-                y[yIdx + j + 0]  = dl * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qByte and 0xf]
-                y[yIdx + j + 16] = dl * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qByte shr 4]
+                y[yIdx + j + 0]  = dl * io.github.kotlinmania.llama.core.kvalues_iq4nl[qByte and 0xf]
+                y[yIdx + j + 16] = dl * io.github.kotlinmania.llama.core.kvalues_iq4nl[qByte shr 4]
             }
             yIdx += 32
         }
@@ -1118,32 +1118,32 @@ private fun gridByteS(grid: ULong, j: Int): Int = ((grid shr (j * 8)) and 0xFFu)
 private fun gridByteU(grid: UInt, j: Int): Int = ((grid shr (j * 8)) and 0xFFu).toInt()
 
 fun dequantize_row_iq2_xxs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ2XXS.SIZE_BYTES // 66
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ2XXS.SIZE_BYTES // 66
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         // qs is uint16_t[QK_K/8] starting at offset 2
         val qsOff = bOff + 2
 
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             // memcpy(aux32, x[i].qs + 4*ib32, 2*sizeof(uint32_t))
             // 4*ib32 uint16_t entries = 8*ib32 bytes
             val a0off = qsOff + 8 * ib32
-            val aux32_0 = io.github.kotlinmania.llama.ore.readIntLE(x, a0off)
-            val aux32_1 = io.github.kotlinmania.llama.ore.readIntLE(x, a0off + 4)
+            val aux32_0 = io.github.kotlinmania.llama.core.readIntLE(x, a0off)
+            val aux32_1 = io.github.kotlinmania.llama.core.readIntLE(x, a0off + 4)
             val db = d * (0.5f + (aux32_1 ushr 28)) * 0.25f
             for (l in 0 until 4) {
                 // aux8[l] = byte l of aux32_0/aux32_1 combined
                 val aux8l = (aux32_0 ushr (l * 8)) and 0xFF
-                val grid = io.github.kotlinmania.llama.ore.iq2xxs_grid[aux8l]
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[((aux32_1 ushr (7 * l)) and 127)].toInt() and 0xFF
+                val grid = io.github.kotlinmania.llama.core.iq2xxs_grid[aux8l]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[((aux32_1 ushr (7 * l)) and 127)].toInt() and 0xFF
                 for (j in 0 until 8) {
-                    val g = io.github.kotlinmania.llama.ore.gridByteU(grid, j)
-                    val mask = io.github.kotlinmania.llama.ore.kmask_iq2xs[j].toInt() and 0xFF
+                    val g = io.github.kotlinmania.llama.core.gridByteU(grid, j)
+                    val mask = io.github.kotlinmania.llama.core.kmask_iq2xs[j].toInt() and 0xFF
                     y[yIdx + j] = db * g * (if (signs and mask != 0) -1f else 1f)
                 }
                 yIdx += 8
@@ -1153,31 +1153,31 @@ fun dequantize_row_iq2_xxs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k:
 }
 
 fun dequantize_row_iq2_xs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ2XS.SIZE_BYTES // 74
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ2XS.SIZE_BYTES // 74
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         // Layout: d(2), qs[QK_K/8] as uint16_t (64 bytes) at 2, scales[QK_K/32] (8 bytes) at 66
         val qsOff = bOff + 2
-        val scOff = bOff + 2 + (io.github.kotlinmania.llama.ore.QK_K / 8) * 2 // = bOff + 66
+        val scOff = bOff + 2 + (io.github.kotlinmania.llama.core.QK_K / 8) * 2 // = bOff + 66
 
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scByte = x[scOff + ib32].toInt() and 0xFF
             val db0 = d * (0.5f + (scByte and 0xf)) * 0.25f
             val db1 = d * (0.5f + (scByte shr 4)) * 0.25f
             for (l in 0 until 4) {
                 // x[i].qs[4*ib32 + l] is uint16_t — read 2 bytes LE
                 val qval =
-                    io.github.kotlinmania.llama.ore.readUShortLE(x, qsOff + (4 * ib32 + l) * 2)
-                val grid = io.github.kotlinmania.llama.ore.iq2xs_grid[qval and 511]
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[(qval shr 9)].toInt() and 0xFF
+                    io.github.kotlinmania.llama.core.readUShortLE(x, qsOff + (4 * ib32 + l) * 2)
+                val grid = io.github.kotlinmania.llama.core.iq2xs_grid[qval and 511]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[(qval shr 9)].toInt() and 0xFF
                 for (j in 0 until 8) {
-                    val g = io.github.kotlinmania.llama.ore.gridByteU(grid, j)
-                    val mask = io.github.kotlinmania.llama.ore.kmask_iq2xs[j].toInt() and 0xFF
+                    val g = io.github.kotlinmania.llama.core.gridByteU(grid, j)
+                    val mask = io.github.kotlinmania.llama.core.kmask_iq2xs[j].toInt() and 0xFF
                     y[yIdx + j] = (if (l < 2) db0 else db1) * g * (if (signs and mask != 0) -1f else 1f)
                 }
                 yIdx += 8
@@ -1187,21 +1187,21 @@ fun dequantize_row_iq2_xs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: 
 }
 
 fun dequantize_row_iq2_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ2S.SIZE_BYTES // 82
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ2S.SIZE_BYTES // 82
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         // Layout: d(2), qs[QK_K/4](64) at 2, qh[QK_K/32](8) at 66, scales[QK_K/32](8) at 74
-        val qhOff = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4        // = bOff + 66
-        val scOff = qhOff + io.github.kotlinmania.llama.ore.QK_K / 32           // = bOff + 74
+        val qhOff = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4        // = bOff + 66
+        val scOff = qhOff + io.github.kotlinmania.llama.core.QK_K / 32           // = bOff + 74
         var qsPtr = bOff + 2                    // qs pointer (advances by 4 per ib32)
-        var signsPtr = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 8      // signs = qs + QK_K/8 (advances by 4 per ib32)
+        var signsPtr = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 8      // signs = qs + QK_K/8 (advances by 4 per ib32)
 
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scByte = x[scOff + ib32].toInt() and 0xFF
             val db0 = d * (0.5f + (scByte and 0xf)) * 0.25f
             val db1 = d * (0.5f + (scByte shr 4)) * 0.25f
@@ -1211,11 +1211,11 @@ fun dequantize_row_iq2_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
                 val qhByte = x[qhOff + ib32].toInt() and 0xFF
                 // qs[l] | (qh[ib32] << (8 - 2*l) & 0x300)
                 val gridIdx = qsByte or ((qhByte shl (8 - 2 * l)) and 0x300)
-                val grid = io.github.kotlinmania.llama.ore.iq2s_grid[gridIdx]
+                val grid = io.github.kotlinmania.llama.core.iq2s_grid[gridIdx]
                 val signsByte = x[signsPtr + l].toInt() and 0xFF
                 for (j in 0 until 8) {
-                    val g = io.github.kotlinmania.llama.ore.gridByteU(grid, j)
-                    val mask = io.github.kotlinmania.llama.ore.kmask_iq2xs[j].toInt() and 0xFF
+                    val g = io.github.kotlinmania.llama.core.gridByteU(grid, j)
+                    val mask = io.github.kotlinmania.llama.core.kmask_iq2xs[j].toInt() and 0xFF
                     y[yIdx + j] = dl * g * (if (signsByte and mask != 0) -1f else 1f)
                 }
                 yIdx += 8
@@ -1227,32 +1227,32 @@ fun dequantize_row_iq2_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 }
 
 fun dequantize_row_iq3_xxs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ3XXS.SIZE_BYTES // 98
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ3XXS.SIZE_BYTES // 98
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         // Layout: d(2), qs[3*QK_K/8] at 2
         // qs = first QK_K/4 = 64 bytes of qs data
         // scales_and_signs = qs + QK_K/4 (= the remaining 32 bytes)
         var qsPtr = bOff + 2
-        val sasOff = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4  // scales_and_signs
+        val sasOff = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4  // scales_and_signs
 
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val aux32 = io.github.kotlinmania.llama.ore.readIntLE(x, sasOff + 4 * ib32)
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val aux32 = io.github.kotlinmania.llama.core.readIntLE(x, sasOff + 4 * ib32)
             val db = d * (0.5f + (aux32 ushr 28)) * 0.5f
             for (l in 0 until 4) {
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[((aux32 ushr (7 * l)) and 127)].toInt() and 0xFF
-                val grid1 = io.github.kotlinmania.llama.ore.iq3xxs_grid[x[qsPtr + 2 * l + 0].toInt() and 0xFF]
-                val grid2 = io.github.kotlinmania.llama.ore.iq3xxs_grid[x[qsPtr + 2 * l + 1].toInt() and 0xFF]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[((aux32 ushr (7 * l)) and 127)].toInt() and 0xFF
+                val grid1 = io.github.kotlinmania.llama.core.iq3xxs_grid[x[qsPtr + 2 * l + 0].toInt() and 0xFF]
+                val grid2 = io.github.kotlinmania.llama.core.iq3xxs_grid[x[qsPtr + 2 * l + 1].toInt() and 0xFF]
                 for (j in 0 until 4) {
-                    val mask0 = io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 0].toInt() and 0xFF
-                    val mask4 = io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 4].toInt() and 0xFF
-                    y[yIdx + j + 0] = db * io.github.kotlinmania.llama.ore.gridByteU(grid1, j) * (if (signs and mask0 != 0) -1f else 1f)
-                    y[yIdx + j + 4] = db * io.github.kotlinmania.llama.ore.gridByteU(grid2, j) * (if (signs and mask4 != 0) -1f else 1f)
+                    val mask0 = io.github.kotlinmania.llama.core.kmask_iq2xs[j + 0].toInt() and 0xFF
+                    val mask4 = io.github.kotlinmania.llama.core.kmask_iq2xs[j + 4].toInt() and 0xFF
+                    y[yIdx + j + 0] = db * io.github.kotlinmania.llama.core.gridByteU(grid1, j) * (if (signs and mask0 != 0) -1f else 1f)
+                    y[yIdx + j + 4] = db * io.github.kotlinmania.llama.core.gridByteU(grid2, j) * (if (signs and mask4 != 0) -1f else 1f)
                 }
                 yIdx += 8
             }
@@ -1262,21 +1262,21 @@ fun dequantize_row_iq3_xxs(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k:
 }
 
 fun dequantize_row_iq3_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ3S.SIZE_BYTES // 110
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ3S.SIZE_BYTES // 110
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         // Layout: d(2), qs[QK_K/4](64) at 2, qh[QK_K/32](8) at 66, signs[QK_K/8](32) at 74, scales[IQ3S_N_SCALE](4) at 106
         var qsPtr = bOff + 2
-        var qhPtr = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4          // = bOff + 66
-        var signsPtr = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + io.github.kotlinmania.llama.ore.QK_K / 32  // = bOff + 74
-        val scOff = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + io.github.kotlinmania.llama.ore.QK_K / 32 + io.github.kotlinmania.llama.ore.QK_K / 8  // = bOff + 106
+        var qhPtr = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4          // = bOff + 66
+        var signsPtr = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4 + io.github.kotlinmania.llama.core.QK_K / 32  // = bOff + 74
+        val scOff = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4 + io.github.kotlinmania.llama.core.QK_K / 32 + io.github.kotlinmania.llama.core.QK_K / 8  // = bOff + 106
 
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32 step 2) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32 step 2) {
             val scByte = x[scOff + ib32 / 2].toInt() and 0xFF
             val db1 = d * (1 + 2 * (scByte and 0xf))
             val db2 = d * (1 + 2 * (scByte shr 4))
@@ -1286,14 +1286,14 @@ fun dequantize_row_iq3_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
             for (l in 0 until 4) {
                 val grid1Idx = (x[qsPtr + 2 * l + 0].toInt() and 0xFF) or ((qh0 shl (8 - 2 * l)) and 256)
                 val grid2Idx = (x[qsPtr + 2 * l + 1].toInt() and 0xFF) or ((qh0 shl (7 - 2 * l)) and 256)
-                val grid1 = io.github.kotlinmania.llama.ore.iq3s_grid[grid1Idx]
-                val grid2 = io.github.kotlinmania.llama.ore.iq3s_grid[grid2Idx]
+                val grid1 = io.github.kotlinmania.llama.core.iq3s_grid[grid1Idx]
+                val grid2 = io.github.kotlinmania.llama.core.iq3s_grid[grid2Idx]
                 val signsVal = x[signsPtr + l].toInt() and 0xFF
                 for (j in 0 until 4) {
-                    val mask0 = io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 0].toInt() and 0xFF
-                    val mask4 = io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 4].toInt() and 0xFF
-                    y[yIdx + j + 0] = db1 * io.github.kotlinmania.llama.ore.gridByteU(grid1, j) * (if (signsVal and mask0 != 0) -1f else 1f)
-                    y[yIdx + j + 4] = db1 * io.github.kotlinmania.llama.ore.gridByteU(grid2, j) * (if (signsVal and mask4 != 0) -1f else 1f)
+                    val mask0 = io.github.kotlinmania.llama.core.kmask_iq2xs[j + 0].toInt() and 0xFF
+                    val mask4 = io.github.kotlinmania.llama.core.kmask_iq2xs[j + 4].toInt() and 0xFF
+                    y[yIdx + j + 0] = db1 * io.github.kotlinmania.llama.core.gridByteU(grid1, j) * (if (signsVal and mask0 != 0) -1f else 1f)
+                    y[yIdx + j + 4] = db1 * io.github.kotlinmania.llama.core.gridByteU(grid2, j) * (if (signsVal and mask4 != 0) -1f else 1f)
                 }
                 yIdx += 8
             }
@@ -1305,14 +1305,14 @@ fun dequantize_row_iq3_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
             for (l in 0 until 4) {
                 val grid1Idx = (x[qsPtr + 2 * l + 0].toInt() and 0xFF) or ((qh1 shl (8 - 2 * l)) and 256)
                 val grid2Idx = (x[qsPtr + 2 * l + 1].toInt() and 0xFF) or ((qh1 shl (7 - 2 * l)) and 256)
-                val grid1 = io.github.kotlinmania.llama.ore.iq3s_grid[grid1Idx]
-                val grid2 = io.github.kotlinmania.llama.ore.iq3s_grid[grid2Idx]
+                val grid1 = io.github.kotlinmania.llama.core.iq3s_grid[grid1Idx]
+                val grid2 = io.github.kotlinmania.llama.core.iq3s_grid[grid2Idx]
                 val signsVal = x[signsPtr + l].toInt() and 0xFF
                 for (j in 0 until 4) {
-                    val mask0 = io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 0].toInt() and 0xFF
-                    val mask4 = io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 4].toInt() and 0xFF
-                    y[yIdx + j + 0] = db2 * io.github.kotlinmania.llama.ore.gridByteU(grid1, j) * (if (signsVal and mask0 != 0) -1f else 1f)
-                    y[yIdx + j + 4] = db2 * io.github.kotlinmania.llama.ore.gridByteU(grid2, j) * (if (signsVal and mask4 != 0) -1f else 1f)
+                    val mask0 = io.github.kotlinmania.llama.core.kmask_iq2xs[j + 0].toInt() and 0xFF
+                    val mask4 = io.github.kotlinmania.llama.core.kmask_iq2xs[j + 4].toInt() and 0xFF
+                    y[yIdx + j + 0] = db2 * io.github.kotlinmania.llama.core.gridByteU(grid1, j) * (if (signsVal and mask0 != 0) -1f else 1f)
+                    y[yIdx + j + 4] = db2 * io.github.kotlinmania.llama.core.gridByteU(grid2, j) * (if (signsVal and mask4 != 0) -1f else 1f)
                 }
                 yIdx += 8
             }
@@ -1324,27 +1324,27 @@ fun dequantize_row_iq3_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 }
 
 fun dequantize_row_iq1_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ1S.SIZE_BYTES // 50
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ1S.SIZE_BYTES // 50
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(x, bOff)
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(x, bOff)
         // Layout: d(2), qs[QK_K/8](32) at 2, qh[QK_K/32] as uint16_t (16 bytes) at 34
         var qsPtr = bOff + 2
-        val qhOff = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 8  // = bOff + 34
+        val qhOff = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 8  // = bOff + 34
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val qhVal = io.github.kotlinmania.llama.ore.readUShortLE(x, qhOff + ib * 2)
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val qhVal = io.github.kotlinmania.llama.core.readUShortLE(x, qhOff + ib * 2)
             val dl = d * (2 * ((qhVal shr 12) and 7) + 1)
-            val delta = if (qhVal and 0x8000 != 0) -io.github.kotlinmania.llama.ore.IQ1S_DELTA else io.github.kotlinmania.llama.ore.IQ1S_DELTA
+            val delta = if (qhVal and 0x8000 != 0) -io.github.kotlinmania.llama.core.IQ1S_DELTA else io.github.kotlinmania.llama.core.IQ1S_DELTA
             for (l in 0 until 4) {
                 val gridIdx = (x[qsPtr + l].toInt() and 0xFF) or (((qhVal shr (3 * l)) and 7) shl 8)
-                val grid = io.github.kotlinmania.llama.ore.iq1s_grid[gridIdx]
+                val grid = io.github.kotlinmania.llama.core.iq1s_grid[gridIdx]
                 for (j in 0 until 8) {
-                    y[yIdx + j] = dl * (io.github.kotlinmania.llama.ore.gridByteS(grid, j) + delta)
+                    y[yIdx + j] = dl * (io.github.kotlinmania.llama.core.gridByteS(grid, j) + delta)
                 }
                 yIdx += 8
             }
@@ -1354,32 +1354,32 @@ fun dequantize_row_iq1_s(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 }
 
 fun dequantize_row_iq1_m(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ1M.SIZE_BYTES // 56
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ1M.SIZE_BYTES // 56
 
     var yIdx = yOff
     for (i in 0 until nb) {
         val bOff = xOff + i * blockSize
         // Layout: qs[QK_K/8](32) at 0, qh[QK_K/16](16) at 32, scales[QK_K/32](8) at 48
-        val qhBase = bOff + io.github.kotlinmania.llama.ore.QK_K / 8         // = bOff + 32
-        val scBase = bOff + io.github.kotlinmania.llama.ore.QK_K / 8 + io.github.kotlinmania.llama.ore.QK_K / 16  // = bOff + 48
+        val qhBase = bOff + io.github.kotlinmania.llama.core.QK_K / 8         // = bOff + 32
+        val scBase = bOff + io.github.kotlinmania.llama.core.QK_K / 8 + io.github.kotlinmania.llama.core.QK_K / 16  // = bOff + 48
 
         // Reconstruct fp16 scale from 4-bit pieces of scales[]
         // sc = (const uint16_t *)x[i].scales  (reading scales as uint16_t[4])
-        val sc0 = io.github.kotlinmania.llama.ore.readUShortLE(x, scBase + 0)
-        val sc1 = io.github.kotlinmania.llama.ore.readUShortLE(x, scBase + 2)
-        val sc2 = io.github.kotlinmania.llama.ore.readUShortLE(x, scBase + 4)
-        val sc3 = io.github.kotlinmania.llama.ore.readUShortLE(x, scBase + 6)
+        val sc0 = io.github.kotlinmania.llama.core.readUShortLE(x, scBase + 0)
+        val sc1 = io.github.kotlinmania.llama.core.readUShortLE(x, scBase + 2)
+        val sc2 = io.github.kotlinmania.llama.core.readUShortLE(x, scBase + 4)
+        val sc3 = io.github.kotlinmania.llama.core.readUShortLE(x, scBase + 6)
         val scaleU16 = (sc0 shr 12) or ((sc1 shr 8) and 0x00f0) or ((sc2 shr 4) and 0x0f00) or (sc3 and 0xf000)
-        val d = io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(scaleU16.toShort())
+        val d = io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(scaleU16.toShort())
 
         var qsPtr = bOff
         var qhPtr = qhBase
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             // sc[ib/2] read as uint16_t
-            val scVal = io.github.kotlinmania.llama.ore.readUShortLE(x, scBase + (ib / 2) * 2)
+            val scVal = io.github.kotlinmania.llama.core.readUShortLE(x, scBase + (ib / 2) * 2)
             val dl1 = d * (2 * ((scVal shr (6 * (ib % 2) + 0)) and 0x7) + 1)
             val dl2 = d * (2 * ((scVal shr (6 * (ib % 2) + 3)) and 0x7) + 1)
 
@@ -1391,18 +1391,18 @@ fun dequantize_row_iq1_m(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
             val idx2 = (x[qsPtr + 2].toInt() and 0xFF) or ((qh1 shl 8) and 0x700)
             val idx3 = (x[qsPtr + 3].toInt() and 0xFF) or ((qh1 shl 4) and 0x700)
 
-            val delta0 = if (qh0 and 0x08 != 0) -io.github.kotlinmania.llama.ore.IQ1M_DELTA else io.github.kotlinmania.llama.ore.IQ1M_DELTA
-            val delta1 = if (qh0 and 0x80 != 0) -io.github.kotlinmania.llama.ore.IQ1M_DELTA else io.github.kotlinmania.llama.ore.IQ1M_DELTA
-            val delta2 = if (qh1 and 0x08 != 0) -io.github.kotlinmania.llama.ore.IQ1M_DELTA else io.github.kotlinmania.llama.ore.IQ1M_DELTA
-            val delta3 = if (qh1 and 0x80 != 0) -io.github.kotlinmania.llama.ore.IQ1M_DELTA else io.github.kotlinmania.llama.ore.IQ1M_DELTA
+            val delta0 = if (qh0 and 0x08 != 0) -io.github.kotlinmania.llama.core.IQ1M_DELTA else io.github.kotlinmania.llama.core.IQ1M_DELTA
+            val delta1 = if (qh0 and 0x80 != 0) -io.github.kotlinmania.llama.core.IQ1M_DELTA else io.github.kotlinmania.llama.core.IQ1M_DELTA
+            val delta2 = if (qh1 and 0x08 != 0) -io.github.kotlinmania.llama.core.IQ1M_DELTA else io.github.kotlinmania.llama.core.IQ1M_DELTA
+            val delta3 = if (qh1 and 0x80 != 0) -io.github.kotlinmania.llama.core.IQ1M_DELTA else io.github.kotlinmania.llama.core.IQ1M_DELTA
 
             // First two sub-blocks use dl1
             for (l in 0 until 2) {
                 val idx = if (l == 0) idx0 else idx1
                 val delta = if (l == 0) delta0 else delta1
-                val grid = io.github.kotlinmania.llama.ore.iq1s_grid[idx]
+                val grid = io.github.kotlinmania.llama.core.iq1s_grid[idx]
                 for (j in 0 until 8) {
-                    y[yIdx + j] = dl1 * (io.github.kotlinmania.llama.ore.gridByteS(grid, j) + delta)
+                    y[yIdx + j] = dl1 * (io.github.kotlinmania.llama.core.gridByteS(grid, j) + delta)
                 }
                 yIdx += 8
             }
@@ -1410,9 +1410,9 @@ fun dequantize_row_iq1_m(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
             for (l in 2 until 4) {
                 val idx = if (l == 2) idx2 else idx3
                 val delta = if (l == 2) delta2 else delta3
-                val grid = io.github.kotlinmania.llama.ore.iq1s_grid[idx]
+                val grid = io.github.kotlinmania.llama.core.iq1s_grid[idx]
                 for (j in 0 until 8) {
-                    y[yIdx + j] = dl2 * (io.github.kotlinmania.llama.ore.gridByteS(grid, j) + delta)
+                    y[yIdx + j] = dl2 * (io.github.kotlinmania.llama.core.gridByteS(grid, j) + delta)
                 }
                 yIdx += 8
             }
@@ -1427,7 +1427,7 @@ fun dequantize_row_iq1_m(x: ByteArray, xOff: Int, y: FloatArray, yOff: Int, k: L
 // ════════════════════════════════════════════════════════════════════════════════
 
 fun quantize_row_q4_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK4_0
+    val qk = io.github.kotlinmania.llama.core.QK4_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + qk / 2
@@ -1444,7 +1444,7 @@ fun quantize_row_q4_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val id = if (d != 0f) 1f / d else 0f
         val bOff = yOff + i * blockSize
         // Write d as fp16
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
         val qsOff = bOff + 2
@@ -1459,7 +1459,7 @@ fun quantize_row_q4_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 }
 
 fun quantize_row_q8_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + qk
@@ -1473,7 +1473,7 @@ fun quantize_row_q8_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val d = amax / 127f
         val id = if (d != 0f) 1f / d else 0f
         val bOff = yOff + i * blockSize
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
         val qsOff = bOff + 2
@@ -1484,7 +1484,7 @@ fun quantize_row_q8_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 }
 
 fun quantize_row_q4_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK4_1
+    val qk = io.github.kotlinmania.llama.core.QK4_1
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 4 + qk / 2
@@ -1500,10 +1500,10 @@ fun quantize_row_q4_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val d = (max - min) / 15f
         val id = if (d != 0f) 1f / d else 0f
         val bOff = yOff + i * blockSize
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
-        val mFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(min)
+        val mFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(min)
         y[bOff + 2] = (mFp16.toInt() and 0xFF).toByte()
         y[bOff + 3] = ((mFp16.toInt() shr 8) and 0xFF).toByte()
         val qsOff = bOff + 4
@@ -1518,7 +1518,7 @@ fun quantize_row_q4_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 }
 
 fun quantize_row_q5_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK5_0
+    val qk = io.github.kotlinmania.llama.core.QK5_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + 4 + qk / 2
@@ -1533,7 +1533,7 @@ fun quantize_row_q5_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val d = max / -16f
         val id = if (d != 0f) 1f / d else 0f
         val bOff = yOff + i * blockSize
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
         // qh at bOff+2..bOff+5
@@ -1556,7 +1556,7 @@ fun quantize_row_q5_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 }
 
 fun quantize_row_q5_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK5_1
+    val qk = io.github.kotlinmania.llama.core.QK5_1
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 4 + 4 + qk / 2
@@ -1571,10 +1571,10 @@ fun quantize_row_q5_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val d = (max - min) / 31f
         val id = if (d != 0f) 1f / d else 0f
         val bOff = yOff + i * blockSize
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
-        val mFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(min)
+        val mFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(min)
         y[bOff + 2] = (mFp16.toInt() and 0xFF).toByte()
         y[bOff + 3] = ((mFp16.toInt() shr 8) and 0xFF).toByte()
         var qh = 0
@@ -1596,7 +1596,7 @@ fun quantize_row_q5_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 }
 
 fun quantize_row_q8_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0  // Q8_1 uses same QK as Q8_0
+    val qk = io.github.kotlinmania.llama.core.QK8_0  // Q8_1 uses same QK as Q8_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     // block_q8_1: d(2) + s(2) + qs(32) = 36 bytes
@@ -1611,7 +1611,7 @@ fun quantize_row_q8_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val d = amax / 127f
         val id = if (d != 0f) 1f / d else 0f
         val bOff = yOff + i * blockSize
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
         var sum = 0
@@ -1622,14 +1622,14 @@ fun quantize_row_q8_1_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
             sum += v
         }
         // s = d * sum
-        val sFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d * sum)
+        val sFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d * sum)
         y[bOff + 2] = (sFp16.toInt() and 0xFF).toByte()
         y[bOff + 3] = ((sFp16.toInt() shr 8) and 0xFF).toByte()
     }
 }
 
 fun quantize_row_q1_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK1_0
+    val qk = io.github.kotlinmania.llama.core.QK1_0
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
     val blockSize = 2 + qk / 8
@@ -1643,7 +1643,7 @@ fun quantize_row_q1_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         }
         val d = amax
         val bOff = yOff + i * blockSize
-        val dFp16 = io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(d)
+        val dFp16 = io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(d)
         y[bOff + 0] = (dFp16.toInt() and 0xFF).toByte()
         y[bOff + 1] = ((dFp16.toInt() shr 8) and 0xFF).toByte()
         val qsOff = bOff + 2
@@ -1661,20 +1661,20 @@ fun quantize_row_q1_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 // K-quant quantize_row_*_ref — complex implementations, deferred for now
 
 fun quantize_row_q2_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ2K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ2K.SIZE_BYTES
 
-    val L = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val L = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val Laux = IntArray(16)
     val weights = FloatArray(16)
-    val mins = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val mins = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 
     val q4scale = 15f
 
     // Temp UByteArray wrappers for make_qkx2_quants
-    val Lu = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val Lu = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val Lauxu = UByteArray(16)
     val theMin = FloatArray(1)
 
@@ -1683,10 +1683,10 @@ fun quantize_row_q2_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val bOff = yOff + i * blockSize
         var maxScale = 0f
         var maxMin = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             for (l in 0 until 16) weights[l] = kotlin.math.abs(x[xIdx + 16 * j + l])
             theMin[0] = 0f
-            scales[j] = io.github.kotlinmania.llama.ore.make_qkx2_quants(
+            scales[j] = io.github.kotlinmania.llama.core.make_qkx2_quants(
                 16, 3, x, xIdx + 16 * j, weights, 0,
                 Lu, 16 * j, theMin, 0, Lauxu, 0, -0.5f, 0.1f, 15, true
             )
@@ -1699,32 +1699,32 @@ fun quantize_row_q2_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         val scalesOff = bOff + 0
         if (maxScale > 0) {
             val iscale = q4scale / maxScale
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-                val l = io.github.kotlinmania.llama.ore.nearest_int(iscale * scales[j])
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+                val l = io.github.kotlinmania.llama.core.nearest_int(iscale * scales[j])
                 y[scalesOff + j] = l.toByte()
             }
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 80, maxScale / q4scale)
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 80, maxScale / q4scale)
         } else {
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) y[scalesOff + j] = 0
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 80, 0f)
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) y[scalesOff + j] = 0
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 80, 0f)
         }
         if (maxMin > 0) {
             val iscale = q4scale / maxMin
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-                val l = io.github.kotlinmania.llama.ore.nearest_int(iscale * mins[j])
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+                val l = io.github.kotlinmania.llama.core.nearest_int(iscale * mins[j])
                 y[scalesOff + j] = (y[scalesOff + j].toInt() or (l shl 4)).toByte()
             }
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 82, maxMin / q4scale)
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 82, maxMin / q4scale)
         } else {
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 82, 0f)
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 82, 0f)
         }
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 80) * ((y[scalesOff + j].toInt() and 0xFF) and 0xF)
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 80) * ((y[scalesOff + j].toInt() and 0xFF) and 0xF)
             if (d == 0f) continue
-            val dm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 82) * ((y[scalesOff + j].toInt() and 0xFF) shr 4)
+            val dm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 82) * ((y[scalesOff + j].toInt() and 0xFF) shr 4)
             for (ii in 0 until 16) {
                 var l =
-                    io.github.kotlinmania.llama.ore.nearest_int((x[xIdx + 16 * j + ii] + dm) / d)
+                    io.github.kotlinmania.llama.core.nearest_int((x[xIdx + 16 * j + ii] + dm) / d)
                 l = maxOf(0, minOf(3, l))
                 L[16 * j + ii] = l
             }
@@ -1732,24 +1732,24 @@ fun quantize_row_q2_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         // qs[QK_K/4] at offset 16
         val qsOff = bOff + 16
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 y[qsOff + j / 4 + l] = (L[j + l] or (L[j + l + 32] shl 2) or
                     (L[j + l + 64] shl 4) or (L[j + l + 96] shl 6)).toByte()
             }
         }
 
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_q3_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ3K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ3K.SIZE_BYTES
 
-    val L = ByteArray(io.github.kotlinmania.llama.ore.QK_K)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val L = ByteArray(io.github.kotlinmania.llama.core.QK_K)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 
     var xIdx = xOff
     for (i in 0 until nb) {
@@ -1760,8 +1760,8 @@ fun quantize_row_q3_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         var maxScale = 0f
         var amax = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            scales[j] = io.github.kotlinmania.llama.ore.make_q3_quants(
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            scales[j] = io.github.kotlinmania.llama.core.make_q3_quants(
                 16,
                 4,
                 x,
@@ -1780,8 +1780,8 @@ fun quantize_row_q3_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         for (j in 0 until 12) y[scOff + j] = 0
         if (maxScale != 0f) {
             val iscale = -32f / maxScale
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-                var l = io.github.kotlinmania.llama.ore.nearest_int(iscale * scales[j])
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+                var l = io.github.kotlinmania.llama.core.nearest_int(iscale * scales[j])
                 l = maxOf(-32, minOf(31, l)) + 32
                 if (j < 8) {
                     y[scOff + j] = (y[scOff + j].toInt() or (l and 0xF)).toByte()
@@ -1791,41 +1791,41 @@ fun quantize_row_q3_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
                 val lh = l shr 4
                 y[scOff + j % 4 + 8] = (y[scOff + j % 4 + 8].toInt() or (lh shl (2 * (j / 4)))).toByte()
             }
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 108, 1f / iscale)
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 108, 1f / iscale)
         } else {
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 108, 0f)
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 108, 0f)
         }
 
         var sc: Int
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             sc = if (j < 8) (y[scOff + j].toInt() and 0xFF) and 0xF
                  else (y[scOff + j - 8].toInt() and 0xFF) shr 4
             sc = (sc or ((((y[scOff + 8 + j % 4].toInt() and 0xFF) shr (2 * (j / 4))) and 3) shl 4)) - 32
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 108) * sc
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 108) * sc
             if (d == 0f) continue
             for (ii in 0 until 16) {
-                var l = io.github.kotlinmania.llama.ore.nearest_int(x[xIdx + 16 * j + ii] / d)
+                var l = io.github.kotlinmania.llama.core.nearest_int(x[xIdx + 16 * j + ii] / d)
                 l = maxOf(-4, minOf(3, l))
                 L[16 * j + ii] = (l + 4).toByte()
             }
         }
 
         // hmask[QK_K/8] at offset 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 8) y[hmOff + j] = 0
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 8) y[hmOff + j] = 0
         var m = 0
         var hm = 1
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
             if ((L[j].toInt() and 0xFF) > 3) {
                 y[hmOff + m] = (y[hmOff + m].toInt() or hm).toByte()
                 L[j] = ((L[j].toInt() and 0xFF) - 4).toByte()
             }
             m++
-            if (m == io.github.kotlinmania.llama.ore.QK_K / 8) {
+            if (m == io.github.kotlinmania.llama.core.QK_K / 8) {
                 m = 0; hm = hm shl 1
             }
         }
         // qs[QK_K/4] at offset 32
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 y[qsOff + j / 4 + l] = ((L[j + l].toInt() and 0xFF) or
                     ((L[j + l + 32].toInt() and 0xFF) shl 2) or
@@ -1834,22 +1834,22 @@ fun quantize_row_q3_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
             }
         }
 
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_q4_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ4K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ4K.SIZE_BYTES
 
-    val L = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val L = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val Laux = IntArray(32)
     val weights = FloatArray(32)
-    val mins = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val mins = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
 
-    val Lu = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val Lu = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val Lauxu = UByteArray(32)
     val theMin = FloatArray(1)
 
@@ -1860,13 +1860,13 @@ fun quantize_row_q4_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         var maxScale = 0f
         var maxMin = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             var sumX2 = 0f
             for (l in 0 until 32) sumX2 += x[xIdx + 32 * j + l] * x[xIdx + 32 * j + l]
             val avX = kotlin.math.sqrt(sumX2 / 32f)
             for (l in 0 until 32) weights[l] = avX + kotlin.math.abs(x[xIdx + 32 * j + l])
             theMin[0] = 0f
-            scales[j] = io.github.kotlinmania.llama.ore.make_qkx2_quants(
+            scales[j] = io.github.kotlinmania.llama.core.make_qkx2_quants(
                 32, 15, x, xIdx + 32 * j, weights, 0,
                 Lu, 32 * j, theMin, 0, Lauxu, 0, -1f, 0.1f, 20, false
             )
@@ -1877,9 +1877,9 @@ fun quantize_row_q4_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         val invScale = if (maxScale > 0) 63f / maxScale else 0f
         val invMin = if (maxMin > 0) 63f / maxMin else 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            var ls = io.github.kotlinmania.llama.ore.nearest_int(invScale * scales[j])
-            var lm = io.github.kotlinmania.llama.ore.nearest_int(invMin * mins[j])
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            var ls = io.github.kotlinmania.llama.core.nearest_int(invScale * scales[j])
+            var lm = io.github.kotlinmania.llama.core.nearest_int(invMin * mins[j])
             ls = minOf(63, ls)
             lm = minOf(63, lm)
             if (j < 4) {
@@ -1891,17 +1891,17 @@ fun quantize_row_q4_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
                 y[scOff + j] = (y[scOff + j].toInt() or ((lm shr 4) shl 6)).toByte()
             }
         }
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, maxScale / 63f)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 2, maxMin / 63f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, maxScale / 63f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 2, maxMin / 63f)
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val sm = io.github.kotlinmania.llama.ore.get_scale_min_k4(j, y, scOff)
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 0) * sm.d
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val sm = io.github.kotlinmania.llama.core.get_scale_min_k4(j, y, scOff)
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 0) * sm.d
             if (d == 0f) continue
-            val dm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 2) * sm.m
+            val dm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 2) * sm.m
             for (ii in 0 until 32) {
                 var l =
-                    io.github.kotlinmania.llama.ore.nearest_int((x[xIdx + 32 * j + ii] + dm) / d)
+                    io.github.kotlinmania.llama.core.nearest_int((x[xIdx + 32 * j + ii] + dm) / d)
                 l = maxOf(0, minOf(15, l))
                 L[32 * j + ii] = l
             }
@@ -1910,28 +1910,28 @@ fun quantize_row_q4_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         // qs[QK_K/2] at offset 16
         val qsOff = bOff + 16
         var qIdx = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
             for (l in 0 until 32) {
                 y[qsOff + qIdx + l] = (L[j + l] or (L[j + l + 32] shl 4)).toByte()
             }
             qIdx += 32
         }
 
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_q5_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ5K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ5K.SIZE_BYTES
 
-    val L = IntArray(io.github.kotlinmania.llama.ore.QK_K)
-    val mins = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val L = IntArray(io.github.kotlinmania.llama.core.QK_K)
+    val mins = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
     val weights = FloatArray(32)
 
-    val Lu = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val Lu = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val Lauxu = UByteArray(32)
     val theMin = FloatArray(1)
 
@@ -1944,13 +1944,13 @@ fun quantize_row_q5_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         var maxScale = 0f
         var maxMin = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             var sumX2 = 0f
             for (l in 0 until 32) sumX2 += x[xIdx + 32 * j + l] * x[xIdx + 32 * j + l]
             val avX = kotlin.math.sqrt(sumX2 / 32f)
             for (l in 0 until 32) weights[l] = avX + kotlin.math.abs(x[xIdx + 32 * j + l])
             theMin[0] = 0f
-            scales[j] = io.github.kotlinmania.llama.ore.make_qkx2_quants(
+            scales[j] = io.github.kotlinmania.llama.core.make_qkx2_quants(
                 32, 31, x, xIdx + 32 * j, weights, 0,
                 Lu, 32 * j, theMin, 0, Lauxu, 0, -0.5f, 0.1f, 15, false
             )
@@ -1961,9 +1961,9 @@ fun quantize_row_q5_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         val invScale = if (maxScale > 0) 63f / maxScale else 0f
         val invMin = if (maxMin > 0) 63f / maxMin else 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            var ls = io.github.kotlinmania.llama.ore.nearest_int(invScale * scales[j])
-            var lm = io.github.kotlinmania.llama.ore.nearest_int(invMin * mins[j])
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            var ls = io.github.kotlinmania.llama.core.nearest_int(invScale * scales[j])
+            var lm = io.github.kotlinmania.llama.core.nearest_int(invMin * mins[j])
             ls = minOf(63, ls)
             lm = minOf(63, lm)
             if (j < 4) {
@@ -1975,28 +1975,28 @@ fun quantize_row_q5_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
                 y[scOff + j] = (y[scOff + j].toInt() or ((lm shr 4) shl 6)).toByte()
             }
         }
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, maxScale / 63f)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 2, maxMin / 63f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, maxScale / 63f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 2, maxMin / 63f)
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val sm = io.github.kotlinmania.llama.ore.get_scale_min_k4(j, y, scOff)
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 0) * sm.d
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val sm = io.github.kotlinmania.llama.core.get_scale_min_k4(j, y, scOff)
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 0) * sm.d
             if (d == 0f) continue
-            val dm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 2) * sm.m
+            val dm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 2) * sm.m
             for (ii in 0 until 32) {
                 var l =
-                    io.github.kotlinmania.llama.ore.nearest_int((x[xIdx + 32 * j + ii] + dm) / d)
+                    io.github.kotlinmania.llama.core.nearest_int((x[xIdx + 32 * j + ii] + dm) / d)
                 l = maxOf(0, minOf(31, l))
                 L[32 * j + ii] = l
             }
         }
 
         // qh[QK_K/8] at offset 16
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 8) y[qhOff + j] = 0
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 8) y[qhOff + j] = 0
 
         var m1 = 1; var m2 = 2
         var qlIdx = 0
-        for (n in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
+        for (n in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
             for (j in 0 until 32) {
                 var l1 = L[n + j]
                 if (l1 > 15) {
@@ -2012,17 +2012,17 @@ fun quantize_row_q5_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
             qlIdx += 32
         }
 
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_q6_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ6K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ6K.SIZE_BYTES
 
-    val L = ByteArray(io.github.kotlinmania.llama.ore.QK_K)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val L = ByteArray(io.github.kotlinmania.llama.core.QK_K)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 
     var xIdx = xOff
     for (i in 0 until nb) {
@@ -2034,8 +2034,8 @@ fun quantize_row_q6_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         var maxScale = 0f
         var maxAbsScale = 0f
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val scale = io.github.kotlinmania.llama.ore.make_qx_quants(
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val scale = io.github.kotlinmania.llama.core.make_qx_quants(
                 16,
                 32,
                 x,
@@ -2055,27 +2055,27 @@ fun quantize_row_q6_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
             }
         }
 
-        if (maxAbsScale < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+        if (maxAbsScale < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
             // Zero out entire block
             for (j in 0 until blockSize) y[bOff + j] = 0
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 208, 0f)
-            xIdx += io.github.kotlinmania.llama.ore.QK_K
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 208, 0f)
+            xIdx += io.github.kotlinmania.llama.core.QK_K
             continue
         }
 
         val iscale = -128f / maxScale
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 208, 1f / iscale)
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 208, 1f / iscale)
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             y[scOff + ib] = minOf(127,
-                io.github.kotlinmania.llama.ore.nearest_int(iscale * scales[ib])
+                io.github.kotlinmania.llama.core.nearest_int(iscale * scales[ib])
             ).toByte()
         }
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 208) * y[scOff + j].toInt()
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 208) * y[scOff + j].toInt()
             if (d == 0f) continue
             for (ii in 0 until 16) {
-                var l = io.github.kotlinmania.llama.ore.nearest_int(x[xIdx + 16 * j + ii] / d)
+                var l = io.github.kotlinmania.llama.core.nearest_int(x[xIdx + 16 * j + ii] / d)
                 l = maxOf(-32, minOf(31, l))
                 L[16 * j + ii] = (l + 32).toByte()
             }
@@ -2083,7 +2083,7 @@ fun quantize_row_q6_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
 
         var qlIdx = 0
         var qhIdx = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 val q1 = (L[j + l + 0].toInt() and 0xFF) and 0xF
                 val q2 = (L[j + l + 32].toInt() and 0xFF) and 0xF
@@ -2100,20 +2100,20 @@ fun quantize_row_q6_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
             qhIdx += 32
         }
 
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_q8_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
 
     var xIdx = xOff
     for (i in 0 until nb) {
         var max = 0f
         var amax = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
             val ax = kotlin.math.abs(x[xIdx + j])
             if (ax > amax) { amax = ax; max = x[xIdx + j] }
         }
@@ -2126,21 +2126,21 @@ fun quantize_row_q8_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
             y[bOff + 2] = ((dBits shr 16) and 0xFF).toByte()
             y[bOff + 3] = ((dBits shr 24) and 0xFF).toByte()
             // Zero out qs and bsums
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) y[bOff + 4 + j] = 0
-            for (j in 0 until (io.github.kotlinmania.llama.ore.QK_K / 16) * 2) y[bOff + 4 + io.github.kotlinmania.llama.ore.QK_K + j] = 0
-            xIdx += io.github.kotlinmania.llama.ore.QK_K
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_K) y[bOff + 4 + j] = 0
+            for (j in 0 until (io.github.kotlinmania.llama.core.QK_K / 16) * 2) y[bOff + 4 + io.github.kotlinmania.llama.core.QK_K + j] = 0
+            xIdx += io.github.kotlinmania.llama.core.QK_K
             continue
         }
         // -127 not -128, needed for IQ2_XXS AVX compatibility
         val iscale = -127f / max
         val qsOff = bOff + 4
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
-            val v = io.github.kotlinmania.llama.ore.nearest_int(iscale * x[xIdx + j])
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
+            val v = io.github.kotlinmania.llama.core.nearest_int(iscale * x[xIdx + j])
             y[qsOff + j] = minOf(127, v).toByte()
         }
         // Compute bsums (QK_K/16 int16_t values)
-        val bsumsOff = bOff + 4 + io.github.kotlinmania.llama.ore.QK_K
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        val bsumsOff = bOff + 4 + io.github.kotlinmania.llama.core.QK_K
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             var sum = 0
             for (ii in 0 until 16) {
                 sum += y[qsOff + j * 16 + ii].toInt()
@@ -2156,16 +2156,16 @@ fun quantize_row_q8_K_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: 
         y[bOff + 1] = ((dBits shr 8) and 0xFF).toByte()
         y[bOff + 2] = ((dBits shr 16) and 0xFF).toByte()
         y[bOff + 3] = ((dBits shr 24) and 0xFF).toByte()
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_tq1_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockTQ1_0.SIZE_BYTES
-    val qsSize = (io.github.kotlinmania.llama.ore.QK_K - 4 * io.github.kotlinmania.llama.ore.QK_K / 64) / 5  // 48
-    val qhSize = io.github.kotlinmania.llama.ore.QK_K / 64                     // 4
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockTQ1_0.SIZE_BYTES
+    val qsSize = (io.github.kotlinmania.llama.core.QK_K - 4 * io.github.kotlinmania.llama.core.QK_K / 64) / 5  // 48
+    val qhSize = io.github.kotlinmania.llama.core.QK_K / 64                     // 4
 
     var xIdx = xOff
     for (i in 0 until nb) {
@@ -2175,12 +2175,12 @@ fun quantize_row_tq1_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
         val dOff = bOff + qsSize + qhSize
 
         var amax = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
             amax = maxOf(amax, kotlin.math.abs(x[xIdx + j]))
         }
         val d = amax
         val id = if (d != 0f) 1f / d else 0f
-        io.github.kotlinmania.llama.ore.writeFp16(y, dOff, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, dOff, d)
 
         // 5 elements per byte, along 32 bytes
         var xLocal = xIdx
@@ -2227,15 +2227,15 @@ fun quantize_row_tq1_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
             q = ((q * 256 + 242) / 243)
             y[qhOff + jj] = (q and 0xFF).toByte()
         }
-        xIdx += io.github.kotlinmania.llama.ore.QK_K
+        xIdx += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 fun quantize_row_tq2_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nb = (k / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockTQ2_0.SIZE_BYTES
-    val qsSize = io.github.kotlinmania.llama.ore.QK_K / 4  // 64
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nb = (k / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val blockSize = io.github.kotlinmania.llama.core.BlockTQ2_0.SIZE_BYTES
+    val qsSize = io.github.kotlinmania.llama.core.QK_K / 4  // 64
 
     var xIdx = xOff
     for (i in 0 until nb) {
@@ -2244,12 +2244,12 @@ fun quantize_row_tq2_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
         val dOff = bOff + qsSize
 
         var amax = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
             amax = maxOf(amax, kotlin.math.abs(x[xIdx + j]))
         }
         val d = amax
         val id = if (d != 0f) 1f / d else 0f
-        io.github.kotlinmania.llama.ore.writeFp16(y, dOff, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, dOff, d)
 
         var j = 0
         while (j < qsSize) {
@@ -2268,10 +2268,10 @@ fun quantize_row_tq2_0_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
 }
 
 fun quantize_row_mxfp4_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK_MXFP4
+    val qk = io.github.kotlinmania.llama.core.QK_MXFP4
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockMXFP4.SIZE_BYTES  // 17
+    val blockSize = io.github.kotlinmania.llama.core.BlockMXFP4.SIZE_BYTES  // 17
 
     for (i in 0 until nb) {
         val bOff = yOff + i * blockSize
@@ -2283,26 +2283,26 @@ fun quantize_row_mxfp4_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
             }
         }
         val e: Int = if (amax > 0f) (kotlin.math.floor(kotlin.math.log2(amax.toDouble())).toInt() - 2 + 127) else 0
-        val d = io.github.kotlinmania.llama.ore.GGML_E8M0_TO_FP32_HALF((e and 0xFF).toUByte())
+        val d = io.github.kotlinmania.llama.core.GGML_E8M0_TO_FP32_HALF((e and 0xFF).toUByte())
 
         y[bOff] = (e and 0xFF).toByte()  // block.e
 
         val qsOff = bOff + 1
         for (j in 0 until qk / 2) {
-            val x0 = io.github.kotlinmania.llama.ore.best_index_mxfp4(x[base + j], d)
-            val x1 = io.github.kotlinmania.llama.ore.best_index_mxfp4(x[base + j + qk / 2], d)
+            val x0 = io.github.kotlinmania.llama.core.best_index_mxfp4(x[base + j], d)
+            val x1 = io.github.kotlinmania.llama.core.best_index_mxfp4(x[base + j + qk / 2], d)
             y[qsOff + j] = (x0 or (x1 shl 4)).toByte()
         }
     }
 }
 
 fun quantize_row_nvfp4_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    val qk = io.github.kotlinmania.llama.ore.QK_NVFP4
-    val qkSub = io.github.kotlinmania.llama.ore.QK_NVFP4_SUB
-    val nSub = io.github.kotlinmania.llama.ore.QK_NVFP4 / io.github.kotlinmania.llama.ore.QK_NVFP4_SUB
+    val qk = io.github.kotlinmania.llama.core.QK_NVFP4
+    val qkSub = io.github.kotlinmania.llama.core.QK_NVFP4_SUB
+    val nSub = io.github.kotlinmania.llama.core.QK_NVFP4 / io.github.kotlinmania.llama.core.QK_NVFP4_SUB
     require(k % qk == 0L)
     val nb = (k / qk).toInt()
-    val blockSize = io.github.kotlinmania.llama.ore.BlockNVFP4.SIZE_BYTES  // 36
+    val blockSize = io.github.kotlinmania.llama.core.BlockNVFP4.SIZE_BYTES  // 36
 
     for (i in 0 until nb) {
         val bOff = yOff + i * blockSize
@@ -2314,15 +2314,15 @@ fun quantize_row_nvfp4_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
                     amax = kotlin.math.abs(x[xbOff + j])
                 }
             }
-            val ue = io.github.kotlinmania.llama.ore.ggml_fp32_to_ue4m3(amax / 6f)
+            val ue = io.github.kotlinmania.llama.core.ggml_fp32_to_ue4m3(amax / 6f)
             y[bOff + s] = ue.toByte()  // block.d[s]
-            val d = io.github.kotlinmania.llama.ore.ggml_ue4m3_to_fp32(ue)
+            val d = io.github.kotlinmania.llama.core.ggml_ue4m3_to_fp32(ue)
 
             val qsBase = bOff + nSub + s * (qkSub / 2)
             for (j in 0 until qkSub / 2) {
-                val x0 = io.github.kotlinmania.llama.ore.best_index_mxfp4(x[xbOff + j], d)
+                val x0 = io.github.kotlinmania.llama.core.best_index_mxfp4(x[xbOff + j], d)
                 val x1 =
-                    io.github.kotlinmania.llama.ore.best_index_mxfp4(x[xbOff + j + qkSub / 2], d)
+                    io.github.kotlinmania.llama.core.best_index_mxfp4(x[xbOff + j + qkSub / 2], d)
                 y[qsBase + j] = (x0 or (x1 shl 4)).toByte()
             }
         }
@@ -2338,26 +2338,26 @@ private class IQ2Entry(
     var map: IntArray? = null,
     var neighbours: UShortArray? = null
 )
-private val iq2Data = Array(4) { io.github.kotlinmania.llama.ore.IQ2Entry() }
+private val iq2Data = Array(4) { io.github.kotlinmania.llama.core.IQ2Entry() }
 
 // C line 2757
-private fun iq2DataIndex(type: io.github.kotlinmania.llama.ore.GGMLType): Int {
-    require(type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS || type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_M || type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_S)
+private fun iq2DataIndex(type: io.github.kotlinmania.llama.core.GGMLType): Int {
+    require(type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS || type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XS || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_M || type == io.github.kotlinmania.llama.core.GGMLType.IQ2_S)
     return when (type) {
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS -> 0
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS -> 1
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M -> 2
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS -> 0
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XS -> 1
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M -> 2
         else -> 3 // IQ2_S
     }
 }
 
 // C line 2764
-private fun iq2GridSize(type: io.github.kotlinmania.llama.ore.GGMLType): Int {
-    require(type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS || type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_M || type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_S)
+private fun iq2GridSize(type: io.github.kotlinmania.llama.core.GGMLType): Int {
+    require(type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS || type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XS || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_M || type == io.github.kotlinmania.llama.core.GGMLType.IQ2_S)
     return when (type) {
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS -> 256
-        io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS -> 512
-        io.github.kotlinmania.llama.ore.GGMLType.IQ1_S, io.github.kotlinmania.llama.ore.GGMLType.IQ1_M -> io.github.kotlinmania.llama.ore.NGRID_IQ1S
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS -> 256
+        io.github.kotlinmania.llama.core.GGMLType.IQ2_XS -> 512
+        io.github.kotlinmania.llama.core.GGMLType.IQ1_S, io.github.kotlinmania.llama.core.GGMLType.IQ1_M -> io.github.kotlinmania.llama.core.NGRID_IQ1S
         else -> 1024 // IQ2_S
     }
 }
@@ -2368,7 +2368,7 @@ private class IQ3Entry(
     var map: IntArray? = null,
     var neighbours: UShortArray? = null
 )
-private val iq3Data = Array(2) { io.github.kotlinmania.llama.ore.IQ3Entry() }
+private val iq3Data = Array(2) { io.github.kotlinmania.llama.core.IQ3Entry() }
 
 // C line 3564
 private fun iq3DataIndex(gridSize: Int): Int {
@@ -2401,7 +2401,7 @@ private fun iq2FindBestNeighbour(
         val gv = grid[neighbours[nOff + j].toInt()]
         var d2 = 0f
         for (i in 0 until 8) {
-            val q = io.github.kotlinmania.llama.ore.gridByte(gv, i).toFloat()
+            val q = io.github.kotlinmania.llama.core.gridByte(gv, i).toFloat()
             val diff = scale * q - xval[xvOff + i]
             d2 += weight[wOff + i] * diff * diff
         }
@@ -2411,7 +2411,7 @@ private fun iq2FindBestNeighbour(
     }
     require(gridIndex >= 0)
     val gv = grid[gridIndex]
-    for (i in 0 until 8) L[lOff + i] = ((io.github.kotlinmania.llama.ore.gridByte(gv, i) - 1) / 2).toByte()
+    for (i in 0 until 8) L[lOff + i] = ((io.github.kotlinmania.llama.core.gridByte(gv, i) - 1) / 2).toByte()
     return gridIndex
 }
 
@@ -2432,7 +2432,7 @@ private fun iq3FindBestNeighbour(
         val gv = grid[neighbours[nOff + j].toInt()]
         var d2 = 0f
         for (i in 0 until 4) {
-            val q = io.github.kotlinmania.llama.ore.gridByte(gv, i).toFloat()
+            val q = io.github.kotlinmania.llama.core.gridByte(gv, i).toFloat()
             val diff = scale * q - xval[xvOff + i]
             d2 += weight[wOff + i] * diff * diff
         }
@@ -2442,7 +2442,7 @@ private fun iq3FindBestNeighbour(
     }
     require(gridIndex >= 0)
     val gv = grid[gridIndex]
-    for (i in 0 until 4) L[lOff + i] = ((io.github.kotlinmania.llama.ore.gridByte(gv, i) - 1) / 2).toByte()
+    for (i in 0 until 4) L[lOff + i] = ((io.github.kotlinmania.llama.core.gridByte(gv, i) - 1) / 2).toByte()
     return gridIndex
 }
 
@@ -2464,7 +2464,7 @@ private fun iq1FindBestNeighbour(
         val gv = grid[neighbours[nOff + j].toInt()]
         var sumqx = 0f; var sumq2 = 0f
         for (i in 0 until 8) {
-            val q = (io.github.kotlinmania.llama.ore.gridByte(gv, i) - 3).toFloat() / 2f
+            val q = (io.github.kotlinmania.llama.core.gridByte(gv, i) - 3).toFloat() / 2f
             val w = weight[wOff + i]
             sumqx += w * q * xval[xvOff + i]
             sumq2 += w * q * q
@@ -2480,7 +2480,7 @@ private fun iq1FindBestNeighbour(
             var sumqx = 0f; var sumq2 = 0f
             for (j in 0 until 8) {
                 val w = weight[wOff + j]
-                val q = (io.github.kotlinmania.llama.ore.gridByte(gv, j) - 3).toFloat() / 2f
+                val q = (io.github.kotlinmania.llama.core.gridByte(gv, j) - 3).toFloat() / 2f
                 sumqx += w * q * xval[xvOff + j]
                 sumq2 += w * q * q
             }
@@ -2493,7 +2493,7 @@ private fun iq1FindBestNeighbour(
     require(gridIndex >= 0) { "iq1_find_best_neighbour: did not find grid point" }
     scaleOut[sOff] *= 1.05f
     val gv = grid[gridIndex]
-    for (i in 0 until 8) L[lOff + i] = ((io.github.kotlinmania.llama.ore.gridByte(gv, i) - 1) / 2).toByte()
+    for (i in 0 until 8) L[lOff + i] = ((io.github.kotlinmania.llama.core.gridByte(gv, i) - 1) / 2).toByte()
     return gridIndex
 }
 
@@ -2516,7 +2516,7 @@ private fun iq1FindBestNeighbour2(
         val gv = grid[neighbours[nOff + j].toInt()]
         var d2 = 0f
         for (i in 0 until 8) {
-            val q = xg[(io.github.kotlinmania.llama.ore.gridByte(gv, i) - 1) / 2]
+            val q = xg[(io.github.kotlinmania.llama.core.gridByte(gv, i) - 1) / 2]
             val w = weight[wOff + i]
             val diff = scale * q - xval[xvOff + i]
             d2 += w * diff * diff
@@ -2531,7 +2531,7 @@ private fun iq1FindBestNeighbour2(
             var d2 = 0f
             for (j in 0 until 8) {
                 val w = weight[wOff + j]
-                val q = xg[(io.github.kotlinmania.llama.ore.gridByte(gv, j) - 1) / 2]
+                val q = xg[(io.github.kotlinmania.llama.core.gridByte(gv, j) - 1) / 2]
                 val diff = scale * q - xval[xvOff + j]
                 d2 += w * diff * diff
             }
@@ -2542,15 +2542,15 @@ private fun iq1FindBestNeighbour2(
     }
     require(gridIndex >= 0) { "iq1_find_best_neighbour2: did not find grid point" }
     val gv = grid[gridIndex]
-    for (i in 0 until 8) L[lOff + i] = ((io.github.kotlinmania.llama.ore.gridByte(gv, i) - 1) / 2).toByte()
+    for (i in 0 until 8) L[lOff + i] = ((io.github.kotlinmania.llama.core.gridByte(gv, i) - 1) / 2).toByte()
     return gridIndex
 }
 
 // IQ quantize_row_ref — all require grid tables
 
 fun quantize_row_iq3_xxs_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    io.github.kotlinmania.llama.ore.quantize_row_iq3_xxs_impl(
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    io.github.kotlinmania.llama.core.quantize_row_iq3_xxs_impl(
         256,
         x,
         xOff,
@@ -2580,7 +2580,7 @@ private fun quantize_row_iq4_nl_impl(
     sigma2 *= 2f / superBlockSize
 
     for (j in 0 until superBlockSize / 2) q4[q4Off + j] = 0
-    io.github.kotlinmania.llama.ore.writeFp16(dh, dhOff, 0f)
+    io.github.kotlinmania.llama.core.writeFp16(dh, dhOff, 0f)
 
     var maxScale = 0f; var amaxScale = 0f
     for (ib in 0 until superBlockSize / blockSize) {
@@ -2597,7 +2597,7 @@ private fun quantize_row_iq4_nl_impl(
             val ax = kotlin.math.abs(x[xbOff + j])
             if (ax > amax) { amax = ax; max = x[xbOff + j] }
         }
-        if (amax < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+        if (amax < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
             scales[ib] = 0f
             continue
         }
@@ -2606,7 +2606,7 @@ private fun quantize_row_iq4_nl_impl(
         var sumqx = 0f; var sumq2 = 0f
         for (j in 0 until blockSize) {
             val al = id * x[xbOff + j]
-            val l = io.github.kotlinmania.llama.ore.best_index_int8(16, values, 0, al)
+            val l = io.github.kotlinmania.llama.core.best_index_int8(16, values, 0, al)
             L[lbOff + j] = l.toUByte()
             val q = values[l].toFloat()
             val w = weight[j]
@@ -2620,7 +2620,7 @@ private fun quantize_row_iq4_nl_impl(
             sumqx = 0f; sumq2 = 0f
             for (j in 0 until blockSize) {
                 val al = id * x[xbOff + j]
-                val l = io.github.kotlinmania.llama.ore.best_index_int8(16, values, 0, al)
+                val l = io.github.kotlinmania.llama.core.best_index_int8(16, values, 0, al)
                 val q = values[l].toFloat()
                 val w = weight[j]
                 sumqx += w * q * x[xbOff + j]
@@ -2640,23 +2640,23 @@ private fun quantize_row_iq4_nl_impl(
     if (superBlockSize / blockSize > 1) {
         val nb = superBlockSize / blockSize
         // zero scales_h
-        for (j in 0 until (nb + 7) / 8) io.github.kotlinmania.llama.ore.writeShortLE(
+        for (j in 0 until (nb + 7) / 8) io.github.kotlinmania.llama.core.writeShortLE(
             scalesH,
             shOff + j * 2,
             0
         )
         val d = -maxScale / 32
-        io.github.kotlinmania.llama.ore.writeFp16(dh, dhOff, d)
+        io.github.kotlinmania.llama.core.writeFp16(dh, dhOff, d)
         val id = if (d != 0f) 1f / d else 0f
         for (ib in 0 until superBlockSize / blockSize) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(id * scales[ib])
+            var l = io.github.kotlinmania.llama.core.nearest_int(id * scales[ib])
             l = maxOf(-32, minOf(31, l))
             val dl = d * l
             val idl = if (dl != 0f) 1f / dl else 0f
             val lbOff = ib * blockSize
             val xbOff = xOff + ib * blockSize
             for (j in 0 until blockSize) {
-                L[lbOff + j] = io.github.kotlinmania.llama.ore.best_index_int8(
+                L[lbOff + j] = io.github.kotlinmania.llama.core.best_index_int8(
                     16,
                     values,
                     0,
@@ -2670,19 +2670,19 @@ private fun quantize_row_iq4_nl_impl(
             else scalesL!![slOff + ib / 2] = (scalesL[slOff + ib / 2].toInt() or (lL shl 4)).toByte()
             // scales_h is uint16_t array — use byte-level writes
             val shIdx = shOff + (ib / 8) * 2
-            val curH = io.github.kotlinmania.llama.ore.readShortLE(scalesH, shIdx).toInt() and 0xFFFF
-            io.github.kotlinmania.llama.ore.writeShortLE(
+            val curH = io.github.kotlinmania.llama.core.readShortLE(scalesH, shIdx).toInt() and 0xFFFF
+            io.github.kotlinmania.llama.core.writeShortLE(
                 scalesH,
                 shIdx,
                 (curH or (lH shl (2 * (ib % 8)))).toShort()
             )
         }
     } else {
-        io.github.kotlinmania.llama.ore.writeFp16(dh, dhOff, scales[0])
+        io.github.kotlinmania.llama.core.writeFp16(dh, dhOff, scales[0])
         if (ntry > 0) {
             val id = if (scales[0] != 0f) 1f / scales[0] else 0f
             for (j in 0 until superBlockSize) {
-                L[j] = io.github.kotlinmania.llama.ore.best_index_int8(
+                L[j] = io.github.kotlinmania.llama.core.best_index_int8(
                     16,
                     values,
                     0,
@@ -2700,20 +2700,20 @@ private fun quantize_row_iq4_nl_impl(
 }
 
 fun quantize_row_iq4_nl_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK4_NL == 0L)
-    val nblock = (k / io.github.kotlinmania.llama.ore.QK4_NL).toInt()
+    require(k % io.github.kotlinmania.llama.core.QK4_NL == 0L)
+    val nblock = (k / io.github.kotlinmania.llama.core.QK4_NL).toInt()
     val blockSize = 18 // sizeof(block_iq4_nl) = 2 + QK4_NL/2
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK4_NL)
-    val weight = FloatArray(io.github.kotlinmania.llama.ore.QK4_NL)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK4_NL)
+    val weight = FloatArray(io.github.kotlinmania.llama.core.QK4_NL)
     val scale = FloatArray(1)
     val unusedH = ByteArray(2)
     for (ibl in 0 until nblock) {
         val bOff = yOff + ibl * blockSize
-        io.github.kotlinmania.llama.ore.quantize_row_iq4_nl_impl(
-            io.github.kotlinmania.llama.ore.QK4_NL,
+        io.github.kotlinmania.llama.core.quantize_row_iq4_nl_impl(
+            io.github.kotlinmania.llama.core.QK4_NL,
             32,
             x,
-            xOff + io.github.kotlinmania.llama.ore.QK4_NL * ibl,
+            xOff + io.github.kotlinmania.llama.core.QK4_NL * ibl,
             y,
             bOff,           // dh at block start
             y,
@@ -2725,7 +2725,7 @@ fun quantize_row_iq4_nl_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k
             scale,
             weight,
             L,
-            io.github.kotlinmania.llama.ore.kvalues_iq4nl,
+            io.github.kotlinmania.llama.core.kvalues_iq4nl,
             null,
             0,
             -1
@@ -2734,8 +2734,8 @@ fun quantize_row_iq4_nl_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k
 }
 
 fun quantize_row_iq4_xs_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    io.github.kotlinmania.llama.ore.quantize_iq4_xs(
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    io.github.kotlinmania.llama.core.quantize_iq4_xs(
         x,
         yOff = yOff,
         dst = y,
@@ -2746,13 +2746,13 @@ fun quantize_row_iq4_xs_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k
 }
 
 fun quantize_row_iq3_s_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    io.github.kotlinmania.llama.ore.quantize_iq3_s(x, y, nrows = 1, nPerRow = k, imatrix = null)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    io.github.kotlinmania.llama.core.quantize_iq3_s(x, y, nrows = 1, nPerRow = k, imatrix = null)
 }
 
 fun quantize_row_iq2_s_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k: Long) {
-    require(k % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    io.github.kotlinmania.llama.ore.quantize_iq2_s(x, y, nrows = 1, nPerRow = k, imatrix = null)
+    require(k % io.github.kotlinmania.llama.core.QK_K == 0L)
+    io.github.kotlinmania.llama.core.quantize_iq2_s(x, y, nrows = 1, nPerRow = k, imatrix = null)
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -2761,20 +2761,20 @@ fun quantize_row_iq2_s_ref(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, k:
 
 fun quantize_q1_0(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q1_0_ref(src, 0, dst, 0, nrows * nPerRow)
-        return nrows * io.github.kotlinmania.llama.ore.ggmlRowSize(
-            io.github.kotlinmania.llama.ore.GGMLType.Q1_0,
+        io.github.kotlinmania.llama.core.quantize_row_q1_0_ref(src, 0, dst, 0, nrows * nPerRow)
+        return nrows * io.github.kotlinmania.llama.core.ggmlRowSize(
+            io.github.kotlinmania.llama.core.GGMLType.Q1_0,
             nPerRow
         ).toLong()
     }
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q1_0,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q1_0,
         nPerRow
     ).toLong()
     var srcOff = 0
     var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_q1_0_ref(src, srcOff, dst, dstOff, nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q1_0_ref(src, srcOff, dst, dstOff, nPerRow)
         srcOff += nPerRow.toInt()
         dstOff += rowSize.toInt()
     }
@@ -2787,20 +2787,20 @@ private fun quantize_row_q4_0_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val weight = FloatArray(io.github.kotlinmania.llama.ore.QK4_0)
-    val L = ByteArray(io.github.kotlinmania.llama.ore.QK4_0)
+    val weight = FloatArray(io.github.kotlinmania.llama.core.QK4_0)
+    val L = ByteArray(io.github.kotlinmania.llama.core.QK4_0)
 
     var sumX2 = 0f
     for (j in 0 until nPerRow) sumX2 += x[xOff + j] * x[xOff + j]
     val sigma2 = sumX2 / nPerRow
 
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK4_0
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK4_0
     for (ib in 0 until nb) {
-        val xbOff = xOff + io.github.kotlinmania.llama.ore.QK4_0 * ib
-        val qwbOff = qwOff + io.github.kotlinmania.llama.ore.QK4_0 * ib
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK4_0) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
-        val d = io.github.kotlinmania.llama.ore.make_qx_quants(
-            io.github.kotlinmania.llama.ore.QK4_0,
+        val xbOff = xOff + io.github.kotlinmania.llama.core.QK4_0 * ib
+        val qwbOff = qwOff + io.github.kotlinmania.llama.core.QK4_0 * ib
+        for (j in 0 until io.github.kotlinmania.llama.core.QK4_0) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
+        val d = io.github.kotlinmania.llama.core.make_qx_quants(
+            io.github.kotlinmania.llama.core.QK4_0,
             8,
             x,
             xbOff,
@@ -2811,7 +2811,7 @@ private fun quantize_row_q4_0_impl(
             0
         )
         val bOff = yOff + 18 * ib
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, d)
         for (j in 0 until 16) {
             y[bOff + 2 + j] = ((L[j].toInt() and 0xFF) or ((L[j + 16].toInt() and 0xFF) shl 4)).toByte()
         }
@@ -2821,19 +2821,19 @@ private fun quantize_row_q4_0_impl(
 // C line 2052
 fun quantize_q4_0(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q4_0_ref(src, 0, dst, 0, nrows * nPerRow)
-        return nrows * io.github.kotlinmania.llama.ore.ggmlRowSize(
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_0,
+        io.github.kotlinmania.llama.core.quantize_row_q4_0_ref(src, 0, dst, 0, nrows * nPerRow)
+        return nrows * io.github.kotlinmania.llama.core.ggmlRowSize(
+            io.github.kotlinmania.llama.core.GGMLType.Q4_0,
             nPerRow
         ).toLong()
     }
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_0,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q4_0,
         nPerRow
     ).toLong()
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_q4_0_impl(
+        io.github.kotlinmania.llama.core.quantize_row_q4_0_impl(
             src,
             srcOff,
             dst,
@@ -2854,22 +2854,22 @@ private fun quantize_row_q4_1_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val weight = FloatArray(io.github.kotlinmania.llama.ore.QK4_1)
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK4_1)
-    val Laux = UByteArray(io.github.kotlinmania.llama.ore.QK4_1)
+    val weight = FloatArray(io.github.kotlinmania.llama.core.QK4_1)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK4_1)
+    val Laux = UByteArray(io.github.kotlinmania.llama.core.QK4_1)
 
     var sumX2 = 0f
     for (j in 0 until nPerRow) sumX2 += x[xOff + j] * x[xOff + j]
     val sigma2 = sumX2 / nPerRow
 
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK4_1
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK4_1
     val theMin = FloatArray(1)
     for (ib in 0 until nb) {
-        val xbOff = xOff + io.github.kotlinmania.llama.ore.QK4_1 * ib
-        val qwbOff = qwOff + io.github.kotlinmania.llama.ore.QK4_1 * ib
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK4_1) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
-        val d = io.github.kotlinmania.llama.ore.make_qkx3_quants(
-            io.github.kotlinmania.llama.ore.QK4_1,
+        val xbOff = xOff + io.github.kotlinmania.llama.core.QK4_1 * ib
+        val qwbOff = qwOff + io.github.kotlinmania.llama.core.QK4_1 * ib
+        for (j in 0 until io.github.kotlinmania.llama.core.QK4_1) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
+        val d = io.github.kotlinmania.llama.core.make_qkx3_quants(
+            io.github.kotlinmania.llama.core.QK4_1,
             15,
             x,
             xbOff,
@@ -2887,8 +2887,8 @@ private fun quantize_row_q4_1_impl(
             false
         )
         val bOff = yOff + 20 * ib
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, d)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 2, -theMin[0])
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 2, -theMin[0])
         for (j in 0 until 16) {
             y[bOff + 4 + j] = (L[j].toInt() or (L[j + 16].toInt() shl 4)).toByte()
         }
@@ -2898,19 +2898,19 @@ private fun quantize_row_q4_1_impl(
 // C line 2097
 fun quantize_q4_1(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q4_1_ref(src, 0, dst, 0, nrows * nPerRow)
-        return nrows * io.github.kotlinmania.llama.ore.ggmlRowSize(
-            io.github.kotlinmania.llama.ore.GGMLType.Q4_1,
+        io.github.kotlinmania.llama.core.quantize_row_q4_1_ref(src, 0, dst, 0, nrows * nPerRow)
+        return nrows * io.github.kotlinmania.llama.core.ggmlRowSize(
+            io.github.kotlinmania.llama.core.GGMLType.Q4_1,
             nPerRow
         ).toLong()
     }
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_1,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q4_1,
         nPerRow
     ).toLong()
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_q4_1_impl(
+        io.github.kotlinmania.llama.core.quantize_row_q4_1_impl(
             src,
             srcOff,
             dst,
@@ -2931,20 +2931,20 @@ private fun quantize_row_q5_0_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val weight = FloatArray(io.github.kotlinmania.llama.ore.QK5_0)
-    val L = ByteArray(io.github.kotlinmania.llama.ore.QK5_0)
+    val weight = FloatArray(io.github.kotlinmania.llama.core.QK5_0)
+    val L = ByteArray(io.github.kotlinmania.llama.core.QK5_0)
 
     var sumX2 = 0f
     for (j in 0 until nPerRow) sumX2 += x[xOff + j] * x[xOff + j]
     val sigma2 = sumX2 / nPerRow
 
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK5_0
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK5_0
     for (ib in 0 until nb) {
-        val xbOff = xOff + io.github.kotlinmania.llama.ore.QK5_0 * ib
-        val qwbOff = qwOff + io.github.kotlinmania.llama.ore.QK5_0 * ib
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK5_0) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
-        val d = io.github.kotlinmania.llama.ore.make_qx_quants(
-            io.github.kotlinmania.llama.ore.QK5_0,
+        val xbOff = xOff + io.github.kotlinmania.llama.core.QK5_0 * ib
+        val qwbOff = qwOff + io.github.kotlinmania.llama.core.QK5_0 * ib
+        for (j in 0 until io.github.kotlinmania.llama.core.QK5_0) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
+        val d = io.github.kotlinmania.llama.core.make_qx_quants(
+            io.github.kotlinmania.llama.core.QK5_0,
             16,
             x,
             xbOff,
@@ -2955,7 +2955,7 @@ private fun quantize_row_q5_0_impl(
             0
         )
         val bOff = yOff + 22 * ib
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, d)
 
         var qh = 0
         for (j in 0 until 16) {
@@ -2963,22 +2963,22 @@ private fun quantize_row_q5_0_impl(
             val xi1 = L[j + 16].toInt() and 0xFF
             y[bOff + 6 + j] = ((xi0 and 0x0F) or ((xi1 and 0x0F) shl 4)).toByte()
             qh = qh or (((xi0 and 0x10) shr 4) shl (j + 0))
-            qh = qh or (((xi1 and 0x10) shr 4) shl (j + io.github.kotlinmania.llama.ore.QK5_0 / 2))
+            qh = qh or (((xi1 and 0x10) shr 4) shl (j + io.github.kotlinmania.llama.core.QK5_0 / 2))
         }
-        io.github.kotlinmania.llama.ore.writeIntLE(y, bOff + 2, qh)
+        io.github.kotlinmania.llama.core.writeIntLE(y, bOff + 2, qh)
     }
 }
 
 // C line 2151
 fun quantize_q5_0(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = (nPerRow / io.github.kotlinmania.llama.ore.QK5_0) * io.github.kotlinmania.llama.ore.BlockQ5_0.SIZE_BYTES
+    val rowSize = (nPerRow / io.github.kotlinmania.llama.core.QK5_0) * io.github.kotlinmania.llama.core.BlockQ5_0.SIZE_BYTES
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q5_0_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q5_0_ref(src, 0, dst, 0, nrows * nPerRow)
         return nrows * rowSize
     }
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_q5_0_impl(
+        io.github.kotlinmania.llama.core.quantize_row_q5_0_impl(
             src,
             srcOff,
             dst,
@@ -2999,22 +2999,22 @@ private fun quantize_row_q5_1_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val weight = FloatArray(io.github.kotlinmania.llama.ore.QK5_1)
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK5_1)
-    val Laux = UByteArray(io.github.kotlinmania.llama.ore.QK5_1)
+    val weight = FloatArray(io.github.kotlinmania.llama.core.QK5_1)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK5_1)
+    val Laux = UByteArray(io.github.kotlinmania.llama.core.QK5_1)
 
     var sumX2 = 0f
     for (j in 0 until nPerRow) sumX2 += x[xOff + j] * x[xOff + j]
     val sigma2 = sumX2 / nPerRow
 
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK5_1
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK5_1
     val theMin = FloatArray(1)
     for (ib in 0 until nb) {
-        val xbOff = xOff + io.github.kotlinmania.llama.ore.QK5_1 * ib
-        val qwbOff = qwOff + io.github.kotlinmania.llama.ore.QK5_1 * ib
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK5_1) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
-        val d = io.github.kotlinmania.llama.ore.make_qkx3_quants(
-            io.github.kotlinmania.llama.ore.QK5_1,
+        val xbOff = xOff + io.github.kotlinmania.llama.core.QK5_1 * ib
+        val qwbOff = qwOff + io.github.kotlinmania.llama.core.QK5_1 * ib
+        for (j in 0 until io.github.kotlinmania.llama.core.QK5_1) weight[j] = quantWeights[qwbOff + j] * kotlin.math.sqrt(sigma2 + x[xbOff + j] * x[xbOff + j])
+        val d = io.github.kotlinmania.llama.core.make_qkx3_quants(
+            io.github.kotlinmania.llama.core.QK5_1,
             31,
             x,
             xbOff,
@@ -3032,8 +3032,8 @@ private fun quantize_row_q5_1_impl(
             false
         )
         val bOff = yOff + 24 * ib
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, d)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 2, -theMin[0])
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 2, -theMin[0])
 
         var qh = 0
         for (j in 0 until 16) {
@@ -3041,22 +3041,22 @@ private fun quantize_row_q5_1_impl(
             val xi1 = L[j + 16].toInt()
             y[bOff + 8 + j] = ((xi0 and 0x0F) or ((xi1 and 0x0F) shl 4)).toByte()
             qh = qh or (((xi0 and 0x10) shr 4) shl (j + 0))
-            qh = qh or (((xi1 and 0x10) shr 4) shl (j + io.github.kotlinmania.llama.ore.QK5_0 / 2))
+            qh = qh or (((xi1 and 0x10) shr 4) shl (j + io.github.kotlinmania.llama.core.QK5_0 / 2))
         }
-        io.github.kotlinmania.llama.ore.writeIntLE(y, bOff + 4, qh)
+        io.github.kotlinmania.llama.core.writeIntLE(y, bOff + 4, qh)
     }
 }
 
 // C line 2204
 fun quantize_q5_1(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = (nPerRow / io.github.kotlinmania.llama.ore.QK5_1) * io.github.kotlinmania.llama.ore.BlockQ5_1.SIZE_BYTES
+    val rowSize = (nPerRow / io.github.kotlinmania.llama.core.QK5_1) * io.github.kotlinmania.llama.core.BlockQ5_1.SIZE_BYTES
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q5_1_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q5_1_ref(src, 0, dst, 0, nrows * nPerRow)
         return nrows * rowSize
     }
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_q5_1_impl(
+        io.github.kotlinmania.llama.core.quantize_row_q5_1_impl(
             src,
             srcOff,
             dst,
@@ -3073,11 +3073,11 @@ fun quantize_q5_1(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, i
 
 // C line 2219
 fun quantize_q8_0(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q8_0,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q8_0,
         nPerRow
     ).toLong()
-    io.github.kotlinmania.llama.ore.quantize_row_q8_0_ref(src, 0, dst, 0, nrows * nPerRow)
+    io.github.kotlinmania.llama.core.quantize_row_q8_0_ref(src, 0, dst, 0, nrows * nPerRow)
     return nrows * rowSize
 }
 
@@ -3087,28 +3087,28 @@ private fun quantize_row_q2_K_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK_K
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK_K
 
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val Laux = UByteArray(16)
-    val mins = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
-    val sw = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val mins = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
+    val sw = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
     val weight = FloatArray(16)
-    val Ls = UByteArray(io.github.kotlinmania.llama.ore.QK_K / 16)
-    val Lm = UByteArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val Ls = UByteArray(io.github.kotlinmania.llama.core.QK_K / 16)
+    val Lm = UByteArray(io.github.kotlinmania.llama.core.QK_K / 16)
 
     var xCur = xOff
     for (i in 0 until nb) {
         for (idx in sw.indices) sw[idx] = 0f
         var sumx2 = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xCur + j] * x[xCur + j]
-        val sigma2 = sumx2 / io.github.kotlinmania.llama.ore.QK_K
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val qwBase = qwOff + io.github.kotlinmania.llama.ore.QK_K * i + 16 * j
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xCur + j] * x[xCur + j]
+        val sigma2 = sumx2 / io.github.kotlinmania.llama.core.QK_K
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val qwBase = qwOff + io.github.kotlinmania.llama.core.QK_K * i + 16 * j
             for (l in 0 until 16) weight[l] = quantWeights[qwBase + l] * kotlin.math.sqrt(sigma2 + x[xCur + 16 * j + l] * x[xCur + 16 * j + l])
-            for (l in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) sw[j] += weight[l]
-            scales[j] = io.github.kotlinmania.llama.ore.make_qkx3_quants(
+            for (l in 0 until io.github.kotlinmania.llama.core.QK_K / 16) sw[j] += weight[l]
+            scales[j] = io.github.kotlinmania.llama.core.make_qkx3_quants(
                 16,
                 3,
                 x,
@@ -3128,8 +3128,8 @@ private fun quantize_row_q2_K_impl(
             )
         }
 
-        var dm = io.github.kotlinmania.llama.ore.make_qp_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 16,
+        var dm = io.github.kotlinmania.llama.core.make_qp_quants(
+            io.github.kotlinmania.llama.core.QK_K / 16,
             15,
             scales,
             0,
@@ -3138,8 +3138,8 @@ private fun quantize_row_q2_K_impl(
             sw,
             0
         )
-        var mm = io.github.kotlinmania.llama.ore.make_qp_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 16,
+        var mm = io.github.kotlinmania.llama.core.make_qp_quants(
+            io.github.kotlinmania.llama.core.QK_K / 16,
             15,
             mins,
             0,
@@ -3150,49 +3150,49 @@ private fun quantize_row_q2_K_impl(
         )
 
         val bOff = yOff + 84 * i
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 80, dm)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 82, mm)
-        dm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 80)
-        mm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 82)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 80, dm)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 82, mm)
+        dm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 80)
+        mm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 82)
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             y[bOff + j] = (Ls[j].toInt() or (Lm[j].toInt() shl 4)).toByte()
         }
 
         // requantize
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val d = dm * ((y[bOff + j].toInt() and 0xFF) and 0xF)
             if (d == 0f) continue
             val m = mm * ((y[bOff + j].toInt() and 0xFF) shr 4)
             for (ii in 0 until 16) {
-                var l = io.github.kotlinmania.llama.ore.nearest_int((x[xCur + 16 * j + ii] + m) / d)
+                var l = io.github.kotlinmania.llama.core.nearest_int((x[xCur + 16 * j + ii] + m) / d)
                 l = maxOf(0, minOf(3, l))
                 L[16 * j + ii] = l.toUByte()
             }
         }
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 y[bOff + 16 + j / 4 + l] = (L[j + l].toInt() or (L[j + l + 32].toInt() shl 2) or (L[j + l + 64].toInt() shl 4) or (L[j + l + 96].toInt() shl 6)).toByte()
             }
         }
 
-        xCur += io.github.kotlinmania.llama.ore.QK_K
+        xCur += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 // C line 1149
 fun quantize_q2_K(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q2_K,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q2_K,
         nPerRow
     ).toLong()
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q2_K_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q2_K_ref(src, 0, dst, 0, nrows * nPerRow)
     } else {
         var srcOff = 0; var dstOff = 0
         for (row in 0 until nrows) {
-            io.github.kotlinmania.llama.ore.quantize_row_q2_K_impl(
+            io.github.kotlinmania.llama.core.quantize_row_q2_K_impl(
                 src,
                 srcOff,
                 dst,
@@ -3214,27 +3214,27 @@ private fun quantize_row_q3_K_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK_K
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK_K
 
-    val L = ByteArray(io.github.kotlinmania.llama.ore.QK_K)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val L = ByteArray(io.github.kotlinmania.llama.core.QK_K)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
     val weight = FloatArray(16)
-    val sw = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
-    val Ls = ByteArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val sw = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
+    val Ls = ByteArray(io.github.kotlinmania.llama.core.QK_K / 16)
 
     var xCur = xOff
     for (i in 0 until nb) {
         var sumx2 = 0f
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xCur + j] * x[xCur + j]
-        val sigma2 = 2 * sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xCur + j] * x[xCur + j]
+        val sigma2 = 2 * sumx2 / io.github.kotlinmania.llama.core.QK_K
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val qwBase = qwOff + io.github.kotlinmania.llama.ore.QK_K * i + 16 * j
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val qwBase = qwOff + io.github.kotlinmania.llama.core.QK_K * i + 16 * j
             for (l in 0 until 16) weight[l] = quantWeights[qwBase + l] * kotlin.math.sqrt(sigma2 + x[xCur + 16 * j + l] * x[xCur + 16 * j + l])
             var sumw = 0f
             for (l in 0 until 16) sumw += weight[l]
             sw[j] = sumw
-            scales[j] = io.github.kotlinmania.llama.ore.make_qx_quants(
+            scales[j] = io.github.kotlinmania.llama.core.make_qx_quants(
                 16,
                 4,
                 x,
@@ -3251,8 +3251,8 @@ private fun quantize_row_q3_K_impl(
         val scOff = bOff + 96
         for (idx in 0 until 12) y[scOff + idx] = 0
 
-        val dBlock = io.github.kotlinmania.llama.ore.make_qx_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 16,
+        val dBlock = io.github.kotlinmania.llama.core.make_qx_quants(
+            io.github.kotlinmania.llama.core.QK_K / 16,
             32,
             scales,
             0,
@@ -3262,7 +3262,7 @@ private fun quantize_row_q3_K_impl(
             sw,
             0
         )
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val l = Ls[j].toInt() and 0xFF
             if (j < 8) {
                 y[scOff + j] = ((y[scOff + j].toInt() and 0xFF) or (l and 0xF)).toByte()
@@ -3272,16 +3272,16 @@ private fun quantize_row_q3_K_impl(
             val lh = l shr 4
             y[scOff + j % 4 + 8] = ((y[scOff + j % 4 + 8].toInt() and 0xFF) or (lh shl (2 * (j / 4)))).toByte()
         }
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 108, dBlock)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 108, dBlock)
 
         // requantize
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             var sc = if (j < 8) (y[scOff + j].toInt() and 0xFF) and 0xF else (y[scOff + j - 8].toInt() and 0xFF) shr 4
             sc = (sc or ((((y[scOff + 8 + j % 4].toInt() and 0xFF) shr (2 * (j / 4))) and 3) shl 4)) - 32
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 108) * sc
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 108) * sc
             if (d == 0f) continue
             for (ii in 0 until 16) {
-                var l = io.github.kotlinmania.llama.ore.nearest_int(x[xCur + 16 * j + ii] / d)
+                var l = io.github.kotlinmania.llama.core.nearest_int(x[xCur + 16 * j + ii] / d)
                 l = maxOf(-4, minOf(3, l))
                 L[16 * j + ii] = (l + 4).toByte()
             }
@@ -3289,42 +3289,42 @@ private fun quantize_row_q3_K_impl(
 
         // hmask
         val hmOff = bOff + 0
-        for (idx in 0 until io.github.kotlinmania.llama.ore.QK_K / 8) y[hmOff + idx] = 0
+        for (idx in 0 until io.github.kotlinmania.llama.core.QK_K / 8) y[hmOff + idx] = 0
         var m = 0
         var hm = 1
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K) {
             if ((L[j].toInt() and 0xFF) > 3) {
                 y[hmOff + m] = ((y[hmOff + m].toInt() and 0xFF) or hm).toByte()
                 L[j] = ((L[j].toInt() and 0xFF) - 4).toByte()
             }
             m++
-            if (m == io.github.kotlinmania.llama.ore.QK_K / 8) { m = 0; hm = hm shl 1 }
+            if (m == io.github.kotlinmania.llama.core.QK_K / 8) { m = 0; hm = hm shl 1 }
         }
 
         // pack qs
         val qsOff = bOff + 32
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 y[qsOff + j / 4 + l] = ((L[j + l].toInt() and 0xFF) or ((L[j + l + 32].toInt() and 0xFF) shl 2) or ((L[j + l + 64].toInt() and 0xFF) shl 4) or ((L[j + l + 96].toInt() and 0xFF) shl 6)).toByte()
             }
         }
 
-        xCur += io.github.kotlinmania.llama.ore.QK_K
+        xCur += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 // C line 1377
 fun quantize_q3_K(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q3_K,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q3_K,
         nPerRow
     ).toLong()
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q3_K_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q3_K_ref(src, 0, dst, 0, nrows * nPerRow)
     } else {
         var srcOff = 0; var dstOff = 0
         for (row in 0 until nrows) {
-            io.github.kotlinmania.llama.ore.quantize_row_q3_K_impl(
+            io.github.kotlinmania.llama.core.quantize_row_q3_K_impl(
                 src,
                 srcOff,
                 dst,
@@ -3346,31 +3346,31 @@ private fun quantize_row_q4_K_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK_K
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK_K
 
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val Laux = UByteArray(32)
-    val Ls = UByteArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val Lm = UByteArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val Ls = UByteArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val Lm = UByteArray(io.github.kotlinmania.llama.core.QK_K / 32)
     val weights = FloatArray(32)
-    val sw = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val mins = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val sw = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val mins = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
 
     var xCur = xOff
     for (i in 0 until nb) {
         var sumX2 = 0f
-        for (l in 0 until io.github.kotlinmania.llama.ore.QK_K) sumX2 += x[xCur + l] * x[xCur + l]
-        val sigma2 = 2 * sumX2 / io.github.kotlinmania.llama.ore.QK_K
+        for (l in 0 until io.github.kotlinmania.llama.core.QK_K) sumX2 += x[xCur + l] * x[xCur + l]
+        val sigma2 = 2 * sumX2 / io.github.kotlinmania.llama.core.QK_K
         val avX = kotlin.math.sqrt(sigma2)
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val qwBase = qwOff + io.github.kotlinmania.llama.ore.QK_K * i + 32 * j
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val qwBase = qwOff + io.github.kotlinmania.llama.core.QK_K * i + 32 * j
             for (l in 0 until 32) weights[l] = quantWeights[qwBase + l] * kotlin.math.sqrt(sigma2 + x[xCur + 32 * j + l] * x[xCur + 32 * j + l])
             var sumw = 0f
             for (l in 0 until 32) sumw += weights[l]
             sw[j] = sumw
-            scales[j] = io.github.kotlinmania.llama.ore.make_qkx3_quants(
+            scales[j] = io.github.kotlinmania.llama.core.make_qkx3_quants(
                 32,
                 15,
                 x,
@@ -3390,8 +3390,8 @@ private fun quantize_row_q4_K_impl(
             )
         }
 
-        val dBlock = io.github.kotlinmania.llama.ore.make_qp_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 32,
+        val dBlock = io.github.kotlinmania.llama.core.make_qp_quants(
+            io.github.kotlinmania.llama.core.QK_K / 32,
             63,
             scales,
             0,
@@ -3400,8 +3400,8 @@ private fun quantize_row_q4_K_impl(
             sw,
             0
         )
-        val mBlock = io.github.kotlinmania.llama.ore.make_qp_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 32,
+        val mBlock = io.github.kotlinmania.llama.core.make_qp_quants(
+            io.github.kotlinmania.llama.core.QK_K / 32,
             63,
             mins,
             0,
@@ -3413,7 +3413,7 @@ private fun quantize_row_q4_K_impl(
 
         val bOff = yOff + 144 * i
         val scOff = bOff + 4
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val ls = Ls[j].toInt()
             val lm = Lm[j].toInt()
             if (j < 4) {
@@ -3425,18 +3425,18 @@ private fun quantize_row_q4_K_impl(
                 y[scOff + j - 0] = ((y[scOff + j - 0].toInt() and 0xFF) or ((lm shr 4) shl 6)).toByte()
             }
         }
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, dBlock)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 2, mBlock)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, dBlock)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 2, mBlock)
 
         // requantize
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val sm = io.github.kotlinmania.llama.ore.get_scale_min_k4(j, y, scOff)
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 0) * sm.d
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val sm = io.github.kotlinmania.llama.core.get_scale_min_k4(j, y, scOff)
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 0) * sm.d
             if (d == 0f) continue
-            val dm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 2) * sm.m
+            val dm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 2) * sm.m
             for (ii in 0 until 32) {
                 var l =
-                    io.github.kotlinmania.llama.ore.nearest_int((x[xCur + 32 * j + ii] + dm) / d)
+                    io.github.kotlinmania.llama.core.nearest_int((x[xCur + 32 * j + ii] + dm) / d)
                 l = maxOf(0, minOf(15, l))
                 L[32 * j + ii] = l.toUByte()
             }
@@ -3444,27 +3444,27 @@ private fun quantize_row_q4_K_impl(
 
         // pack qs
         var qOff = bOff + 16
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
             for (l in 0 until 32) y[qOff + l] = (L[j + l].toInt() or (L[j + l + 32].toInt() shl 4)).toByte()
             qOff += 32
         }
 
-        xCur += io.github.kotlinmania.llama.ore.QK_K
+        xCur += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 // C line 1564
 fun quantize_q4_K(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q4_K,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q4_K,
         nPerRow
     ).toLong()
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q4_K_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q4_K_ref(src, 0, dst, 0, nrows * nPerRow)
     } else {
         var srcOff = 0; var dstOff = 0
         for (row in 0 until nrows) {
-            io.github.kotlinmania.llama.ore.quantize_row_q4_K_impl(
+            io.github.kotlinmania.llama.core.quantize_row_q4_K_impl(
                 src,
                 srcOff,
                 dst,
@@ -3486,31 +3486,31 @@ private fun quantize_row_q5_K_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK_K
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK_K
 
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val Laux = UByteArray(32)
-    val Ls = UByteArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val Lm = UByteArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val mins = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
-    val sw = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val Ls = UByteArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val Lm = UByteArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val mins = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
+    val sw = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
     val weights = FloatArray(32)
 
     var xCur = xOff
     for (i in 0 until nb) {
         var sumX2 = 0f
-        for (l in 0 until io.github.kotlinmania.llama.ore.QK_K) sumX2 += x[xCur + l] * x[xCur + l]
-        val sigma2 = 2 * sumX2 / io.github.kotlinmania.llama.ore.QK_K
+        for (l in 0 until io.github.kotlinmania.llama.core.QK_K) sumX2 += x[xCur + l] * x[xCur + l]
+        val sigma2 = 2 * sumX2 / io.github.kotlinmania.llama.core.QK_K
         val avX = kotlin.math.sqrt(sigma2)
 
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val qwBase = qwOff + io.github.kotlinmania.llama.ore.QK_K * i + 32 * j
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val qwBase = qwOff + io.github.kotlinmania.llama.core.QK_K * i + 32 * j
             for (l in 0 until 32) weights[l] = quantWeights[qwBase + l] * kotlin.math.sqrt(sigma2 + x[xCur + 32 * j + l] * x[xCur + 32 * j + l])
             var sumw = 0f
             for (l in 0 until 32) sumw += weights[l]
             sw[j] = sumw
-            scales[j] = io.github.kotlinmania.llama.ore.make_qkx3_quants(
+            scales[j] = io.github.kotlinmania.llama.core.make_qkx3_quants(
                 32,
                 31,
                 x,
@@ -3530,8 +3530,8 @@ private fun quantize_row_q5_K_impl(
             )
         }
 
-        val dBlock = io.github.kotlinmania.llama.ore.make_qp_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 32,
+        val dBlock = io.github.kotlinmania.llama.core.make_qp_quants(
+            io.github.kotlinmania.llama.core.QK_K / 32,
             63,
             scales,
             0,
@@ -3540,8 +3540,8 @@ private fun quantize_row_q5_K_impl(
             sw,
             0
         )
-        val mBlock = io.github.kotlinmania.llama.ore.make_qp_quants(
-            io.github.kotlinmania.llama.ore.QK_K / 32,
+        val mBlock = io.github.kotlinmania.llama.core.make_qp_quants(
+            io.github.kotlinmania.llama.core.QK_K / 32,
             63,
             mins,
             0,
@@ -3553,7 +3553,7 @@ private fun quantize_row_q5_K_impl(
 
         val bOff = yOff + 176 * i
         val scOff = bOff + 4
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             var ls = minOf(63, Ls[j].toInt())
             var lm = minOf(63, Lm[j].toInt())
             if (j < 4) {
@@ -3565,18 +3565,18 @@ private fun quantize_row_q5_K_impl(
                 y[scOff + j - 0] = ((y[scOff + j - 0].toInt() and 0xFF) or ((lm shr 4) shl 6)).toByte()
             }
         }
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 0, dBlock)
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 2, mBlock)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 0, dBlock)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 2, mBlock)
 
         // requantize
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            val sm = io.github.kotlinmania.llama.ore.get_scale_min_k4(j, y, scOff)
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 0) * sm.d
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            val sm = io.github.kotlinmania.llama.core.get_scale_min_k4(j, y, scOff)
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 0) * sm.d
             if (d == 0f) continue
-            val dm = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 2) * sm.m
+            val dm = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 2) * sm.m
             for (ii in 0 until 32) {
                 var l =
-                    io.github.kotlinmania.llama.ore.nearest_int((x[xCur + 32 * j + ii] + dm) / d)
+                    io.github.kotlinmania.llama.core.nearest_int((x[xCur + 32 * j + ii] + dm) / d)
                 l = maxOf(0, minOf(31, l))
                 L[32 * j + ii] = l.toUByte()
             }
@@ -3585,12 +3585,12 @@ private fun quantize_row_q5_K_impl(
         // pack qh and ql
         val qhOff = bOff + 16
         val qlOff = bOff + 48
-        for (idx in 0 until io.github.kotlinmania.llama.ore.QK_K / 8) y[qhOff + idx] = 0
+        for (idx in 0 until io.github.kotlinmania.llama.core.QK_K / 8) y[qhOff + idx] = 0
 
         var m1 = 1
         var m2 = 2
         var qlCur = qlOff
-        for (n in 0 until io.github.kotlinmania.llama.ore.QK_K step 64) {
+        for (n in 0 until io.github.kotlinmania.llama.core.QK_K step 64) {
             for (j in 0 until 32) {
                 var l1 = L[n + j].toInt()
                 if (l1 > 15) {
@@ -3606,22 +3606,22 @@ private fun quantize_row_q5_K_impl(
             qlCur += 32
         }
 
-        xCur += io.github.kotlinmania.llama.ore.QK_K
+        xCur += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 // C line 1789
 fun quantize_q5_K(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q5_K,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q5_K,
         nPerRow
     ).toLong()
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q5_K_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q5_K_ref(src, 0, dst, 0, nrows * nPerRow)
     } else {
         var srcOff = 0; var dstOff = 0
         for (row in 0 until nrows) {
-            io.github.kotlinmania.llama.ore.quantize_row_q5_K_impl(
+            io.github.kotlinmania.llama.core.quantize_row_q5_K_impl(
                 src,
                 srcOff,
                 dst,
@@ -3643,20 +3643,20 @@ private fun quantize_row_q6_K_impl(
     x: FloatArray, xOff: Int, y: ByteArray, yOff: Int,
     nPerRow: Int, quantWeights: FloatArray, qwOff: Int
 ) {
-    val nb = nPerRow / io.github.kotlinmania.llama.ore.QK_K
+    val nb = nPerRow / io.github.kotlinmania.llama.core.QK_K
 
-    val L = ByteArray(io.github.kotlinmania.llama.ore.QK_K)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val L = ByteArray(io.github.kotlinmania.llama.core.QK_K)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
 
     var xCur = xOff
     for (i in 0 until nb) {
         var maxScale = 0f
         var maxAbsScale = 0f
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val scale: Float
-            val qwBase = qwOff + io.github.kotlinmania.llama.ore.QK_K * i + 16 * ib
-            scale = io.github.kotlinmania.llama.ore.make_qx_quants(
+            val qwBase = qwOff + io.github.kotlinmania.llama.core.QK_K * i + 16 * ib
+            scale = io.github.kotlinmania.llama.core.make_qx_quants(
                 16,
                 32,
                 x,
@@ -3676,27 +3676,27 @@ private fun quantize_row_q6_K_impl(
         }
 
         val bOff = yOff + 210 * i
-        if (maxAbsScale < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+        if (maxAbsScale < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
             for (idx in 0 until 210) y[bOff + idx] = 0
-            io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 208, 0f)
-            xCur += io.github.kotlinmania.llama.ore.QK_K
+            io.github.kotlinmania.llama.core.writeFp16(y, bOff + 208, 0f)
+            xCur += io.github.kotlinmania.llama.core.QK_K
             continue
         }
 
         val iscale = -128f / maxScale
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff + 208, 1f / iscale)
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff + 208, 1f / iscale)
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             y[bOff + 192 + ib] = minOf(127,
-                io.github.kotlinmania.llama.ore.nearest_int(iscale * scales[ib])
+                io.github.kotlinmania.llama.core.nearest_int(iscale * scales[ib])
             ).toByte()
         }
 
         // requantize
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            val d = io.github.kotlinmania.llama.ore.fp16ToF32(y, bOff + 208) * y[bOff + 192 + j].toInt()
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            val d = io.github.kotlinmania.llama.core.fp16ToF32(y, bOff + 208) * y[bOff + 192 + j].toInt()
             if (d == 0f) continue
             for (ii in 0 until 16) {
-                var l = io.github.kotlinmania.llama.ore.nearest_int(x[xCur + 16 * j + ii] / d)
+                var l = io.github.kotlinmania.llama.core.nearest_int(x[xCur + 16 * j + ii] / d)
                 l = maxOf(-32, minOf(31, l))
                 L[16 * j + ii] = (l + 32).toByte()
             }
@@ -3705,7 +3705,7 @@ private fun quantize_row_q6_K_impl(
         // pack ql and qh
         var qlOff = bOff + 0
         var qhOff = bOff + 128
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 val q1 = (L[j + l + 0].toInt() and 0xFF) and 0xF
                 val q2 = (L[j + l + 32].toInt() and 0xFF) and 0xF
@@ -3719,22 +3719,22 @@ private fun quantize_row_q6_K_impl(
             qhOff += 32
         }
 
-        xCur += io.github.kotlinmania.llama.ore.QK_K
+        xCur += io.github.kotlinmania.llama.core.QK_K
     }
 }
 
 // C line 1992
 fun quantize_q6_K(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = io.github.kotlinmania.llama.ore.ggmlRowSize(
-        io.github.kotlinmania.llama.ore.GGMLType.Q6_K,
+    val rowSize = io.github.kotlinmania.llama.core.ggmlRowSize(
+        io.github.kotlinmania.llama.core.GGMLType.Q6_K,
         nPerRow
     ).toLong()
     if (imatrix == null) {
-        io.github.kotlinmania.llama.ore.quantize_row_q6_K_ref(src, 0, dst, 0, nrows * nPerRow)
+        io.github.kotlinmania.llama.core.quantize_row_q6_K_ref(src, 0, dst, 0, nrows * nPerRow)
     } else {
         var srcOff = 0; var dstOff = 0
         for (row in 0 until nrows) {
-            io.github.kotlinmania.llama.ore.quantize_row_q6_K_impl(
+            io.github.kotlinmania.llama.core.quantize_row_q6_K_impl(
                 src,
                 srcOff,
                 dst,
@@ -3752,71 +3752,71 @@ fun quantize_q6_K(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, i
 
 // C line 2338
 fun quantize_tq1_0(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = (nPerRow / io.github.kotlinmania.llama.ore.QK_K) * io.github.kotlinmania.llama.ore.BlockTQ1_0.SIZE_BYTES
-    io.github.kotlinmania.llama.ore.quantize_row_tq1_0_ref(src, 0, dst, 0, nrows * nPerRow)
+    val rowSize = (nPerRow / io.github.kotlinmania.llama.core.QK_K) * io.github.kotlinmania.llama.core.BlockTQ1_0.SIZE_BYTES
+    io.github.kotlinmania.llama.core.quantize_row_tq1_0_ref(src, 0, dst, 0, nrows * nPerRow)
     return nrows * rowSize
 }
 
 // C line 2345
 fun quantize_tq2_0(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    val rowSize = (nPerRow / io.github.kotlinmania.llama.ore.QK_K) * io.github.kotlinmania.llama.ore.BlockTQ2_0.SIZE_BYTES
-    io.github.kotlinmania.llama.ore.quantize_row_tq2_0_ref(src, 0, dst, 0, nrows * nPerRow)
+    val rowSize = (nPerRow / io.github.kotlinmania.llama.core.QK_K) * io.github.kotlinmania.llama.core.BlockTQ2_0.SIZE_BYTES
+    io.github.kotlinmania.llama.core.quantize_row_tq2_0_ref(src, 0, dst, 0, nrows * nPerRow)
     return nrows * rowSize
 }
 
 // C line 2226
 fun quantize_mxfp4(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    io.github.kotlinmania.llama.ore.quantize_row_mxfp4_ref(src, 0, dst, 0, nrows * nPerRow)
-    val rowSize = (nPerRow / io.github.kotlinmania.llama.ore.QK_MXFP4) * io.github.kotlinmania.llama.ore.BlockMXFP4.SIZE_BYTES
+    io.github.kotlinmania.llama.core.quantize_row_mxfp4_ref(src, 0, dst, 0, nrows * nPerRow)
+    val rowSize = (nPerRow / io.github.kotlinmania.llama.core.QK_MXFP4) * io.github.kotlinmania.llama.core.BlockMXFP4.SIZE_BYTES
     return nrows * rowSize
 }
 
 // C line 2232
 fun quantize_nvfp4(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    io.github.kotlinmania.llama.ore.quantize_row_nvfp4_ref(src, 0, dst, 0, nrows * nPerRow)
-    val rowSize = (nPerRow / io.github.kotlinmania.llama.ore.QK_NVFP4) * io.github.kotlinmania.llama.ore.BlockNVFP4.SIZE_BYTES
+    io.github.kotlinmania.llama.core.quantize_row_nvfp4_ref(src, 0, dst, 0, nrows * nPerRow)
+    val rowSize = (nPerRow / io.github.kotlinmania.llama.core.QK_NVFP4) * io.github.kotlinmania.llama.core.BlockNVFP4.SIZE_BYTES
     return nrows * rowSize
 }
 
 // C line 3167: quantize_row_iq2_xxs_impl
 private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, n: Int, quantWeights: FloatArray?) {
     val gindex =
-        io.github.kotlinmania.llama.ore.iq2DataIndex(io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS)
-    val kgridQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].grid!!
-    val kmapQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].map!!
-    val kneighborsQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours!!
+        io.github.kotlinmania.llama.core.iq2DataIndex(io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS)
+    val kgridQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].grid!!
+    val kmapQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].map!!
+    val kneighborsQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours!!
     require(quantWeights != null) { "missing quantization weights" }
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
     val kMaxQ = 3
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ2XXS.SIZE_BYTES
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ2XXS.SIZE_BYTES
 
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
     val weight = FloatArray(32)
     val xval = FloatArray(32)
     val L = ByteArray(32)
     val Laux = ByteArray(32)
     val waux = FloatArray(32)
     val blockSigns = IntArray(4)
-    val q2 = IntArray(2 * (io.github.kotlinmania.llama.ore.QK_K / 32))
+    val q2 = IntArray(2 * (io.github.kotlinmania.llama.core.QK_K / 32))
 
     for (ibl in 0 until nbl) {
         val bOff = yOff + ibl * blockSize
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, 0f)
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 4) y[bOff + 2 + i] = 0
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, 0f)
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 4) y[bOff + 2 + i] = 0
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = sumx2 / io.github.kotlinmania.llama.core.QK_K
 
         q2.fill(0)
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val xbOff = xblOff + 32 * ib
-            val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + 32 * ib
+            val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + 32 * ib
             for (i in 0 until 32) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             for (i in 0 until 32) waux[i] = kotlin.math.sqrt(weight[i])
             for (k in 0 until 4) {
@@ -3839,11 +3839,11 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
             }
             var max = xval[0]
             for (i in 1 until 32) max = maxOf(max, xval[i])
-            if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+            if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
                 scales[ib] = 0f; L.fill(0, 0, 32); continue
             }
             val Lp = UByteArray(32)
-            var scale = io.github.kotlinmania.llama.ore.make_qp_quants(
+            var scale = io.github.kotlinmania.llama.core.make_qp_quants(
                 32,
                 kMaxQ + 1,
                 xval,
@@ -3863,7 +3863,7 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
                 for (k in 0 until 4) {
                     for (i in 0 until 8) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
                         Laux[8 * k + i] = maxOf(0, minOf(kMaxQ - 1, l)).toByte()
                     }
                     var u = 0
@@ -3871,7 +3871,7 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
                     var gridIdx = kmapQ2xs[u]
                     if (gridIdx < 0) {
                         val nOff = -kmapQ2xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq2FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq2FindBestNeighbour(
                             kneighborsQ2xs,
                             nOff,
                             kgridQ2xs,
@@ -3901,14 +3901,14 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
                     var u = 0
                     for (i in 0 until 8) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
                         l = maxOf(0, minOf(kMaxQ - 1, l))
                         u = u or (l shl (2 * i))
                     }
                     var gridIdx = kmapQ2xs[u]
                     if (gridIdx < 0) {
                         val nOff = -kmapQ2xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq2FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq2FindBestNeighbour(
                             kneighborsQ2xs,
                             nOff,
                             kgridQ2xs,
@@ -3922,7 +3922,7 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
                         )
                     }
                     val gv = kgridQ2xs[gridIdx]
-                    for (i in 0 until 8) L[8 * k + i] = ((io.github.kotlinmania.llama.ore.gridByte(
+                    for (i in 0 until 8) L[8 * k + i] = ((io.github.kotlinmania.llama.core.gridByte(
                         gv,
                         i
                     ) - 1) / 2).toByte()
@@ -3952,20 +3952,20 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
         }
 
         if (maxScale == 0f) {
-            for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 4) y[bOff + 2 + i] = 0
+            for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 4) y[bOff + 2 + i] = 0
             continue
         }
 
         val d = maxScale / 31f
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, d)
         val id = 1f / d
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            var l = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib] - 1))
             l = maxOf(0, minOf(15, l))
             q2[2 * ib + 1] = q2[2 * ib + 1] or (l shl 28)
         }
         // copy q2 to qs as bytes
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 32 * 2) io.github.kotlinmania.llama.ore.writeIntLE(
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 32 * 2) io.github.kotlinmania.llama.core.writeIntLE(
             y,
             bOff + 2 + i * 4,
             q2[i]
@@ -3976,18 +3976,18 @@ private fun quantize_row_iq2_xxs_impl(x: FloatArray, xOff: Int, y: ByteArray, yO
 // C line 3345: quantize_row_iq2_xs_impl
 private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, n: Int, quantWeights: FloatArray?) {
     val gindex =
-        io.github.kotlinmania.llama.ore.iq2DataIndex(io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS)
-    val kgridQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].grid!!
-    val kmapQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].map!!
-    val kneighborsQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours!!
+        io.github.kotlinmania.llama.core.iq2DataIndex(io.github.kotlinmania.llama.core.GGMLType.IQ2_XS)
+    val kgridQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].grid!!
+    val kmapQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].map!!
+    val kneighborsQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours!!
     require(quantWeights != null) { "missing quantization weights" }
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
     val kMaxQ = 3
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ2XS.SIZE_BYTES
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ2XS.SIZE_BYTES
 
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
     val weight = FloatArray(16)
     val xval = FloatArray(16)
     val L = ByteArray(16)
@@ -3996,23 +3996,23 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
     val isOnGrid = BooleanArray(2)
     val isOnGridAux = BooleanArray(2)
     val blockSigns = IntArray(2)
-    val q2 = ShortArray(2 * (io.github.kotlinmania.llama.ore.QK_K / 16))
+    val q2 = ShortArray(2 * (io.github.kotlinmania.llama.core.QK_K / 16))
 
     for (ibl in 0 until nbl) {
         val bOff = yOff + ibl * blockSize
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, 0f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, 0f)
         q2.fill(0)
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) y[bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + i] = 0 // scales
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 32) y[bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4 + i] = 0 // scales
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = sumx2 / io.github.kotlinmania.llama.core.QK_K
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val xbOff = xblOff + 16 * ib
-            val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + 16 * ib
+            val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + 16 * ib
             for (i in 0 until 16) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             for (i in 0 until 16) waux[i] = kotlin.math.sqrt(weight[i])
             for (k in 0 until 2) {
@@ -4035,7 +4035,7 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
             var max = xval[0]
             for (i in 1 until 16) max = maxOf(max, xval[i])
             L.fill(0, 0, 16)
-            if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) { scales[ib] = 0f; continue }
+            if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) { scales[ib] = 0f; continue }
             var best = 0f
             var scale = max / (2 * kMaxQ - 1)
             isOnGrid[0] = true; isOnGrid[1] = true
@@ -4045,7 +4045,7 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
                 for (k in 0 until 2) {
                     for (i in 0 until 8) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
                         Laux[8 * k + i] = maxOf(0, minOf(kMaxQ - 1, l)).toByte()
                     }
                     var u = 0
@@ -4055,7 +4055,7 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
                     if (gridIdx < 0) {
                         isOnGridAux[k] = false
                         val nOff = -kmapQ2xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq2FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq2FindBestNeighbour(
                             kneighborsQ2xs,
                             nOff,
                             kgridQ2xs,
@@ -4089,7 +4089,7 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
                     var u = 0
                     for (i in 0 until 8) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
                         l = maxOf(0, minOf(kMaxQ - 1, l))
                         u = u or (l shl (2 * i))
                         L[8 * k + i] = l.toByte()
@@ -4097,7 +4097,7 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
                     var gridIdx = kmapQ2xs[u]
                     if (gridIdx < 0) {
                         val nOff = -kmapQ2xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq2FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq2FindBestNeighbour(
                             kneighborsQ2xs,
                             nOff,
                             kgridQ2xs,
@@ -4135,22 +4135,22 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
         }
 
         if (maxScale == 0f) {
-            for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 4) y[bOff + 2 + i] = 0
+            for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 4) y[bOff + 2 + i] = 0
             continue
         }
 
         val d = maxScale / 31f
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, d)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, d)
         val id = 1f / d
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            var l = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib] - 1))
             l = maxOf(0, minOf(15, l))
-            val scalesOff = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4
+            val scalesOff = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4
             if (ib % 2 == 0) y[scalesOff + ib / 2] = l.toByte()
             else y[scalesOff + ib / 2] = (y[scalesOff + ib / 2].toInt() or (l shl 4)).toByte()
         }
         // copy q2 to qs bytes
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 16 * 2) io.github.kotlinmania.llama.ore.writeShortLE(
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 16 * 2) io.github.kotlinmania.llama.core.writeShortLE(
             y,
             bOff + 2 + i * 2,
             q2[i]
@@ -4161,17 +4161,17 @@ private fun quantize_row_iq2_xs_impl(x: FloatArray, xOff: Int, y: ByteArray, yOf
 // C line 4970: quantize_row_iq2_s_impl
 private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, n: Int, quantWeights: FloatArray?) {
     val gindex =
-        io.github.kotlinmania.llama.ore.iq2DataIndex(io.github.kotlinmania.llama.ore.GGMLType.IQ2_S)
-    val kgridQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].grid!!
-    val kmapQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].map!!
-    val kneighborsQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours!!
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+        io.github.kotlinmania.llama.core.iq2DataIndex(io.github.kotlinmania.llama.core.GGMLType.IQ2_S)
+    val kgridQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].grid!!
+    val kmapQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].map!!
+    val kneighborsQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours!!
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
     val kMaxQ = 3
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
-    val blockSize = io.github.kotlinmania.llama.ore.BlockIQ2S.SIZE_BYTES
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
+    val blockSize = io.github.kotlinmania.llama.core.BlockIQ2S.SIZE_BYTES
 
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 16)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 16)
     val weight = FloatArray(16)
     val xval = FloatArray(16)
     val L = ByteArray(16)
@@ -4185,25 +4185,25 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
         val bOff = yOff + ibl * blockSize
         // zero the block
         for (i in 0 until blockSize) y[bOff + i] = 0
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, 0f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, 0f)
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.core.QK_K
 
         // block_iq2_s layout: d(2) + qs(QK_K/4=64) + qh(QK_K/32=8) + scales(QK_K/32=8) = 82 (but we also have sign bytes)
         // Actually: d(2) + qs(QK_K/8=32) + qs_signs(QK_K/8=32) + qh(QK_K/32=8) + scales(QK_K/32=8) = 82
         // C layout: d(2), qs[QK_K/4]=64 bytes (first 32 = grid indices, next 32 = signs), qh[QK_K/32]=8, scales[QK_K/32]=8
         val qsOff = bOff + 2           // qs: grid index low bits (32 bytes) then sign bytes (32 bytes)
-        val qhOff = bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 4  // qh: 8 bytes
-        val scOff = qhOff + io.github.kotlinmania.llama.ore.QK_K / 32     // scales: 8 bytes
+        val qhOff = bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 4  // qh: 8 bytes
+        val scOff = qhOff + io.github.kotlinmania.llama.core.QK_K / 32     // scales: 8 bytes
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val xbOff = xblOff + 16 * ib
             if (quantWeights != null) {
-                val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + 16 * ib
+                val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + 16 * ib
                 for (i in 0 until 16) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             } else {
                 for (i in 0 until 16) weight[i] = 0.25f * sigma2 + x[xbOff + i] * x[xbOff + i]
@@ -4220,7 +4220,7 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
             var max = xval[0]
             for (i in 1 until 16) max = maxOf(max, xval[i])
             L.fill(0, 0, 16)
-            if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS_IQ2_S) { scales[ib] = 0f; continue }
+            if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS_IQ2_S) { scales[ib] = 0f; continue }
             var best = 0f
             var scale = max / (2 * kMaxQ - 1)
             isOnGrid[0] = true; isOnGrid[1] = true
@@ -4230,7 +4230,7 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
                 for (k in 0 until 2) {
                     for (i in 0 until 8) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
                         Laux[8 * k + i] = maxOf(0, minOf(kMaxQ - 1, l)).toByte()
                     }
                     var u = 0
@@ -4240,7 +4240,7 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
                     if (gridIdx < 0) {
                         isOnGridAux[k] = false
                         val nOff = -kmapQ2xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq2FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq2FindBestNeighbour(
                             kneighborsQ2xs,
                             nOff,
                             kgridQ2xs,
@@ -4274,7 +4274,7 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
                     var u = 0
                     for (i in 0 until 8) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[8 * k + i] - 1))
                         l = maxOf(0, minOf(kMaxQ - 1, l))
                         u = u or (l shl (2 * i))
                         L[8 * k + i] = l.toByte()
@@ -4282,7 +4282,7 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
                     var gridIdx = kmapQ2xs[u]
                     if (gridIdx < 0) {
                         val nOff = -kmapQ2xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq2FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq2FindBestNeighbour(
                             kneighborsQ2xs,
                             nOff,
                             kgridQ2xs,
@@ -4315,7 +4315,7 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
                 val i8 = 2 * ib + k
                 y[qsOff + i8] = (gridIdx and 255).toByte()
                 y[qhOff + i8 / 4] = (y[qhOff + i8 / 4].toInt() or ((gridIdx shr 8) shl (2 * (i8 % 4)))).toByte()
-                y[qsOff + io.github.kotlinmania.llama.ore.QK_K / 8 + i8] = blockSigns[k].toByte()
+                y[qsOff + io.github.kotlinmania.llama.core.QK_K / 8 + i8] = blockSigns[k].toByte()
             }
             require(scale >= 0)
             scales[ib] = scale
@@ -4325,10 +4325,10 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
         if (maxScale == 0f) continue
 
         val d = maxScale / 31f
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, d * 0.9875f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, d * 0.9875f)
         val id = 1f / d
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
+            var l = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib] - 1))
             l = maxOf(0, minOf(15, l))
             if (ib % 2 == 0) y[scOff + ib / 2] = l.toByte()
             else y[scOff + ib / 2] = (y[scOff + ib / 2].toInt() or (l shl 4)).toByte()
@@ -4338,25 +4338,25 @@ private fun quantize_row_iq2_s_impl(x: FloatArray, xOff: Int, y: ByteArray, yOff
 
 // C line 3766: quantize_row_iq3_xxs_impl
 private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y: ByteArray, yOff: Int, n: Int, quantWeights: FloatArray?) {
-    val gindex = io.github.kotlinmania.llama.ore.iq3DataIndex(gridSize)
-    val kgridQ3xs = io.github.kotlinmania.llama.ore.iq3Data[gindex].grid!!
-    val kmapQ3xs = io.github.kotlinmania.llama.ore.iq3Data[gindex].map!!
-    val kneighborsQ3xs = io.github.kotlinmania.llama.ore.iq3Data[gindex].neighbours!!
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    val gindex = io.github.kotlinmania.llama.core.iq3DataIndex(gridSize)
+    val kgridQ3xs = io.github.kotlinmania.llama.core.iq3Data[gindex].grid!!
+    val kmapQ3xs = io.github.kotlinmania.llama.core.iq3Data[gindex].map!!
+    val kneighborsQ3xs = io.github.kotlinmania.llama.core.iq3Data[gindex].neighbours!!
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
     val kMaxQ = 8
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
 
     val blockSizeBl: Int
     val quantSize: Int
     if (gridSize == 256) {
-        blockSizeBl = io.github.kotlinmania.llama.ore.BlockIQ3XXS.SIZE_BYTES
+        blockSizeBl = io.github.kotlinmania.llama.core.BlockIQ3XXS.SIZE_BYTES
     } else {
-        blockSizeBl = io.github.kotlinmania.llama.ore.BlockIQ3S.SIZE_BYTES
+        blockSizeBl = io.github.kotlinmania.llama.core.BlockIQ3S.SIZE_BYTES
     }
     quantSize = blockSizeBl - 2 // minus the fp16 d
 
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
     val weight = FloatArray(32)
     val xval = FloatArray(32)
     val L = ByteArray(32)
@@ -4365,24 +4365,24 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
     val isOnGrid = BooleanArray(8)
     val isOnGridAux = BooleanArray(8)
     val blockSigns = IntArray(8)
-    val q3 = ByteArray(3 * (io.github.kotlinmania.llama.ore.QK_K / 8) + io.github.kotlinmania.llama.ore.QK_K / 32)
+    val q3 = ByteArray(3 * (io.github.kotlinmania.llama.core.QK_K / 8) + io.github.kotlinmania.llama.core.QK_K / 32)
     // scales_and_signs start at q3[QK_K/4], qh starts at q3[3*(QK_K/8)]
 
     for (ibl in 0 until nbl) {
         val bOff = yOff + ibl * blockSizeBl
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, 0f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, 0f)
         q3.fill(0)
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.core.QK_K
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val xbOff = xblOff + 32 * ib
             if (quantWeights != null) {
-                val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + 32 * ib
+                val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + 32 * ib
                 for (i in 0 until 32) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             } else {
                 for (i in 0 until 32) weight[i] = x[xbOff + i] * x[xbOff + i]
@@ -4408,7 +4408,7 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
             var max = xval[0]
             for (i in 1 until 32) max = maxOf(max, xval[i])
             L.fill(0, 0, 32)
-            if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS_IQ3_XXS) { scales[ib] = 0f; continue }
+            if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS_IQ3_XXS) { scales[ib] = 0f; continue }
             var best = 0f
             var scale = max / (2 * kMaxQ - 1)
             for (k in 0 until 8) isOnGrid[k] = true
@@ -4418,7 +4418,7 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
                 for (k in 0 until 8) {
                     for (i in 0 until 4) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
                         Laux[4 * k + i] = maxOf(0, minOf(kMaxQ - 1, l)).toByte()
                     }
                     var u = 0
@@ -4428,7 +4428,7 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
                     if (gridIdx < 0) {
                         isOnGridAux[k] = false
                         val nOff = -kmapQ3xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq3FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq3FindBestNeighbour(
                             kneighborsQ3xs,
                             nOff,
                             kgridQ3xs,
@@ -4462,14 +4462,14 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
                     var u = 0
                     for (i in 0 until 4) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
                         l = maxOf(0, minOf(kMaxQ - 1, l))
                         u = u or (l shl (3 * i))
                     }
                     var gridIdx = kmapQ3xs[u]
                     if (gridIdx < 0) {
                         val nOff = -kmapQ3xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq3FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq3FindBestNeighbour(
                             kneighborsQ3xs,
                             nOff,
                             kgridQ3xs,
@@ -4483,7 +4483,7 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
                         )
                     }
                     val gv = kgridQ3xs[gridIdx]
-                    for (i in 0 until 4) L[4 * k + i] = ((io.github.kotlinmania.llama.ore.gridByte(
+                    for (i in 0 until 4) L[4 * k + i] = ((io.github.kotlinmania.llama.core.gridByte(
                         gv,
                         i
                     ) - 1) / 2).toByte()
@@ -4508,11 +4508,11 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
                     q3[8 * ib + k] = gridIdx.toByte()
                 } else {
                     q3[8 * ib + k] = (gridIdx and 255).toByte()
-                    q3[3 * (io.github.kotlinmania.llama.ore.QK_K / 8) + ib] = (q3[3 * (io.github.kotlinmania.llama.ore.QK_K / 8) + ib].toInt() or ((gridIdx shr 8) shl k)).toByte()
+                    q3[3 * (io.github.kotlinmania.llama.core.QK_K / 8) + ib] = (q3[3 * (io.github.kotlinmania.llama.core.QK_K / 8) + ib].toInt() or ((gridIdx shr 8) shl k)).toByte()
                 }
             }
             // scales_and_signs at offset QK_K/4 = 64
-            val sasOff = io.github.kotlinmania.llama.ore.QK_K / 4 + ib * 4
+            val sasOff = io.github.kotlinmania.llama.core.QK_K / 4 + ib * 4
             val sas = blockSigns[0] or (blockSigns[1] shl 7) or (blockSigns[2] shl 14) or (blockSigns[3] shl 21)
             q3[sasOff + 0] = (sas and 0xFF).toByte()
             q3[sasOff + 1] = ((sas shr 8) and 0xFF).toByte()
@@ -4530,12 +4530,12 @@ private fun quantize_row_iq3_xxs_impl(gridSize: Int, x: FloatArray, xOff: Int, y
         }
 
         val d = maxScale / 31f
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, d * 1.0125f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, d * 1.0125f)
         val id = 1f / d
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
+            var l = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib] - 1))
             l = maxOf(0, minOf(15, l))
-            val sasOff = io.github.kotlinmania.llama.ore.QK_K / 4 + ib * 4
+            val sasOff = io.github.kotlinmania.llama.core.QK_K / 4 + ib * 4
             val existing = (q3[sasOff + 3].toInt() and 0xFF) or ((q3[sasOff + 2].toInt() and 0xFF) shl 8) or
                 ((q3[sasOff + 1].toInt() and 0xFF) shl 16) or ((q3[sasOff + 0].toInt() and 0xFF) shl 24)
             // store l in top 4 bits of the uint32
@@ -4561,42 +4561,42 @@ private fun quantize_row_iq3_s_impl(
     L: ByteArray, Laux: ByteArray, waux: FloatArray,
     isOnGrid: BooleanArray, isOnGridAux: BooleanArray, blockSigns: IntArray
 ) {
-    val gindex = io.github.kotlinmania.llama.ore.iq3DataIndex(512)
-    val kgridQ3xs = io.github.kotlinmania.llama.ore.iq3Data[gindex].grid!!
-    val kmapQ3xs = io.github.kotlinmania.llama.ore.iq3Data[gindex].map!!
-    val kneighborsQ3xs = io.github.kotlinmania.llama.ore.iq3Data[gindex].neighbours!!
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    val gindex = io.github.kotlinmania.llama.core.iq3DataIndex(512)
+    val kgridQ3xs = io.github.kotlinmania.llama.core.iq3Data[gindex].grid!!
+    val kmapQ3xs = io.github.kotlinmania.llama.core.iq3Data[gindex].map!!
+    val kneighborsQ3xs = io.github.kotlinmania.llama.core.iq3Data[gindex].neighbours!!
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
     val kMaxQ = 8
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
-    val blockSizeBl = io.github.kotlinmania.llama.ore.BlockIQ3S.SIZE_BYTES
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
+    val blockSizeBl = io.github.kotlinmania.llama.core.BlockIQ3S.SIZE_BYTES
     val bs4 = blkSize / 4
     val bs8 = blkSize / 8
 
     for (ibl in 0 until nbl) {
         val bOff = yOff + ibl * blockSizeBl
         for (i in 0 until blockSizeBl) y[bOff + i] = 0
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, 0f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, 0f)
 
         // block_iq3_s layout: d(2) + qs(QK_K/4=64) + qh(QK_K/32=8) + signs(QK_K/8=32) + scales(IQ3S_N_SCALE=4)
         val qsOff = bOff + 2
-        val qhOff = qsOff + io.github.kotlinmania.llama.ore.QK_K / 4
-        val signsOff = qhOff + io.github.kotlinmania.llama.ore.QK_K / 32
-        val scOff = signsOff + io.github.kotlinmania.llama.ore.QK_K / 8
+        val qhOff = qsOff + io.github.kotlinmania.llama.core.QK_K / 4
+        val signsOff = qhOff + io.github.kotlinmania.llama.core.QK_K / 32
+        val scOff = signsOff + io.github.kotlinmania.llama.core.QK_K / 8
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.core.QK_K
 
         var qsPtr = qsOff
         var signsPtr = signsOff
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / blkSize) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / blkSize) {
             val xbOff = xblOff + blkSize * ib
             if (quantWeights != null) {
-                val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + blkSize * ib
+                val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + blkSize * ib
                 for (i in 0 until blkSize) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             } else {
                 for (i in 0 until blkSize) weight[i] = x[xbOff + i] * x[xbOff + i]
@@ -4623,7 +4623,7 @@ private fun quantize_row_iq3_s_impl(
                 for (k in 0 until bs4) {
                     for (i in 0 until 4) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
                         Laux[4 * k + i] = maxOf(0, minOf(kMaxQ - 1, l)).toByte()
                     }
                     var u = 0
@@ -4633,7 +4633,7 @@ private fun quantize_row_iq3_s_impl(
                     if (gridIdx < 0) {
                         isOnGridAux[k] = false
                         val nOff = -kmapQ3xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq3FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq3FindBestNeighbour(
                             kneighborsQ3xs,
                             nOff,
                             kgridQ3xs,
@@ -4666,14 +4666,14 @@ private fun quantize_row_iq3_s_impl(
                     var u = 0
                     for (i in 0 until 4) {
                         var l =
-                            io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
+                            io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * xval[4 * k + i] - 1))
                         l = maxOf(0, minOf(kMaxQ - 1, l))
                         u = u or (l shl (3 * i))
                     }
                     var gridIdx = kmapQ3xs[u]
                     if (gridIdx < 0) {
                         val nOff = -kmapQ3xs[u] - 1
-                        gridIdx = io.github.kotlinmania.llama.ore.iq3FindBestNeighbour(
+                        gridIdx = io.github.kotlinmania.llama.core.iq3FindBestNeighbour(
                             kneighborsQ3xs,
                             nOff,
                             kgridQ3xs,
@@ -4687,7 +4687,7 @@ private fun quantize_row_iq3_s_impl(
                         )
                     }
                     val gv = kgridQ3xs[gridIdx]
-                    for (i in 0 until 4) L[4 * k + i] = ((io.github.kotlinmania.llama.ore.gridByte(
+                    for (i in 0 until 4) L[4 * k + i] = ((io.github.kotlinmania.llama.core.gridByte(
                         gv,
                         i
                     ) - 1) / 2).toByte()
@@ -4723,12 +4723,12 @@ private fun quantize_row_iq3_s_impl(
         if (maxScale == 0f) continue
 
         val d = maxScale / 31f
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, d * 1.033f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, d * 1.033f)
         val id = 1f / d
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / blkSize step 2) {
-            var l1 = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib + 0] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / blkSize step 2) {
+            var l1 = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib + 0] - 1))
             l1 = maxOf(0, minOf(15, l1))
-            var l2 = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib + 1] - 1))
+            var l2 = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib + 1] - 1))
             l2 = maxOf(0, minOf(15, l2))
             y[scOff + ib / 2] = (l1 or (l2 shl 4)).toByte()
         }
@@ -4742,21 +4742,21 @@ private fun quantize_row_iq1_s_impl(
     pairs: FloatArray, L: ByteArray, index: IntArray, shifts: ByteArray
 ) {
     val gindex =
-        io.github.kotlinmania.llama.ore.iq2DataIndex(io.github.kotlinmania.llama.ore.GGMLType.IQ1_S)
-    val kgridQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].grid!!
-    val kmapQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].map!!
-    val kneighborsQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours!!
+        io.github.kotlinmania.llama.core.iq2DataIndex(io.github.kotlinmania.llama.core.GGMLType.IQ1_S)
+    val kgridQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].grid!!
+    val kmapQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].map!!
+    val kneighborsQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours!!
     require(quantWeights != null) { "missing quantization weights" }
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
     val blockSizeSub = 32 // IQ1S_BLOCK_SIZE
-    val blockSizeBl = io.github.kotlinmania.llama.ore.BlockIQ1S.SIZE_BYTES
+    val blockSizeBl = io.github.kotlinmania.llama.core.BlockIQ1S.SIZE_BYTES
 
-    val xP = floatArrayOf(-1f + io.github.kotlinmania.llama.ore.IQ1S_DELTA,
-        io.github.kotlinmania.llama.ore.IQ1S_DELTA, 1f + io.github.kotlinmania.llama.ore.IQ1S_DELTA
+    val xP = floatArrayOf(-1f + io.github.kotlinmania.llama.core.IQ1S_DELTA,
+        io.github.kotlinmania.llama.core.IQ1S_DELTA, 1f + io.github.kotlinmania.llama.core.IQ1S_DELTA
     )
-    val xM = floatArrayOf(-1f - io.github.kotlinmania.llama.ore.IQ1S_DELTA, -io.github.kotlinmania.llama.ore.IQ1S_DELTA, 1f - io.github.kotlinmania.llama.ore.IQ1S_DELTA)
+    val xM = floatArrayOf(-1f - io.github.kotlinmania.llama.core.IQ1S_DELTA, -io.github.kotlinmania.llama.core.IQ1S_DELTA, 1f - io.github.kotlinmania.llama.core.IQ1S_DELTA)
 
     // idx shares memory with pairs: idx[2*j] is at pairs[2*j+1] reinterpreted as int
     // In Kotlin we use a separate IntArray for idx
@@ -4764,27 +4764,27 @@ private fun quantize_row_iq1_s_impl(
 
     for (ibl in 0 until nbl) {
         val bOff = yOff + ibl * blockSizeBl
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, 0f)
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 8) y[bOff + 2 + i] = 0 // qs
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) io.github.kotlinmania.llama.ore.writeShortLE(
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, 0f)
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 8) y[bOff + 2 + i] = 0 // qs
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K / 16) io.github.kotlinmania.llama.core.writeShortLE(
             y,
-            bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 8 + i * 2,
+            bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 8 + i * 2,
             0
         ) // qh
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.core.QK_K
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / blockSizeSub) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / blockSizeSub) {
             val xbOff = xblOff + blockSizeSub * ib
-            val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + blockSizeSub * ib
+            val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + blockSizeSub * ib
             for (i in 0 until blockSizeSub) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             var max = kotlin.math.abs(x[xbOff])
             for (i in 1 until blockSizeSub) max = maxOf(max, kotlin.math.abs(x[xbOff + i]))
-            if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS_IQ1_S) {
+            if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS_IQ1_S) {
                 scales[ib] = 0f; shifts[ib] = 1; L.fill(1, 0, blockSizeSub); continue
             }
             // sort pairs by value
@@ -4845,7 +4845,7 @@ private fun quantize_row_iq1_s_impl(
                 if (gridIdx < 0) {
                     allOnGrid = false
                     val nOff = -kmapQ2xs[u] - 1
-                    gridIdx = io.github.kotlinmania.llama.ore.iq1FindBestNeighbour2(
+                    gridIdx = io.github.kotlinmania.llama.core.iq1FindBestNeighbour2(
                         kneighborsQ2xs,
                         nOff,
                         kgridQ2xs,
@@ -4857,7 +4857,7 @@ private fun quantize_row_iq1_s_impl(
                         xx,
                         L,
                         8 * k,
-                        io.github.kotlinmania.llama.ore.NGRID_IQ1S
+                        io.github.kotlinmania.llama.core.NGRID_IQ1S
                     )
                     require(gridIdx >= 0)
                 }
@@ -4869,7 +4869,7 @@ private fun quantize_row_iq1_s_impl(
                     val gv = kgridQ2xs[index[k]]
                     for (j in 0 until 8) {
                         val w = weight[8 * k + j]
-                        val q = xx[(io.github.kotlinmania.llama.ore.gridByte(gv, j) - 1) / 2]
+                        val q = xx[(io.github.kotlinmania.llama.core.gridByte(gv, j) - 1) / 2]
                         sqx += w * q * x[xbOff + 8 * k + j]
                         sq2 += w * q * q
                     }
@@ -4881,9 +4881,9 @@ private fun quantize_row_iq1_s_impl(
                 y[bOff + 2 + (blockSizeSub / 8) * ib + k] = (index[k] and 255).toByte()
                 h = h or ((index[k] shr 8) shl (3 * k))
             }
-            io.github.kotlinmania.llama.ore.writeShortLE(
+            io.github.kotlinmania.llama.core.writeShortLE(
                 y,
-                bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 8 + ib * 2,
+                bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 8 + ib * 2,
                 h.toShort()
             )
             require(scale >= 0)
@@ -4895,19 +4895,19 @@ private fun quantize_row_iq1_s_impl(
         if (maxScale == 0f) continue
 
         val d = maxScale / 15f
-        io.github.kotlinmania.llama.ore.writeFp16(y, bOff, d * 1.125f)
+        io.github.kotlinmania.llama.core.writeFp16(y, bOff, d * 1.125f)
         val id = 1f / d
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / blockSizeSub) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / blockSizeSub) {
+            var l = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib] - 1))
             l = maxOf(0, minOf(7, l))
             if (shifts[ib].toInt() == -1) l = l or 8
-            val qhVal = io.github.kotlinmania.llama.ore.readUShortLE(
+            val qhVal = io.github.kotlinmania.llama.core.readUShortLE(
                 y,
-                bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 8 + ib * 2
+                bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 8 + ib * 2
             )
-            io.github.kotlinmania.llama.ore.writeShortLE(
+            io.github.kotlinmania.llama.core.writeShortLE(
                 y,
-                bOff + 2 + io.github.kotlinmania.llama.ore.QK_K / 8 + ib * 2,
+                bOff + 2 + io.github.kotlinmania.llama.core.QK_K / 8 + ib * 2,
                 (qhVal or (l shl 12)).toShort()
             )
         }
@@ -4921,20 +4921,20 @@ private fun quantize_row_iq1_m_impl(
     L: ByteArray, index: IntArray, shifts: ByteArray
 ) {
     val gindex =
-        io.github.kotlinmania.llama.ore.iq2DataIndex(io.github.kotlinmania.llama.ore.GGMLType.IQ1_M)
-    val kgridQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].grid!!
-    val kmapQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].map!!
-    val kneighborsQ2xs = io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours!!
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+        io.github.kotlinmania.llama.core.iq2DataIndex(io.github.kotlinmania.llama.core.GGMLType.IQ1_M)
+    val kgridQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].grid!!
+    val kmapQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].map!!
+    val kneighborsQ2xs = io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours!!
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
-    val nbl = n / io.github.kotlinmania.llama.ore.QK_K
+    val nbl = n / io.github.kotlinmania.llama.core.QK_K
     val blockSizeSub = 16 // IQ1M_BLOCK_SIZE
-    val blockSizeBl = io.github.kotlinmania.llama.ore.BlockIQ1M.SIZE_BYTES
+    val blockSizeBl = io.github.kotlinmania.llama.core.BlockIQ1M.SIZE_BYTES
 
-    val xP = floatArrayOf(-1f + io.github.kotlinmania.llama.ore.IQ1M_DELTA,
-        io.github.kotlinmania.llama.ore.IQ1M_DELTA, 1f + io.github.kotlinmania.llama.ore.IQ1M_DELTA
+    val xP = floatArrayOf(-1f + io.github.kotlinmania.llama.core.IQ1M_DELTA,
+        io.github.kotlinmania.llama.core.IQ1M_DELTA, 1f + io.github.kotlinmania.llama.core.IQ1M_DELTA
     )
-    val xM = floatArrayOf(-1f - io.github.kotlinmania.llama.ore.IQ1M_DELTA, -io.github.kotlinmania.llama.ore.IQ1M_DELTA, 1f - io.github.kotlinmania.llama.ore.IQ1M_DELTA)
+    val xM = floatArrayOf(-1f - io.github.kotlinmania.llama.core.IQ1M_DELTA, -io.github.kotlinmania.llama.core.IQ1M_DELTA, 1f - io.github.kotlinmania.llama.core.IQ1M_DELTA)
     val masks = intArrayOf(0x00, 0x80, 0x08, 0x88)
 
     val idx = IntArray(2 * blockSizeSub)
@@ -4944,27 +4944,27 @@ private fun quantize_row_iq1_m_impl(
         val bOff = yOff + ibl * blockSizeBl
         // block_iq1_m: qs[QK_K/8=32] + qh[QK_K/16=16] + scales[QK_K/32=8]
         val qsOff = bOff
-        val qhOff = bOff + io.github.kotlinmania.llama.ore.QK_K / 8
-        val scOff = bOff + io.github.kotlinmania.llama.ore.QK_K / 8 + io.github.kotlinmania.llama.ore.QK_K / 16
+        val qhOff = bOff + io.github.kotlinmania.llama.core.QK_K / 8
+        val scOff = bOff + io.github.kotlinmania.llama.core.QK_K / 8 + io.github.kotlinmania.llama.core.QK_K / 16
         for (i in 0 until blockSizeBl) y[bOff + i] = 0
 
         var maxScale = 0f
-        val xblOff = xOff + io.github.kotlinmania.llama.ore.QK_K * ibl
+        val xblOff = xOff + io.github.kotlinmania.llama.core.QK_K * ibl
         var sumx2 = 0f
-        for (i in 0 until io.github.kotlinmania.llama.ore.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
-        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.ore.QK_K
+        for (i in 0 until io.github.kotlinmania.llama.core.QK_K) sumx2 += x[xblOff + i] * x[xblOff + i]
+        val sigma2 = 2f * sumx2 / io.github.kotlinmania.llama.core.QK_K
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / blockSizeSub) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / blockSizeSub) {
             val xbOff = xblOff + blockSizeSub * ib
             if (quantWeights != null) {
-                val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + blockSizeSub * ib
+                val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + blockSizeSub * ib
                 for (i in 0 until blockSizeSub) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             } else {
                 for (i in 0 until blockSizeSub) weight[i] = x[xbOff + i] * x[xbOff + i]
             }
             var max = kotlin.math.abs(x[xbOff])
             for (i in 1 until blockSizeSub) max = maxOf(max, kotlin.math.abs(x[xbOff + i]))
-            if (max < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS_IQ1_M) {
+            if (max < io.github.kotlinmania.llama.core.GROUP_MAX_EPS_IQ1_M) {
                 scales[ib] = 0f; shifts[ib] = 0; L.fill(1, 0, blockSizeSub); continue
             }
             for (j in 0 until blockSizeSub) { pairs[2 * j] = x[xbOff + j]; idx[2 * j] = j }
@@ -5048,7 +5048,7 @@ private fun quantize_row_iq1_m_impl(
                 if (gridIdx < 0) {
                     allOnGrid = false
                     val nOff = -kmapQ2xs[u] - 1
-                    gridIdx = io.github.kotlinmania.llama.ore.iq1FindBestNeighbour2(
+                    gridIdx = io.github.kotlinmania.llama.core.iq1FindBestNeighbour2(
                         kneighborsQ2xs,
                         nOff,
                         kgridQ2xs,
@@ -5060,7 +5060,7 @@ private fun quantize_row_iq1_m_impl(
                         xx,
                         L,
                         8 * k,
-                        io.github.kotlinmania.llama.ore.NGRID_IQ1S
+                        io.github.kotlinmania.llama.core.NGRID_IQ1S
                     )
                     require(gridIdx >= 0)
                 }
@@ -5073,7 +5073,7 @@ private fun quantize_row_iq1_m_impl(
                     val gv = kgridQ2xs[index[k]]
                     for (j in 0 until 8) {
                         val w = weight[8 * k + j]
-                        val q = xx[(io.github.kotlinmania.llama.ore.gridByte(gv, j) - 1) / 2]
+                        val q = xx[(io.github.kotlinmania.llama.core.gridByte(gv, j) - 1) / 2]
                         sqxF += w * q * x[xbOff + 8 * k + j]
                         sq2F += w * q * q
                     }
@@ -5095,13 +5095,13 @@ private fun quantize_row_iq1_m_impl(
         val d = maxScale / 15f
         val id = 1f / d
         var sqxF = 0f; var sq2F = 0f
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / blockSizeSub) {
-            var l = io.github.kotlinmania.llama.ore.nearest_int(0.5f * (id * scales[ib] - 1))
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / blockSizeSub) {
+            var l = io.github.kotlinmania.llama.core.nearest_int(0.5f * (id * scales[ib] - 1))
             l = maxOf(0, minOf(7, l))
             val scIdx = ib / 4
             val scShift = 3 * (ib % 4)
-            val scVal = io.github.kotlinmania.llama.ore.readUShortLE(y, scOff + scIdx * 2)
-            io.github.kotlinmania.llama.ore.writeShortLE(
+            val scVal = io.github.kotlinmania.llama.core.readUShortLE(y, scOff + scIdx * 2)
+            io.github.kotlinmania.llama.core.writeShortLE(
                 y,
                 scOff + scIdx * 2,
                 (scVal or (l shl scShift)).toShort()
@@ -5110,7 +5110,7 @@ private fun quantize_row_iq1_m_impl(
 
             val xbOff = xblOff + blockSizeSub * ib
             if (quantWeights != null) {
-                val qwOff = io.github.kotlinmania.llama.ore.QK_K * ibl + blockSizeSub * ib
+                val qwOff = io.github.kotlinmania.llama.core.QK_K * ibl + blockSizeSub * ib
                 for (i in 0 until blockSizeSub) weight[i] = quantWeights[qwOff + i] * kotlin.math.sqrt(sigma2 + x[xbOff + i] * x[xbOff + i])
             } else {
                 for (i in 0 until blockSizeSub) weight[i] = x[xbOff + i] * x[xbOff + i]
@@ -5123,7 +5123,7 @@ private fun quantize_row_iq1_m_impl(
                 val gv = kgridQ2xs[gridIdx]
                 for (j in 0 until 8) {
                     val w = weight[8 * k + j]
-                    val q = xx[(io.github.kotlinmania.llama.ore.gridByte(gv, j) - 1) / 2] * (2 * l + 1)
+                    val q = xx[(io.github.kotlinmania.llama.core.gridByte(gv, j) - 1) / 2] * (2 * l + 1)
                     sqxF += w * q * x[xbOff + 8 * k + j]
                     sq2F += w * q * q
                 }
@@ -5131,38 +5131,38 @@ private fun quantize_row_iq1_m_impl(
         }
         var dFinal = d
         if (sq2F > 0) dFinal = sqxF / sq2F
-        val s = io.github.kotlinmania.llama.ore.IQ1MScale(
-            io.github.kotlinmania.llama.ore.GGML_FP32_TO_FP16(dFinal * 1.1125f)
+        val s = io.github.kotlinmania.llama.core.IQ1MScale(
+            io.github.kotlinmania.llama.core.GGML_FP32_TO_FP16(dFinal * 1.1125f)
         )
         val su16 = s.u16
-        val sc0 = io.github.kotlinmania.llama.ore.readUShortLE(
+        val sc0 = io.github.kotlinmania.llama.core.readUShortLE(
             y,
             scOff + 0
-        ); io.github.kotlinmania.llama.ore.writeShortLE(
+        ); io.github.kotlinmania.llama.core.writeShortLE(
             y,
             scOff + 0,
             (sc0 or ((su16 and 0x000f) shl 12)).toShort()
         )
-        val sc1 = io.github.kotlinmania.llama.ore.readUShortLE(
+        val sc1 = io.github.kotlinmania.llama.core.readUShortLE(
             y,
             scOff + 2
-        ); io.github.kotlinmania.llama.ore.writeShortLE(
+        ); io.github.kotlinmania.llama.core.writeShortLE(
             y,
             scOff + 2,
             (sc1 or ((su16 and 0x00f0) shl 8)).toShort()
         )
-        val sc2 = io.github.kotlinmania.llama.ore.readUShortLE(
+        val sc2 = io.github.kotlinmania.llama.core.readUShortLE(
             y,
             scOff + 4
-        ); io.github.kotlinmania.llama.ore.writeShortLE(
+        ); io.github.kotlinmania.llama.core.writeShortLE(
             y,
             scOff + 4,
             (sc2 or ((su16 and 0x0f00) shl 4)).toShort()
         )
-        val sc3 = io.github.kotlinmania.llama.ore.readUShortLE(
+        val sc3 = io.github.kotlinmania.llama.core.readUShortLE(
             y,
             scOff + 6
-        ); io.github.kotlinmania.llama.ore.writeShortLE(
+        ); io.github.kotlinmania.llama.core.writeShortLE(
             y,
             scOff + 6,
             (sc3 or ((su16 and 0xf000) shl 0)).toShort()
@@ -5172,12 +5172,12 @@ private fun quantize_row_iq1_m_impl(
 
 // C line 3525
 fun quantize_iq2_xxs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ2XXS.SIZE_BYTES
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ2XXS.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq2_xxs_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq2_xxs_impl(
             src,
             srcOff,
             dst,
@@ -5193,12 +5193,12 @@ fun quantize_iq2_xxs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long
 
 // C line 3537
 fun quantize_iq2_xs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ2XS.SIZE_BYTES
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ2XS.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq2_xs_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq2_xs_impl(
             src,
             srcOff,
             dst,
@@ -5214,12 +5214,12 @@ fun quantize_iq2_xs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long,
 
 // C line 5139
 fun quantize_iq2_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ2S.SIZE_BYTES
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ2S.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq2_s_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq2_s_impl(
             src,
             srcOff,
             dst,
@@ -5235,12 +5235,12 @@ fun quantize_iq2_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, 
 
 // C line 3980
 fun quantize_iq3_xxs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ3XXS.SIZE_BYTES
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ3XXS.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq3_xxs_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq3_xxs_impl(
             256,
             src,
             srcOff,
@@ -5257,21 +5257,21 @@ fun quantize_iq3_xxs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long
 
 // C line 4500
 fun quantize_iq1_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
     val IQ1S_BLOCK_SIZE = 32
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / IQ1S_BLOCK_SIZE)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / IQ1S_BLOCK_SIZE)
     val weight = FloatArray(IQ1S_BLOCK_SIZE)
     val L = ByteArray(IQ1S_BLOCK_SIZE)
     val sumx = FloatArray(IQ1S_BLOCK_SIZE + 1)
     val sumw = FloatArray(IQ1S_BLOCK_SIZE + 1)
     val pairs = FloatArray(2 * IQ1S_BLOCK_SIZE)
     val index = IntArray(IQ1S_BLOCK_SIZE / 8)
-    val shifts = ByteArray(io.github.kotlinmania.llama.ore.QK_K / IQ1S_BLOCK_SIZE)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ1S.SIZE_BYTES
+    val shifts = ByteArray(io.github.kotlinmania.llama.core.QK_K / IQ1S_BLOCK_SIZE)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ1S.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq1_s_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq1_s_impl(
             src,
             srcOff,
             dst,
@@ -5295,19 +5295,19 @@ fun quantize_iq1_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, 
 
 // C line 4774
 fun quantize_iq1_m(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
     val IQ1M_BLOCK_SIZE = 16
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / IQ1M_BLOCK_SIZE)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / IQ1M_BLOCK_SIZE)
     val weight = FloatArray(IQ1M_BLOCK_SIZE)
     val L = ByteArray(IQ1M_BLOCK_SIZE)
     val pairs = FloatArray(2 * IQ1M_BLOCK_SIZE)
     val index = IntArray(IQ1M_BLOCK_SIZE / 8)
-    val shifts = ByteArray(io.github.kotlinmania.llama.ore.QK_K / IQ1M_BLOCK_SIZE)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ1M.SIZE_BYTES
+    val shifts = ByteArray(io.github.kotlinmania.llama.core.QK_K / IQ1M_BLOCK_SIZE)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ1M.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq1_m_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq1_m_impl(
             src,
             srcOff,
             dst,
@@ -5329,23 +5329,23 @@ fun quantize_iq1_m(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, 
 
 // C line 4905
 fun quantize_iq4_nl(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK4_NL == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK4_NL).toInt()
+    require(nPerRow % io.github.kotlinmania.llama.core.QK4_NL == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK4_NL).toInt()
     val blockSize = 18 // sizeof(block_iq4_nl) = 2 + QK4_NL/2
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK4_NL)
-    val weight = FloatArray(io.github.kotlinmania.llama.ore.QK4_NL)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK4_NL)
+    val weight = FloatArray(io.github.kotlinmania.llama.core.QK4_NL)
     val unusedH = ByteArray(2)
     val scale = FloatArray(1)
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
         for (ibl in 0 until nblock) {
             val bOff = dstOff + ibl * blockSize
-            val qwOff = if (imatrix != null) io.github.kotlinmania.llama.ore.QK4_NL * ibl else 0
-            io.github.kotlinmania.llama.ore.quantize_row_iq4_nl_impl(
-                io.github.kotlinmania.llama.ore.QK4_NL,
+            val qwOff = if (imatrix != null) io.github.kotlinmania.llama.core.QK4_NL * ibl else 0
+            io.github.kotlinmania.llama.core.quantize_row_iq4_nl_impl(
+                io.github.kotlinmania.llama.core.QK4_NL,
                 32,
                 src,
-                srcOff + io.github.kotlinmania.llama.ore.QK4_NL * ibl,
+                srcOff + io.github.kotlinmania.llama.core.QK4_NL * ibl,
                 dst,
                 bOff,           // dh
                 dst,
@@ -5357,7 +5357,7 @@ fun quantize_iq4_nl(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long,
                 scale,
                 weight,
                 L,
-                io.github.kotlinmania.llama.ore.kvalues_iq4nl,
+                io.github.kotlinmania.llama.core.kvalues_iq4nl,
                 imatrix,
                 qwOff,
                 7
@@ -5371,24 +5371,24 @@ fun quantize_iq4_nl(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long,
 
 // C line 4943
 fun quantize_iq4_xs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?, yOff: Int = 0): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
     // block_iq4_xs: d(fp16, 2) + scales_h(uint16, 2) + scales_l(QK_K/64=4) + qs(QK_K/2=128) = 136
     val blockSize = 136
-    val L = UByteArray(io.github.kotlinmania.llama.ore.QK_K)
+    val L = UByteArray(io.github.kotlinmania.llama.core.QK_K)
     val weight = FloatArray(32)
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / 32)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / 32)
     var srcOff = 0; var dstOff = yOff
     for (row in 0 until nrows) {
         for (ibl in 0 until nblock) {
             val bOff = dstOff + ibl * blockSize
-            val qwOff = if (imatrix != null) io.github.kotlinmania.llama.ore.QK_K * ibl else 0
+            val qwOff = if (imatrix != null) io.github.kotlinmania.llama.core.QK_K * ibl else 0
             // d at bOff+0, scales_h at bOff+2, scales_l at bOff+4, qs at bOff+8
-            io.github.kotlinmania.llama.ore.quantize_row_iq4_nl_impl(
-                io.github.kotlinmania.llama.ore.QK_K,
+            io.github.kotlinmania.llama.core.quantize_row_iq4_nl_impl(
+                io.github.kotlinmania.llama.core.QK_K,
                 32,
                 src,
-                srcOff + io.github.kotlinmania.llama.ore.QK_K * ibl,
+                srcOff + io.github.kotlinmania.llama.core.QK_K * ibl,
                 dst,
                 bOff,           // dh (fp16)
                 dst,
@@ -5400,7 +5400,7 @@ fun quantize_iq4_xs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long,
                 scales,
                 weight,
                 L,
-                io.github.kotlinmania.llama.ore.kvalues_iq4nl,
+                io.github.kotlinmania.llama.core.kvalues_iq4nl,
                 imatrix,
                 qwOff,
                 7
@@ -5414,10 +5414,10 @@ fun quantize_iq4_xs(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long,
 
 // C line 4181
 fun quantize_iq3_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, imatrix: FloatArray?): Long {
-    require(nPerRow % io.github.kotlinmania.llama.ore.QK_K == 0L)
-    val nblock = (nPerRow / io.github.kotlinmania.llama.ore.QK_K).toInt()
+    require(nPerRow % io.github.kotlinmania.llama.core.QK_K == 0L)
+    val nblock = (nPerRow / io.github.kotlinmania.llama.core.QK_K).toInt()
     val IQ3S_BLOCK_SIZE = 32
-    val scales = FloatArray(io.github.kotlinmania.llama.ore.QK_K / IQ3S_BLOCK_SIZE)
+    val scales = FloatArray(io.github.kotlinmania.llama.core.QK_K / IQ3S_BLOCK_SIZE)
     val weight = FloatArray(IQ3S_BLOCK_SIZE)
     val xval = FloatArray(IQ3S_BLOCK_SIZE)
     val L = ByteArray(IQ3S_BLOCK_SIZE)
@@ -5426,10 +5426,10 @@ fun quantize_iq3_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, 
     val isOnGrid = BooleanArray(IQ3S_BLOCK_SIZE / 4)
     val isOnGridAux = BooleanArray(IQ3S_BLOCK_SIZE / 4)
     val blockSigns = IntArray(IQ3S_BLOCK_SIZE / 8)
-    val rowSize = nblock * io.github.kotlinmania.llama.ore.BlockIQ3S.SIZE_BYTES
+    val rowSize = nblock * io.github.kotlinmania.llama.core.BlockIQ3S.SIZE_BYTES
     var srcOff = 0; var dstOff = 0
     for (row in 0 until nrows) {
-        io.github.kotlinmania.llama.ore.quantize_row_iq3_s_impl(
+        io.github.kotlinmania.llama.core.quantize_row_iq3_s_impl(
             IQ3S_BLOCK_SIZE, src, srcOff, dst, dstOff, nPerRow.toInt(), imatrix,
             scales, weight, xval, L, Laux, waux, isOnGrid, isOnGridAux, blockSigns
         )
@@ -5442,10 +5442,10 @@ fun quantize_iq3_s(src: FloatArray, dst: ByteArray, nrows: Long, nPerRow: Long, 
 // IQ init/free
 
 // C line 2777
-fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
-    val gindex = io.github.kotlinmania.llama.ore.iq2DataIndex(type)
-    val gridSize = io.github.kotlinmania.llama.ore.iq2GridSize(type)
-    if (io.github.kotlinmania.llama.ore.iq2Data[gindex].grid != null) return
+fun iq2xs_init_impl(type: io.github.kotlinmania.llama.core.GGMLType) {
+    val gindex = io.github.kotlinmania.llama.core.iq2DataIndex(type)
+    val gridSize = io.github.kotlinmania.llama.core.iq2GridSize(type)
+    if (io.github.kotlinmania.llama.core.iq2Data[gindex].grid != null) return
 
     val kgrid2bit256 = ushortArrayOf(
         0u, 2u, 5u, 8u, 10u, 17u, 20u, 32u, 34u, 40u, 42u, 65u, 68u, 80u, 88u, 97u,
@@ -5479,19 +5479,19 @@ fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
     // These are very large. We embed them here exactly as in the C source.
     // To keep this function manageable, we store them as file-level lazy vals.
     when {
-        type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS -> { kgrid = kgrid2bit256 }
-        type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS -> { kgrid =
-            io.github.kotlinmania.llama.ore.kgrid2bit512
+        type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS -> { kgrid = kgrid2bit256 }
+        type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XS -> { kgrid =
+            io.github.kotlinmania.llama.core.kgrid2bit512
         }
-        type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_M -> { kgrid =
-            io.github.kotlinmania.llama.ore.kgrid1bit2048
+        type == io.github.kotlinmania.llama.core.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_M -> { kgrid =
+            io.github.kotlinmania.llama.core.kgrid1bit2048
         }
-        else -> { kgrid = io.github.kotlinmania.llama.ore.kgrid2bit1024
+        else -> { kgrid = io.github.kotlinmania.llama.core.kgrid2bit1024
         } // IQ2_S
     }
 
     val kmapSize = 43692
-    val nwant = if (type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_M) 3 else if (type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_S) 1 else 2
+    val nwant = if (type == io.github.kotlinmania.llama.core.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_M) 3 else if (type == io.github.kotlinmania.llama.core.GGMLType.IQ2_S) 1 else 2
 
     val theGrid = ULongArray(gridSize)
     for (k in 0 until gridSize) {
@@ -5503,16 +5503,16 @@ fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
         }
         theGrid[k] = v
     }
-    io.github.kotlinmania.llama.ore.iq2Data[gindex].grid = theGrid
+    io.github.kotlinmania.llama.core.iq2Data[gindex].grid = theGrid
 
     val kmapQ2xs = IntArray(kmapSize) { -1 }
-    io.github.kotlinmania.llama.ore.iq2Data[gindex].map = kmapQ2xs
+    io.github.kotlinmania.llama.core.iq2Data[gindex].map = kmapQ2xs
 
     for (i in 0 until gridSize) {
         val gv = theGrid[i]
         var index = 0
         for (k in 0 until 8) {
-            val q = ((io.github.kotlinmania.llama.ore.gridByte(gv, k).toInt() and 0xFF) - 1) / 2
+            val q = ((io.github.kotlinmania.llama.core.gridByte(gv, k).toInt() and 0xFF) - 1) / 2
             index = index or (q shl (2 * k))
         }
         kmapQ2xs[index] = i
@@ -5528,7 +5528,7 @@ fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
         for (k in 0 until 8) { val l = (i shr (2 * k)) and 0x3; pos[k] = (2 * l + 1).toByte() }
         for (j in 0 until gridSize) {
             var d2 = 0
-            for (k in 0 until 8) { val diff = io.github.kotlinmania.llama.ore.gridByte(
+            for (k in 0 until 8) { val diff = io.github.kotlinmania.llama.core.gridByte(
                 theGrid[j],
                 k
             ) - pos[k]; d2 += diff * diff }
@@ -5552,7 +5552,7 @@ fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
     }
 
     val kneighborsQ2xs = UShortArray(numNeighbors + numNotInMap)
-    io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours = kneighborsQ2xs
+    io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours = kneighborsQ2xs
     var counter = 0
     for (i in 0 until kmapSize) {
         if (kmapQ2xs[i] >= 0) continue
@@ -5560,7 +5560,7 @@ fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
         for (k in 0 until 8) { val l = (i shr (2 * k)) and 0x3; pos[k] = (2 * l + 1).toByte() }
         for (j in 0 until gridSize) {
             var d2 = 0
-            for (k in 0 until 8) { val diff = io.github.kotlinmania.llama.ore.gridByte(
+            for (k in 0 until 8) { val diff = io.github.kotlinmania.llama.core.gridByte(
                 theGrid[j],
                 k
             ) - pos[k]; d2 += diff * diff }
@@ -5587,22 +5587,22 @@ fun iq2xs_init_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
 }
 
 // C line 3133
-fun iq2xs_free_impl(type: io.github.kotlinmania.llama.ore.GGMLType) {
-    require(type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XXS || type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_XS || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.ore.GGMLType.IQ1_M || type == io.github.kotlinmania.llama.ore.GGMLType.IQ2_S)
-    val gindex = io.github.kotlinmania.llama.ore.iq2DataIndex(type)
-    if (io.github.kotlinmania.llama.ore.iq2Data[gindex].grid != null) {
-        io.github.kotlinmania.llama.ore.iq2Data[gindex].grid = null
-        io.github.kotlinmania.llama.ore.iq2Data[gindex].map = null
-        io.github.kotlinmania.llama.ore.iq2Data[gindex].neighbours = null
+fun iq2xs_free_impl(type: io.github.kotlinmania.llama.core.GGMLType) {
+    require(type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XXS || type == io.github.kotlinmania.llama.core.GGMLType.IQ2_XS || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_S || type == io.github.kotlinmania.llama.core.GGMLType.IQ1_M || type == io.github.kotlinmania.llama.core.GGMLType.IQ2_S)
+    val gindex = io.github.kotlinmania.llama.core.iq2DataIndex(type)
+    if (io.github.kotlinmania.llama.core.iq2Data[gindex].grid != null) {
+        io.github.kotlinmania.llama.core.iq2Data[gindex].grid = null
+        io.github.kotlinmania.llama.core.iq2Data[gindex].map = null
+        io.github.kotlinmania.llama.core.iq2Data[gindex].neighbours = null
     }
 }
 
 // C line 3576
 fun iq3xs_init_impl(gridSize: Int) {
-    val gindex = io.github.kotlinmania.llama.ore.iq3DataIndex(gridSize)
-    if (io.github.kotlinmania.llama.ore.iq3Data[gindex].grid != null) return
+    val gindex = io.github.kotlinmania.llama.core.iq3DataIndex(gridSize)
+    if (io.github.kotlinmania.llama.core.iq3Data[gindex].grid != null) return
 
-    val kgrid = if (gridSize == 256) io.github.kotlinmania.llama.ore.kgrid3bit256 else io.github.kotlinmania.llama.ore.kgrid3bit512
+    val kgrid = if (gridSize == 256) io.github.kotlinmania.llama.core.kgrid3bit256 else io.github.kotlinmania.llama.core.kgrid3bit512
 
     val kmapSize = 4096
     val nwant = if (gridSize == 256) 2 else 3
@@ -5617,16 +5617,16 @@ fun iq3xs_init_impl(gridSize: Int) {
         }
         theGrid[k] = v
     }
-    io.github.kotlinmania.llama.ore.iq3Data[gindex].grid = theGrid
+    io.github.kotlinmania.llama.core.iq3Data[gindex].grid = theGrid
 
     val kmapQ3xs = IntArray(kmapSize) { -1 }
-    io.github.kotlinmania.llama.ore.iq3Data[gindex].map = kmapQ3xs
+    io.github.kotlinmania.llama.core.iq3Data[gindex].map = kmapQ3xs
 
     for (i in 0 until gridSize) {
         val gv = theGrid[i]
         var index = 0
         for (k in 0 until 4) {
-            val q = ((io.github.kotlinmania.llama.ore.gridByte(gv, k).toInt() and 0xFF) - 1) / 2
+            val q = ((io.github.kotlinmania.llama.core.gridByte(gv, k).toInt() and 0xFF) - 1) / 2
             index = index or (q shl (3 * k))
         }
         kmapQ3xs[index] = i
@@ -5641,7 +5641,7 @@ fun iq3xs_init_impl(gridSize: Int) {
         for (k in 0 until 4) { val l = (i shr (3 * k)) and 0x7; pos[k] = (2 * l + 1).toByte() }
         for (j in 0 until gridSize) {
             var d2 = 0
-            for (k in 0 until 4) { val diff = io.github.kotlinmania.llama.ore.gridByte(
+            for (k in 0 until 4) { val diff = io.github.kotlinmania.llama.core.gridByte(
                 theGrid[j],
                 k
             ) - pos[k]; d2 += diff * diff }
@@ -5661,7 +5661,7 @@ fun iq3xs_init_impl(gridSize: Int) {
     }
 
     val kneighborsQ3xs = UShortArray(numNeighbors + numNotInMap)
-    io.github.kotlinmania.llama.ore.iq3Data[gindex].neighbours = kneighborsQ3xs
+    io.github.kotlinmania.llama.core.iq3Data[gindex].neighbours = kneighborsQ3xs
     var counter = 0
     for (i in 0 until kmapSize) {
         if (kmapQ3xs[i] >= 0) continue
@@ -5669,7 +5669,7 @@ fun iq3xs_init_impl(gridSize: Int) {
         for (k in 0 until 4) { val l = (i shr (3 * k)) and 0x7; pos[k] = (2 * l + 1).toByte() }
         for (j in 0 until gridSize) {
             var d2 = 0
-            for (k in 0 until 4) { val diff = io.github.kotlinmania.llama.ore.gridByte(
+            for (k in 0 until 4) { val diff = io.github.kotlinmania.llama.core.gridByte(
                 theGrid[j],
                 k
             ) - pos[k]; d2 += diff * diff }
@@ -5695,10 +5695,10 @@ fun iq3xs_init_impl(gridSize: Int) {
 // C line 3732
 fun iq3xs_free_impl(gridSize: Int) {
     require(gridSize == 256 || gridSize == 512)
-    val gindex = io.github.kotlinmania.llama.ore.iq3DataIndex(gridSize)
-    if (io.github.kotlinmania.llama.ore.iq3Data[gindex].grid != null) {
-        io.github.kotlinmania.llama.ore.iq3Data[gindex].grid = null
-        io.github.kotlinmania.llama.ore.iq3Data[gindex].map = null
-        io.github.kotlinmania.llama.ore.iq3Data[gindex].neighbours = null
+    val gindex = io.github.kotlinmania.llama.core.iq3DataIndex(gridSize)
+    if (io.github.kotlinmania.llama.core.iq3Data[gindex].grid != null) {
+        io.github.kotlinmania.llama.core.iq3Data[gindex].grid = null
+        io.github.kotlinmania.llama.core.iq3Data[gindex].map = null
+        io.github.kotlinmania.llama.core.iq3Data[gindex].neighbours = null
     }
 }

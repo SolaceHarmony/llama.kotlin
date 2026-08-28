@@ -1,12 +1,12 @@
 // port-lint: source ggml/src/gguf.cpp
 package io.github.kotlinmania.llama.gguf
 
-import io.github.kotlinmania.llama.ore.GGMLType
-import io.github.kotlinmania.llama.ore.GGML_MAX_DIMS
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getLongLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getShortLe
+import io.github.kotlinmania.llama.core.GGMLType
+import io.github.kotlinmania.llama.core.GGML_MAX_DIMS
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getLongLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getShortLe
 
 // ---------------------------------------------------------------------------
 // Padding helper – equivalent to C GGML_PAD(x, n)

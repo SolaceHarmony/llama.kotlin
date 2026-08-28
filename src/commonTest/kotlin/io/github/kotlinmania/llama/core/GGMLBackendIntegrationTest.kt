@@ -11,25 +11,25 @@ class GGMLBackendIntegrationTest {
 
     @BeforeTest
     fun setUp() {
-        io.github.kotlinmania.llama.ore.GGMLBackendRegistry.init()
+        io.github.kotlinmania.llama.core.GGMLBackendRegistry.init()
     }
 
     @Test
     fun endToEndCpuExecution() {
-        val backend = io.github.kotlinmania.llama.ore.GGMLCpuBackend()
-        val graph = io.github.kotlinmania.llama.ore.createGraph(5, backend)
+        val backend = io.github.kotlinmania.llama.core.GGMLCpuBackend()
+        val graph = io.github.kotlinmania.llama.core.createGraph(5, backend)
         val status = backend.graphCompute(graph)
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS, status)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS, status)
         backend.free()
     }
 
     @Test
     fun bufferDataIntegrity() {
-        val backend = io.github.kotlinmania.llama.ore.GGMLCpuBackend()
-        val buffer = backend.allocBuffer(64u) as io.github.kotlinmania.llama.ore.GGMLCpuBuffer
+        val backend = io.github.kotlinmania.llama.core.GGMLCpuBackend()
+        val buffer = backend.allocBuffer(64u) as io.github.kotlinmania.llama.core.GGMLCpuBuffer
 
         val tensor =
-            io.github.kotlinmania.llama.ore.GGMLTensor(type = io.github.kotlinmania.llama.ore.GGMLType.F32)
+            io.github.kotlinmania.llama.core.GGMLTensor(type = io.github.kotlinmania.llama.core.GGMLType.F32)
         tensor.ne[0] = 4L
         tensor.nb[0] = 4u
         tensor.dataOffset = 0u

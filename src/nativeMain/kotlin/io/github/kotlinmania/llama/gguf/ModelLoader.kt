@@ -1,8 +1,8 @@
 // port-lint: source llama.cpp/src/llama-model-loader.cpp
 package io.github.kotlinmania.llama.gguf
 
-import io.github.kotlinmania.llama.ore.*
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.*
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
 
 // ---------------------------------------------------------------------------
 // GGUF file version enum – mirrors llama_fver

@@ -22,7 +22,7 @@ import kotlin.time.TimeSource
 @OptIn(ExperimentalTime::class)
 class GGMLBitNet158Test {
 
-    private lateinit var graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator
+    private lateinit var graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator
     private lateinit var testBuffer: ByteArray
     private val bufferSize = 4 * 1024 * 1024 // 4MB
     private var currentOffset = 0uL
@@ -39,7 +39,7 @@ class GGMLBitNet158Test {
     @BeforeTest
     fun setup() {
         testBuffer = ByteArray(bufferSize) { 0 }
-        graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
         if (graphAllocator.buffers.isEmpty()) {
             graphAllocator.buffers.add(testBuffer)
         } else {
@@ -47,7 +47,7 @@ class GGMLBitNet158Test {
         }
         if (graphAllocator.tensorAllocators.isEmpty()) {
             graphAllocator.tensorAllocators.add(
-                io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator(
+                io.github.kotlinmania.llama.core.GGMLDynTensorAllocator(
                     bufferSize = bufferSize.toULong()
                 )
             )
@@ -58,7 +58,7 @@ class GGMLBitNet158Test {
         currentOffset = 0uL
         
         // Initialize a context 
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         graphAllocator.context = context
     }
 
@@ -69,18 +69,18 @@ class GGMLBitNet158Test {
 
     // === Utility Functions ===
     
-    private fun createF32TestTensor(name: String, data: FloatArray): io.github.kotlinmania.llama.ore.GGMLTensor {
-        val tensor = io.github.kotlinmania.llama.ore.GGMLTensor(
-            type = io.github.kotlinmania.llama.ore.GGMLType.F32,
+    private fun createF32TestTensor(name: String, data: FloatArray): io.github.kotlinmania.llama.core.GGMLTensor {
+        val tensor = io.github.kotlinmania.llama.core.GGMLTensor(
+            type = io.github.kotlinmania.llama.core.GGMLType.F32,
             name = name
         )
         tensor.ne[0] = data.size.toLong()
         tensor.ne[1] = 1L
         tensor.ne[2] = 1L  
         tensor.ne[3] = 1L
-        tensor.nb = io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+        tensor.nb = io.github.kotlinmania.llama.core.calculateContiguousStrides(
             tensor.ne,
-            io.github.kotlinmania.llama.ore.GGMLType.F32,
+            io.github.kotlinmania.llama.core.GGMLType.F32,
             tensor.rank()
         )
         
@@ -125,12 +125,12 @@ class GGMLBitNet158Test {
         }
     }
     
-    private fun extractFloatData(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): FloatArray {
+    private fun extractFloatData(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): FloatArray {
         val numElements = tensor.numElements().toInt()
         val result = FloatArray(numElements)
         
         when (tensor.type) {
-            io.github.kotlinmania.llama.ore.GGMLType.F32 -> {
+            io.github.kotlinmania.llama.core.GGMLType.F32 -> {
                 for (i in 0 until numElements) {
                     result[i] = tensor.getFloat(graphAllocator, i)
                 }
@@ -182,18 +182,18 @@ class GGMLBitNet158Test {
     @Test
     fun testBitNet158TensorCreation() {
         // Test creating a BitNet 1.58 tensor
-        val originalData = generateTestData(io.github.kotlinmania.llama.ore.QK_BITNET_1_58 * 4) // 4 blocks
+        val originalData = generateTestData(io.github.kotlinmania.llama.core.QK_BITNET_1_58 * 4) // 4 blocks
         val f32Tensor = createF32TestTensor("test_f32", originalData)
         
         // Quantize to BitNet 1.58
-        val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32Tensor,
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         
         // Verify properties
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58, bitNetTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58, bitNetTensor.type)
         assertEquals(originalData.size.toLong(), bitNetTensor.numElements())
         assertEquals(4L, bitNetTensor.getNumBlocks())
         
@@ -202,15 +202,15 @@ class GGMLBitNet158Test {
 
     @Test
     fun testBitNet158BlockAccessors() {
-        val blockSize = io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+        val blockSize = io.github.kotlinmania.llama.core.QK_BITNET_1_58
         val numBlocks = 2
         val originalData = generateTernaryData(blockSize * numBlocks)
         val f32Tensor = createF32TestTensor("test_block_access", originalData)
         
-        val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32Tensor,
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         
         // Test block scale accessors
@@ -244,24 +244,24 @@ class GGMLBitNet158Test {
         
         for (size in testSizes) {
             // Ensure size is a multiple of block size
-            val adjustedSize = (size / io.github.kotlinmania.llama.ore.QK_BITNET_1_58) * io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+            val adjustedSize = (size / io.github.kotlinmania.llama.core.QK_BITNET_1_58) * io.github.kotlinmania.llama.core.QK_BITNET_1_58
             if (adjustedSize <= 0) continue
             
             val originalData = generateTestData(adjustedSize, size)
             val f32Tensor = createF32TestTensor("test_accuracy_$size", originalData)
             
             // Quantize to BitNet 1.58
-            val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+            val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
                 graphAllocator,
                 f32Tensor,
-                io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+                io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
             )
-            assertEquals(io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58, bitNetTensor.type)
+            assertEquals(io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58, bitNetTensor.type)
             
             // Dequantize back to F32
             val dequantizedTensor =
-                io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, bitNetTensor)
-            assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, dequantizedTensor.type)
+                io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, bitNetTensor)
+            assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, dequantizedTensor.type)
             
             val dequantizedData = extractFloatData(dequantizedTensor, graphAllocator)
             val metrics = calculateQuantizationMetrics(originalData, dequantizedData)
@@ -282,16 +282,16 @@ class GGMLBitNet158Test {
     fun testBitNet158TernaryValues() {
         // Test specifically with data that should map cleanly to ternary values
         val perfectTernaryData = floatArrayOf(-1.5f, -0.1f, 0.0f, 0.1f, 1.5f, -2.0f, 0.0f, 2.0f) + 
-                                 FloatArray(io.github.kotlinmania.llama.ore.QK_BITNET_1_58 - 8) { 0.0f } // Pad to block size
+                                 FloatArray(io.github.kotlinmania.llama.core.QK_BITNET_1_58 - 8) { 0.0f } // Pad to block size
         
         val f32Tensor = createF32TestTensor("ternary_test", perfectTernaryData)
-        val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32Tensor,
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         val dequantizedTensor =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, bitNetTensor)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, bitNetTensor)
         val dequantizedData = extractFloatData(dequantizedTensor, graphAllocator)
         
         // Check that values are properly quantized to ternary
@@ -316,14 +316,14 @@ class GGMLBitNet158Test {
 
     @Test
     fun testBitNet158DotProduct() {
-        val commonDim = io.github.kotlinmania.llama.ore.QK_BITNET_1_58 * 2 // 2 blocks
+        val commonDim = io.github.kotlinmania.llama.core.QK_BITNET_1_58 * 2 // 2 blocks
         
         // Create BitNet 1.58 tensor
         val bitNetData = generateTernaryData(commonDim)
-        val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             createF32TestTensor("bitnet_dot", bitNetData),
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         
         // Create F32 tensor  
@@ -333,7 +333,7 @@ class GGMLBitNet158Test {
         f32Tensor.ne[1] = commonDim.toLong() // K=commonDim
         
         // Test dot product
-        val dotResult = io.github.kotlinmania.llama.ore.computeDotProductBitNet158F32(
+        val dotResult = io.github.kotlinmania.llama.core.computeDotProductBitNet158F32(
             graphAllocator, bitNetTensor, f32Tensor,
             rowIndexInBitNet = 0, colIndexInF32 = 0, commonDimK = commonDim
         )
@@ -343,7 +343,7 @@ class GGMLBitNet158Test {
         
         // Compare with reference implementation using dequantized tensors
         val dequantizedBitNet =
-            io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, bitNetTensor)
+            io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, bitNetTensor)
         val dequantizedData = extractFloatData(dequantizedBitNet, graphAllocator)
         
         var referenceDot = 0.0f
@@ -361,17 +361,17 @@ class GGMLBitNet158Test {
     fun testBitNet158MatrixMultiplication() {
         // Test small matrix multiplication: (2x64) * (64x3) = (2x3)
         val M = 2
-        val K = io.github.kotlinmania.llama.ore.QK_BITNET_1_58 * 2 // 2 blocks
+        val K = io.github.kotlinmania.llama.core.QK_BITNET_1_58 * 2 // 2 blocks
         val N = 3
         
         // Create input matrices
         val bitNetData = generateTernaryData(M * K)
         val f32Data = generateTestData(K * N)
         
-        val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             createF32TestTensor("bitnet_matmul_a", bitNetData),
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         bitNetTensor.ne[0] = K.toLong()
         bitNetTensor.ne[1] = M.toLong()
@@ -381,15 +381,15 @@ class GGMLBitNet158Test {
         f32Tensor.ne[1] = K.toLong()
         
         // Create result tensor
-        val resultTensor = io.github.kotlinmania.llama.ore.GGMLTensor(
-            type = io.github.kotlinmania.llama.ore.GGMLType.F32,
+        val resultTensor = io.github.kotlinmania.llama.core.GGMLTensor(
+            type = io.github.kotlinmania.llama.core.GGMLType.F32,
             name = "result"
         )
         resultTensor.ne[0] = N.toLong()
         resultTensor.ne[1] = M.toLong()
-        resultTensor.nb = io.github.kotlinmania.llama.ore.calculateContiguousStrides(
+        resultTensor.nb = io.github.kotlinmania.llama.core.calculateContiguousStrides(
             resultTensor.ne,
-            io.github.kotlinmania.llama.ore.GGMLType.F32,
+            io.github.kotlinmania.llama.core.GGMLType.F32,
             resultTensor.rank()
         )
         
@@ -399,8 +399,8 @@ class GGMLBitNet158Test {
         resultTensor.dataOffset = resultOffset
         
         // Perform matrix multiplication using the existing computeMatMul infrastructure
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
-        io.github.kotlinmania.llama.ore.computeMatMul(
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
+        io.github.kotlinmania.llama.core.computeMatMul(
             graphAllocator,
             bitNetTensor,
             f32Tensor,
@@ -425,14 +425,14 @@ class GGMLBitNet158Test {
     @Test
     fun testBitNet158EdgeCases() {
         // Test with all zeros
-        val zerosData = FloatArray(io.github.kotlinmania.llama.ore.QK_BITNET_1_58) { 0.0f }
-        val zerosTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val zerosData = FloatArray(io.github.kotlinmania.llama.core.QK_BITNET_1_58) { 0.0f }
+        val zerosTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             createF32TestTensor("zeros", zerosData),
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         val dequantizedZeros = extractFloatData(
-            io.github.kotlinmania.llama.ore.dequantizeTensor(
+            io.github.kotlinmania.llama.core.dequantizeTensor(
                 graphAllocator,
                 zerosTensor
             ), graphAllocator)
@@ -442,16 +442,16 @@ class GGMLBitNet158Test {
         }
         
         // Test with extreme values
-        val extremeData = FloatArray(io.github.kotlinmania.llama.ore.QK_BITNET_1_58) { if (it % 2 == 0) Float.MAX_VALUE else Float.MIN_VALUE }
-        val extremeTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val extremeData = FloatArray(io.github.kotlinmania.llama.core.QK_BITNET_1_58) { if (it % 2 == 0) Float.MAX_VALUE else Float.MIN_VALUE }
+        val extremeTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             createF32TestTensor("extreme", extremeData),
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         
         // Should not crash and should produce finite results
         val dequantizedExtreme = extractFloatData(
-            io.github.kotlinmania.llama.ore.dequantizeTensor(
+            io.github.kotlinmania.llama.core.dequantizeTensor(
                 graphAllocator,
                 extremeTensor
             ), graphAllocator)
@@ -464,12 +464,12 @@ class GGMLBitNet158Test {
 
     @Test
     fun testBitNet158ErrorHandling() {
-        val validData = generateTestData(io.github.kotlinmania.llama.ore.QK_BITNET_1_58)
+        val validData = generateTestData(io.github.kotlinmania.llama.core.QK_BITNET_1_58)
         val f32Tensor = createF32TestTensor("error_test", validData)
-        val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             f32Tensor,
-            io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+            io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
         )
         
         // Test invalid block index
@@ -488,7 +488,7 @@ class GGMLBitNet158Test {
         
         assertFailsWith<IllegalArgumentException> {
             bitNetTensor.getBitNet158TernaryWeight(graphAllocator, 0,
-                io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+                io.github.kotlinmania.llama.core.QK_BITNET_1_58
             )
         }
         
@@ -509,31 +509,31 @@ class GGMLBitNet158Test {
         val sizes = listOf(1024, 2048, 4096)
         
         for (size in sizes) {
-            val adjustedSize = (size / io.github.kotlinmania.llama.ore.QK_BITNET_1_58) * io.github.kotlinmania.llama.ore.QK_BITNET_1_58
+            val adjustedSize = (size / io.github.kotlinmania.llama.core.QK_BITNET_1_58) * io.github.kotlinmania.llama.core.QK_BITNET_1_58
             if (adjustedSize <= 0) continue
             
             val data = generateTestData(adjustedSize)
             val f32Tensor = createF32TestTensor("perf_test_$size", data)
             
             val quantMark = TimeSource.Monotonic.markNow()
-            val bitNetTensor = io.github.kotlinmania.llama.ore.quantizeTensor(
+            val bitNetTensor = io.github.kotlinmania.llama.core.quantizeTensor(
                 graphAllocator,
                 f32Tensor,
-                io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58
+                io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58
             )
             val quantTime = quantMark.elapsedNow().inWholeMilliseconds
 
             val dequantMark = TimeSource.Monotonic.markNow()
             val dequantizedTensor =
-                io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, bitNetTensor)
+                io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, bitNetTensor)
             val dequantTime = dequantMark.elapsedNow().inWholeMilliseconds
             
             println("BitNet 1.58 size $adjustedSize - Quantization: ${quantTime}ms, Dequantization: ${dequantTime}ms")
             
             // Verify correctness wasn't sacrificed for performance
             assertNotNull(bitNetTensor.data, "Quantization should produce valid data")
-            assertEquals(io.github.kotlinmania.llama.ore.GGMLType.BITNET_1_58, bitNetTensor.type)
-            assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, dequantizedTensor.type)
+            assertEquals(io.github.kotlinmania.llama.core.GGMLType.BITNET_1_58, bitNetTensor.type)
+            assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, dequantizedTensor.type)
         }
     }
 }

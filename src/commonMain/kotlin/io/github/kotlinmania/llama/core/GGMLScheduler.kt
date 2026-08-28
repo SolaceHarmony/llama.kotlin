@@ -23,14 +23,14 @@ private val criticalSectionLock = AtomicInt(0)
 
 @OptIn(ExperimentalAtomicApi::class)
 fun ggml_critical_section_start() {
-    while (!io.github.kotlinmania.llama.ore.criticalSectionLock.compareAndSet(0, 1)) {
+    while (!io.github.kotlinmania.llama.core.criticalSectionLock.compareAndSet(0, 1)) {
         // spin
     }
 }
 
 @OptIn(ExperimentalAtomicApi::class)
 fun ggml_critical_section_end() {
-    io.github.kotlinmania.llama.ore.criticalSectionLock.store(0)
+    io.github.kotlinmania.llama.core.criticalSectionLock.store(0)
 }
 
 /**
@@ -62,31 +62,31 @@ data class GGMLGraphSplit(
     val backendName: String,
     val startNode: Int,
     val endNode: Int,
-    val nodes: List<io.github.kotlinmania.llama.ore.GGMLTensor>,
-    val inputs: List<io.github.kotlinmania.llama.ore.GGMLTensor> = emptyList()
+    val nodes: List<io.github.kotlinmania.llama.core.GGMLTensor>,
+    val inputs: List<io.github.kotlinmania.llama.core.GGMLTensor> = emptyList()
 )
 
 /**
  * Execution context for a scheduled operation
  */
 data class GGMLExecutionContext(
-    val backend: io.github.kotlinmania.llama.ore.GGMLBackend,
-    val split: io.github.kotlinmania.llama.ore.GGMLGraphSplit,
-    val context: io.github.kotlinmania.llama.ore.GGMLContext
+    val backend: io.github.kotlinmania.llama.core.GGMLBackend,
+    val split: io.github.kotlinmania.llama.core.GGMLGraphSplit,
+    val context: io.github.kotlinmania.llama.core.GGMLContext
 )
 
 /**
  * Dependency tracker for graph nodes
  */
 class GGMLDependencyTracker {
-    private val dependencies = mutableMapOf<io.github.kotlinmania.llama.ore.GGMLTensor, MutableSet<io.github.kotlinmania.llama.ore.GGMLTensor>>()
-    private val dependents = mutableMapOf<io.github.kotlinmania.llama.ore.GGMLTensor, MutableSet<io.github.kotlinmania.llama.ore.GGMLTensor>>()
-    private val completed = mutableSetOf<io.github.kotlinmania.llama.ore.GGMLTensor>()
+    private val dependencies = mutableMapOf<io.github.kotlinmania.llama.core.GGMLTensor, MutableSet<io.github.kotlinmania.llama.core.GGMLTensor>>()
+    private val dependents = mutableMapOf<io.github.kotlinmania.llama.core.GGMLTensor, MutableSet<io.github.kotlinmania.llama.core.GGMLTensor>>()
+    private val completed = mutableSetOf<io.github.kotlinmania.llama.core.GGMLTensor>()
     
     /**
      * Build dependency graph for a computation graph
      */
-    fun buildDependencies(graph: io.github.kotlinmania.llama.ore.GGMLCGraph) {
+    fun buildDependencies(graph: io.github.kotlinmania.llama.core.GGMLCGraph) {
         dependencies.clear()
         dependents.clear()
         completed.clear()
@@ -115,7 +115,7 @@ class GGMLDependencyTracker {
     /**
      * Get nodes that are ready to execute (all dependencies completed)
      */
-    fun getReadyNodes(): List<io.github.kotlinmania.llama.ore.GGMLTensor> {
+    fun getReadyNodes(): List<io.github.kotlinmania.llama.core.GGMLTensor> {
         return dependencies.keys.filter { node ->
             node !in completed && dependencies[node]!!.all { it in completed }
         }
@@ -124,7 +124,7 @@ class GGMLDependencyTracker {
     /**
      * Mark a node as completed
      */
-    fun markCompleted(node: io.github.kotlinmania.llama.ore.GGMLTensor) {
+    fun markCompleted(node: io.github.kotlinmania.llama.core.GGMLTensor) {
         completed.add(node)
     }
     
@@ -147,66 +147,66 @@ class GGMLDependencyTracker {
  * Multi-threaded scheduler for computation graphs
  */
 class GGMLScheduler(
-    private val backends: List<io.github.kotlinmania.llama.ore.GGMLBackend>,
-    private val strategy: io.github.kotlinmania.llama.ore.GGMLSchedulingStrategy = io.github.kotlinmania.llama.ore.GGMLSchedulingStrategy.PARALLEL
+    private val backends: List<io.github.kotlinmania.llama.core.GGMLBackend>,
+    private val strategy: io.github.kotlinmania.llama.core.GGMLSchedulingStrategy = io.github.kotlinmania.llama.core.GGMLSchedulingStrategy.PARALLEL
 ) {
-    private val dependencyTracker = io.github.kotlinmania.llama.ore.GGMLDependencyTracker()
+    private val dependencyTracker = io.github.kotlinmania.llama.core.GGMLDependencyTracker()
     private var maxWorkers = 4
     
-    private fun primaryBackend(): io.github.kotlinmania.llama.ore.GGMLBackend? = backends.firstOrNull()
+    private fun primaryBackend(): io.github.kotlinmania.llama.core.GGMLBackend? = backends.firstOrNull()
     
     fun setMaxWorkers(workers: Int) {
         maxWorkers = workers.coerceAtLeast(1)
     }
     
-    fun execute(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, context: io.github.kotlinmania.llama.ore.GGMLContext): io.github.kotlinmania.llama.ore.GGMLBackendStatus {
+    fun execute(graph: io.github.kotlinmania.llama.core.GGMLCGraph, context: io.github.kotlinmania.llama.core.GGMLContext): io.github.kotlinmania.llama.core.GGMLBackendStatus {
         return when (strategy) {
-            io.github.kotlinmania.llama.ore.GGMLSchedulingStrategy.SEQUENTIAL -> executeSequential(graph, context)
-            io.github.kotlinmania.llama.ore.GGMLSchedulingStrategy.PARALLEL -> executeParallel(graph, context)
-            io.github.kotlinmania.llama.ore.GGMLSchedulingStrategy.MULTI_BACKEND -> executeMultiBackend(graph, context)
+            io.github.kotlinmania.llama.core.GGMLSchedulingStrategy.SEQUENTIAL -> executeSequential(graph, context)
+            io.github.kotlinmania.llama.core.GGMLSchedulingStrategy.PARALLEL -> executeParallel(graph, context)
+            io.github.kotlinmania.llama.core.GGMLSchedulingStrategy.MULTI_BACKEND -> executeMultiBackend(graph, context)
         }
     }
     
-    private fun executeSequential(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, context: io.github.kotlinmania.llama.ore.GGMLContext): io.github.kotlinmania.llama.ore.GGMLBackendStatus {
-        val backend = primaryBackend() ?: return io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+    private fun executeSequential(graph: io.github.kotlinmania.llama.core.GGMLCGraph, context: io.github.kotlinmania.llama.core.GGMLContext): io.github.kotlinmania.llama.core.GGMLBackendStatus {
+        val backend = primaryBackend() ?: return io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
         return try {
-            val allocator = graph.allocator ?: io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+            val allocator = graph.allocator ?: io.github.kotlinmania.llama.core.GGMLGraphAllocator()
                 .also { graph.allocator = it }
-            if (!allocator.allocateGraph(graph)) return io.github.kotlinmania.llama.ore.GGMLBackendStatus.ALLOC_FAILED
+            if (!allocator.allocateGraph(graph)) return io.github.kotlinmania.llama.core.GGMLBackendStatus.ALLOC_FAILED
             val status = backend.graphCompute(graph)
-            if (status == io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS) io.github.kotlinmania.llama.ore.GGMLBackendStatus.SUCCESS else io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+            if (status == io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS) io.github.kotlinmania.llama.core.GGMLBackendStatus.SUCCESS else io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
         } catch (e: Exception) {
-            io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+            io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
         }
     }
     
-    private fun executeParallel(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, context: io.github.kotlinmania.llama.ore.GGMLContext): io.github.kotlinmania.llama.ore.GGMLBackendStatus {
+    private fun executeParallel(graph: io.github.kotlinmania.llama.core.GGMLCGraph, context: io.github.kotlinmania.llama.core.GGMLContext): io.github.kotlinmania.llama.core.GGMLBackendStatus {
         dependencyTracker.buildDependencies(graph)
         return executeSequentialWithDependencies(graph, context)
     }
     
-    private fun executeSequentialWithDependencies(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, context: io.github.kotlinmania.llama.ore.GGMLContext): io.github.kotlinmania.llama.ore.GGMLBackendStatus {
+    private fun executeSequentialWithDependencies(graph: io.github.kotlinmania.llama.core.GGMLCGraph, context: io.github.kotlinmania.llama.core.GGMLContext): io.github.kotlinmania.llama.core.GGMLBackendStatus {
         dependencyTracker.buildDependencies(graph)
         
         while (!dependencyTracker.isComplete()) {
             val readyNodes = dependencyTracker.getReadyNodes()
-            if (readyNodes.isEmpty()) return io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+            if (readyNodes.isEmpty()) return io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
             
             for (node in readyNodes) {
                 try {
-                    val backend = primaryBackend() ?: return io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+                    val backend = primaryBackend() ?: return io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
                     executeNode(node, context, backend)
                     dependencyTracker.markCompleted(node)
                 } catch (e: Exception) {
-                    return io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+                    return io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
                 }
             }
         }
         
-        return io.github.kotlinmania.llama.ore.GGMLBackendStatus.SUCCESS
+        return io.github.kotlinmania.llama.core.GGMLBackendStatus.SUCCESS
     }
     
-    private fun executeMultiBackend(graph: io.github.kotlinmania.llama.ore.GGMLCGraph, context: io.github.kotlinmania.llama.ore.GGMLContext): io.github.kotlinmania.llama.ore.GGMLBackendStatus {
+    private fun executeMultiBackend(graph: io.github.kotlinmania.llama.core.GGMLCGraph, context: io.github.kotlinmania.llama.core.GGMLContext): io.github.kotlinmania.llama.core.GGMLBackendStatus {
         val splits = createGraphSplits(graph)
         
         if (splits.size <= 1) {
@@ -216,50 +216,50 @@ class GGMLScheduler(
         for (split in splits) {
             val backend = backends.firstOrNull { it.getName() == split.backendName } ?: continue
             val status = executeGraphSplit(split, context, backend)
-            if (status != io.github.kotlinmania.llama.ore.GGMLBackendStatus.SUCCESS) return status
+            if (status != io.github.kotlinmania.llama.core.GGMLBackendStatus.SUCCESS) return status
         }
         
         backends.forEach { it.synchronize() }
-        return io.github.kotlinmania.llama.ore.GGMLBackendStatus.SUCCESS
+        return io.github.kotlinmania.llama.core.GGMLBackendStatus.SUCCESS
     }
     
-    private fun executeNode(node: io.github.kotlinmania.llama.ore.GGMLTensor, context: io.github.kotlinmania.llama.ore.GGMLContext, backend: io.github.kotlinmania.llama.ore.GGMLBackend) {
-        val tempGraph = io.github.kotlinmania.llama.ore.createGraph(1)
+    private fun executeNode(node: io.github.kotlinmania.llama.core.GGMLTensor, context: io.github.kotlinmania.llama.core.GGMLContext, backend: io.github.kotlinmania.llama.core.GGMLBackend) {
+        val tempGraph = io.github.kotlinmania.llama.core.createGraph(1)
         tempGraph.nodes[0] = node
         tempGraph.nNodes = 1
-        val allocator = tempGraph.allocator ?: io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        val allocator = tempGraph.allocator ?: io.github.kotlinmania.llama.core.GGMLGraphAllocator()
             .also { tempGraph.allocator = it }
         allocator.allocateGraph(tempGraph)
         backend.graphCompute(tempGraph)
     }
     
-    private fun executeGraphSplit(split: io.github.kotlinmania.llama.ore.GGMLGraphSplit, context: io.github.kotlinmania.llama.ore.GGMLContext, backend: io.github.kotlinmania.llama.ore.GGMLBackend): io.github.kotlinmania.llama.ore.GGMLBackendStatus {
-        val subGraph = io.github.kotlinmania.llama.ore.createGraph(split.nodes.size)
+    private fun executeGraphSplit(split: io.github.kotlinmania.llama.core.GGMLGraphSplit, context: io.github.kotlinmania.llama.core.GGMLContext, backend: io.github.kotlinmania.llama.core.GGMLBackend): io.github.kotlinmania.llama.core.GGMLBackendStatus {
+        val subGraph = io.github.kotlinmania.llama.core.createGraph(split.nodes.size)
         for (i in split.nodes.indices) {
             subGraph.nodes[i] = split.nodes[i]
         }
         subGraph.nNodes = split.nodes.size
-        val allocator = subGraph.allocator ?: io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        val allocator = subGraph.allocator ?: io.github.kotlinmania.llama.core.GGMLGraphAllocator()
             .also { subGraph.allocator = it }
-        if (!allocator.allocateGraph(subGraph)) return io.github.kotlinmania.llama.ore.GGMLBackendStatus.ALLOC_FAILED
+        if (!allocator.allocateGraph(subGraph)) return io.github.kotlinmania.llama.core.GGMLBackendStatus.ALLOC_FAILED
         val status = backend.graphCompute(subGraph)
-        return if (status == io.github.kotlinmania.llama.ore.GGMLStatus.SUCCESS) io.github.kotlinmania.llama.ore.GGMLBackendStatus.SUCCESS else io.github.kotlinmania.llama.ore.GGMLBackendStatus.FAILED
+        return if (status == io.github.kotlinmania.llama.core.GGMLStatus.SUCCESS) io.github.kotlinmania.llama.core.GGMLBackendStatus.SUCCESS else io.github.kotlinmania.llama.core.GGMLBackendStatus.FAILED
     }
     
-    private fun createGraphSplits(graph: io.github.kotlinmania.llama.ore.GGMLCGraph): List<io.github.kotlinmania.llama.ore.GGMLGraphSplit> {
-        val splits = mutableListOf<io.github.kotlinmania.llama.ore.GGMLGraphSplit>()
+    private fun createGraphSplits(graph: io.github.kotlinmania.llama.core.GGMLCGraph): List<io.github.kotlinmania.llama.core.GGMLGraphSplit> {
+        val splits = mutableListOf<io.github.kotlinmania.llama.core.GGMLGraphSplit>()
         if (backends.isEmpty()) return splits
         
         var currentBackend = primaryBackend() ?: return splits
         var splitStart = 0
-        val currentSplitNodes = mutableListOf<io.github.kotlinmania.llama.ore.GGMLTensor>()
+        val currentSplitNodes = mutableListOf<io.github.kotlinmania.llama.core.GGMLTensor>()
         
         for (i in 0 until graph.nNodes) {
             val node = graph.nodes[i] ?: continue
             val bestBackend = primaryBackend() ?: currentBackend
             if (bestBackend.getName() != currentBackend.getName() && currentSplitNodes.isNotEmpty()) {
                 splits.add(
-                    io.github.kotlinmania.llama.ore.GGMLGraphSplit(
+                    io.github.kotlinmania.llama.core.GGMLGraphSplit(
                         backendName = currentBackend.getName(),
                         startNode = splitStart,
                         endNode = i - 1,
@@ -275,7 +275,7 @@ class GGMLScheduler(
         
         if (currentSplitNodes.isNotEmpty()) {
             splits.add(
-                io.github.kotlinmania.llama.ore.GGMLGraphSplit(
+                io.github.kotlinmania.llama.core.GGMLGraphSplit(
                     backendName = currentBackend.getName(),
                     startNode = splitStart,
                     endNode = graph.nNodes - 1,
@@ -287,8 +287,8 @@ class GGMLScheduler(
         return splits
     }
     
-    fun getStats(): io.github.kotlinmania.llama.ore.SchedulerStats {
-        return io.github.kotlinmania.llama.ore.SchedulerStats(
+    fun getStats(): io.github.kotlinmania.llama.core.SchedulerStats {
+        return io.github.kotlinmania.llama.core.SchedulerStats(
             maxWorkers = maxWorkers,
             strategy = strategy,
             availableBackends = backends.map { it.getName() }
@@ -301,6 +301,6 @@ class GGMLScheduler(
  */
 data class SchedulerStats(
     val maxWorkers: Int,
-    val strategy: io.github.kotlinmania.llama.ore.GGMLSchedulingStrategy,
+    val strategy: io.github.kotlinmania.llama.core.GGMLSchedulingStrategy,
     val availableBackends: List<String>
 )

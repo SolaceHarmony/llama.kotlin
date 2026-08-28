@@ -1,6 +1,6 @@
 package io.github.kotlinmania.llama.examples
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import io.github.kotlinmania.llama.model.*
 
 /**

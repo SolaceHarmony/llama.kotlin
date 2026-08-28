@@ -5,7 +5,7 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
 /**
  * Thread-local compute context for GGML operations.
  *
- * Provides thread-local storage for [io.github.kotlinmania.llama.ore.GGMLComputeParams] to eliminate parameter passing
+ * Provides thread-local storage for [io.github.kotlinmania.llama.core.GGMLComputeParams] to eliminate parameter passing
  * through deep call stacks in the compute graph. Each thread maintains its own compute
  * parameters (thread ID, thread count, etc.) without contention.
  *
@@ -218,7 +218,7 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
  * - Debug mode to track context lifetime
  * - Statistics on context usage
  *
- * @see io.github.kotlinmania.llama.ore.GGMLComputeParams For the compute parameters stored
+ * @see io.github.kotlinmania.llama.core.GGMLComputeParams For the compute parameters stored
  * @since 0.3.1 (requires threadlocal-kotlin:0.3.1)
  */
 object GGMLThreadLocalContext {

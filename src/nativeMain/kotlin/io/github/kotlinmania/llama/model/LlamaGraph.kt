@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-graph.h llama.cpp/src/llama-graph.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.min

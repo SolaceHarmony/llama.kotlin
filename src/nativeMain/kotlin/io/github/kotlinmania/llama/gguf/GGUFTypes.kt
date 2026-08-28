@@ -1,8 +1,8 @@
 // port-lint: source ggml/include/gguf.h
 package io.github.kotlinmania.llama.gguf
 
-import io.github.kotlinmania.llama.ore.GGMLType
-import io.github.kotlinmania.llama.ore.GGML_MAX_DIMS
+import io.github.kotlinmania.llama.core.GGMLType
+import io.github.kotlinmania.llama.core.GGML_MAX_DIMS
 
 // ---------------------------------------------------------------------------
 // GGUF file-format constants

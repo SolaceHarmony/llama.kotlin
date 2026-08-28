@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-arch.h llama.cpp/src/llama-arch.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 
 // =============================================================================
 // GGUF Metadata Key Identifiers

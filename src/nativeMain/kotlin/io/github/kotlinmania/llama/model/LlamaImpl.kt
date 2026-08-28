@@ -1,7 +1,7 @@
 // port-lint: source llama.cpp/src/llama-impl.h llama.cpp/src/llama-impl.cpp
 package io.github.kotlinmania.llama.model
 
-import io.github.kotlinmania.llama.ore.*
+import io.github.kotlinmania.llama.core.*
 import kotlin.time.TimeSource
 
 // =============================================================================

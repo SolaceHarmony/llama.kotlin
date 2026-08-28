@@ -1,9 +1,9 @@
 package io.github.kotlinmania.llama.core
 
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getShortLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setShortLe
 
 import kotlin.math.* // Import all math functions
 import kotlin.test.*
@@ -12,15 +12,15 @@ import kotlin.Short.Companion.SIZE_BYTES as SHORT_SIZE_BYTES
 
 class GGMLComputeOpsTest {
 
-    private lateinit var graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator
+    private lateinit var graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator
     private lateinit var testBuffer: ByteArray
     private val bufferSize = 1 * 1024 * 1024 // 1MB
 
     // Use shared utility for stride calculation
 
     // Helper to calculate tensor byte size
-    private fun calculateTensorByteSize(type: io.github.kotlinmania.llama.ore.GGMLType, ne: LongArray): ULong {
-        if (type.byteSize == 0uL && type != io.github.kotlinmania.llama.ore.GGMLType.COUNT && !type.name.startsWith("Q")) {
+    private fun calculateTensorByteSize(type: io.github.kotlinmania.llama.core.GGMLType, ne: LongArray): ULong {
+        if (type.byteSize == 0uL && type != io.github.kotlinmania.llama.core.GGMLType.COUNT && !type.name.startsWith("Q")) {
              println("Warning: Calculating byte size for type ${type.name} with byteSize 0.")
             return 0uL
         }
@@ -43,11 +43,11 @@ class GGMLComputeOpsTest {
         }
 
         // For block types like Q8_0, byteSize is per block, numElements() is actual element count
-        if (type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0 && elements > 0uL) {
-            if (elements.toLong() % io.github.kotlinmania.llama.ore.QK8_0 != 0L) {
-                println("Warning: Total elements $elements for Q8_0 is not divisible by block size ${io.github.kotlinmania.llama.ore.QK8_0}.")
+        if (type == io.github.kotlinmania.llama.core.GGMLType.Q8_0 && elements > 0uL) {
+            if (elements.toLong() % io.github.kotlinmania.llama.core.QK8_0 != 0L) {
+                println("Warning: Total elements $elements for Q8_0 is not divisible by block size ${io.github.kotlinmania.llama.core.QK8_0}.")
             }
-            return (elements.toLong() / io.github.kotlinmania.llama.ore.QK8_0).toULong() * type.byteSize
+            return (elements.toLong() / io.github.kotlinmania.llama.core.QK8_0).toULong() * type.byteSize
         }
 
         return elements * type.byteSize
@@ -56,11 +56,11 @@ class GGMLComputeOpsTest {
 
     @BeforeTest
     fun setup() {
-        graphAllocator = io.github.kotlinmania.llama.ore.GGMLGraphAllocator()
+        graphAllocator = io.github.kotlinmania.llama.core.GGMLGraphAllocator()
         testBuffer = ByteArray(bufferSize)
         // Ensure buffer and allocator lists are not empty before assignment
         if (graphAllocator.buffers.isEmpty()) graphAllocator.buffers.add(null)
-        if (graphAllocator.tensorAllocators.isEmpty()) graphAllocator.tensorAllocators.add(io.github.kotlinmania.llama.ore.GGMLDynTensorAllocator())
+        if (graphAllocator.tensorAllocators.isEmpty()) graphAllocator.tensorAllocators.add(io.github.kotlinmania.llama.core.GGMLDynTensorAllocator())
 
         graphAllocator.buffers[0] = testBuffer
         graphAllocator.tensorAllocators[0].reset(bufferSize.toULong())
@@ -70,21 +70,21 @@ class GGMLComputeOpsTest {
     // Helper to create a tensor and optionally initialize it with a sequence
     private fun createAndInitTensor(
         name: String,
-        type: io.github.kotlinmania.llama.ore.GGMLType,
+        type: io.github.kotlinmania.llama.core.GGMLType,
         dims: LongArray, // Effective dimensions, e.g. longArrayOf(10) or longArrayOf(3,4)
         dataOffset: ULong = 0uL,
         bufferId: Int = 0,
         fillSequence: Boolean = false,
         startValue: Number = 0.0f,
         step: Number = 1.0f
-    ): io.github.kotlinmania.llama.ore.GGMLTensor {
-        val tensor = io.github.kotlinmania.llama.ore.GGMLTensor(type = type)
+    ): io.github.kotlinmania.llama.core.GGMLTensor {
+        val tensor = io.github.kotlinmania.llama.core.GGMLTensor(type = type)
         tensor.name = name
 
         // Pad ne to GGML_MAX_DIMS with 1s for unused dimensions
-        tensor.ne = LongArray(io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) { 1L }
+        tensor.ne = LongArray(io.github.kotlinmania.llama.core.GGML_MAX_DIMS) { 1L }
         dims.forEachIndexed { index, dimSize ->
-            if (index < io.github.kotlinmania.llama.ore.GGML_MAX_DIMS) tensor.ne[index] = dimSize
+            if (index < io.github.kotlinmania.llama.core.GGML_MAX_DIMS) tensor.ne[index] = dimSize
         }
 
         tensor.nb = GGMLTestUtils.calculateStrides(type, tensor.ne)
@@ -94,9 +94,9 @@ class GGMLComputeOpsTest {
 
         // Use tensor.numElements() for calculating byte size for allocation check
         val actualElementCount = tensor.numElements()
-        val tensorByteSizeForCheck = if (type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) {
-            if (actualElementCount % io.github.kotlinmania.llama.ore.QK8_0 != 0L) throw IllegalArgumentException("Q8_0 element count must be div by QK8_0")
-            (actualElementCount / io.github.kotlinmania.llama.ore.QK8_0).toULong() * type.byteSize
+        val tensorByteSizeForCheck = if (type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) {
+            if (actualElementCount % io.github.kotlinmania.llama.core.QK8_0 != 0L) throw IllegalArgumentException("Q8_0 element count must be div by QK8_0")
+            (actualElementCount / io.github.kotlinmania.llama.core.QK8_0).toULong() * type.byteSize
         } else {
             actualElementCount.toULong() * type.byteSize
         }
@@ -118,20 +118,20 @@ class GGMLComputeOpsTest {
             // Actual operations under test should use tensor.setX/getX accessors.
             var writeOffset = tensor.dataOffset.toInt()
 
-            if (type == io.github.kotlinmania.llama.ore.GGMLType.Q8_0) {
-                require(numElementsToFill % io.github.kotlinmania.llama.ore.QK8_0 == 0) { "Q8_0 fill sequence requires numElements divisible by QK8_0" }
-                val numBlocks = numElementsToFill / io.github.kotlinmania.llama.ore.QK8_0
-                val f32Block = FloatArray(io.github.kotlinmania.llama.ore.QK8_0)
+            if (type == io.github.kotlinmania.llama.core.GGMLType.Q8_0) {
+                require(numElementsToFill % io.github.kotlinmania.llama.core.QK8_0 == 0) { "Q8_0 fill sequence requires numElements divisible by QK8_0" }
+                val numBlocks = numElementsToFill / io.github.kotlinmania.llama.core.QK8_0
+                val f32Block = FloatArray(io.github.kotlinmania.llama.core.QK8_0)
                 var elemIdx = 0
                 for (blockNum in 0 until numBlocks) {
-                    for (i in 0 until io.github.kotlinmania.llama.ore.QK8_0) {
+                    for (i in 0 until io.github.kotlinmania.llama.core.QK8_0) {
                         f32Block[i] = startValue.toFloat() + (elemIdx++ * stepValue)
                     }
                     var amax = 0.0f
                     for(v in f32Block) amax = maxOf(amax, abs(v))
                     val scaleF32 = if (amax == 0.0f) 1.0f else amax / 127.0f
                     val invScaleF32 = 1.0f / scaleF32
-                    val scaleF16Short = io.github.kotlinmania.llama.ore.floatToHalf(scaleF32)
+                    val scaleF16Short = io.github.kotlinmania.llama.core.floatToHalf(scaleF32)
 
                     testBuffer.setShortLe(writeOffset, scaleF16Short)
                     writeOffset += SHORT_SIZE_BYTES
@@ -146,12 +146,12 @@ class GGMLComputeOpsTest {
             } else {
                  for (i in 0 until numElementsToFill) {
                     when (type) {
-                        io.github.kotlinmania.llama.ore.GGMLType.F32 -> testBuffer.setFloatLe(writeOffset, currentValue)
-                        io.github.kotlinmania.llama.ore.GGMLType.F16 -> testBuffer.setShortLe(writeOffset,
-                            io.github.kotlinmania.llama.ore.floatToHalf(currentValue)
+                        io.github.kotlinmania.llama.core.GGMLType.F32 -> testBuffer.setFloatLe(writeOffset, currentValue)
+                        io.github.kotlinmania.llama.core.GGMLType.F16 -> testBuffer.setShortLe(writeOffset,
+                            io.github.kotlinmania.llama.core.floatToHalf(currentValue)
                         )
-                        io.github.kotlinmania.llama.ore.GGMLType.I32 -> testBuffer.setIntLe(writeOffset, currentValue.toInt())
-                        io.github.kotlinmania.llama.ore.GGMLType.I16 -> testBuffer.setShortLe(writeOffset, currentValue.toInt().toShort())
+                        io.github.kotlinmania.llama.core.GGMLType.I32 -> testBuffer.setIntLe(writeOffset, currentValue.toInt())
+                        io.github.kotlinmania.llama.core.GGMLType.I16 -> testBuffer.setShortLe(writeOffset, currentValue.toInt().toShort())
                         else -> throw IllegalArgumentException("Unsupported type for sequence init: $type")
                     }
                     writeOffset += type.byteSize.toInt()
@@ -162,19 +162,19 @@ class GGMLComputeOpsTest {
         return tensor
     }
 
-    private fun allocateLike(source: io.github.kotlinmania.llama.ore.GGMLTensor, suffix: String): io.github.kotlinmania.llama.ore.GGMLTensor =
+    private fun allocateLike(source: io.github.kotlinmania.llama.core.GGMLTensor, suffix: String): io.github.kotlinmania.llama.core.GGMLTensor =
         graphAllocator.allocateLike(source, suffix)
 
-    private fun allocateTensor(name: String, type: io.github.kotlinmania.llama.ore.GGMLType, shape: LongArray): io.github.kotlinmania.llama.ore.GGMLTensor =
+    private fun allocateTensor(name: String, type: io.github.kotlinmania.llama.core.GGMLType, shape: LongArray): io.github.kotlinmania.llama.core.GGMLTensor =
         GGMLTestUtils.allocateDestinationTensor(graphAllocator, name, type, shape)
 
-    private fun runUnaryOp(source: io.github.kotlinmania.llama.ore.GGMLTensor, suffix: String, op: (io.github.kotlinmania.llama.ore.GGMLTensor) -> Unit): io.github.kotlinmania.llama.ore.GGMLTensor {
+    private fun runUnaryOp(source: io.github.kotlinmania.llama.core.GGMLTensor, suffix: String, op: (io.github.kotlinmania.llama.core.GGMLTensor) -> Unit): io.github.kotlinmania.llama.core.GGMLTensor {
         val dst = allocateLike(source, suffix)
         op(dst)
         return dst
     }
 
-    private fun runBinaryOp(lhs: io.github.kotlinmania.llama.ore.GGMLTensor, rhs: io.github.kotlinmania.llama.ore.GGMLTensor, suffix: String, op: (io.github.kotlinmania.llama.ore.GGMLTensor) -> Unit): io.github.kotlinmania.llama.ore.GGMLTensor {
+    private fun runBinaryOp(lhs: io.github.kotlinmania.llama.core.GGMLTensor, rhs: io.github.kotlinmania.llama.core.GGMLTensor, suffix: String, op: (io.github.kotlinmania.llama.core.GGMLTensor) -> Unit): io.github.kotlinmania.llama.core.GGMLTensor {
         val dst = allocateLike(lhs, suffix)
         op(dst)
         return dst
@@ -188,15 +188,15 @@ class GGMLComputeOpsTest {
     @Test
     fun testComputeAddF32() {
         val context =
-            io.github.kotlinmania.llama.ore.GGMLContext() // Dummy context, not used by current computeAdd impl beyond graphAllocator
+            io.github.kotlinmania.llama.core.GGMLContext() // Dummy context, not used by current computeAdd impl beyond graphAllocator
         var currentOffset = 0uL
 
         // 1D Test
         val dims1D = longArrayOf(5)
-        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F32, dims1D)
-        val src0_1D = createAndInitTensor("src0_1D", io.github.kotlinmania.llama.ore.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 1.0f, step = 1.0f)
+        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F32, dims1D)
+        val src0_1D = createAndInitTensor("src0_1D", io.github.kotlinmania.llama.core.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 1.0f, step = 1.0f)
         currentOffset += size1D
-        val src1_1D = createAndInitTensor("src1_1D", io.github.kotlinmania.llama.ore.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 10.0f, step = 10.0f)
+        val src1_1D = createAndInitTensor("src1_1D", io.github.kotlinmania.llama.core.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 10.0f, step = 10.0f)
         currentOffset += size1D
 
         val src0_1DInitial = FloatArray(dims1D[0].toInt()) { idx ->
@@ -207,7 +207,7 @@ class GGMLComputeOpsTest {
         }
 
         val resultAdd1D = runBinaryOp(src0_1D, src1_1D, "add_f32_1d") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0_1D, src1_1D, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0_1D, src1_1D, dst)
         }
         for (i in 0 until dims1D[0].toInt()) {
             val expected = src0_1DInitial[i] + src1_1DInitial[i]
@@ -218,10 +218,10 @@ class GGMLComputeOpsTest {
         // 2D Test
         currentOffset = 0uL // Reset for next set of allocations to avoid large offsets
         val dims2D = longArrayOf(2, 3) // 2 cols, 3 rows
-        val size2D = calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F32, dims2D)
-        val src0_2D = createAndInitTensor("src0_2D", io.github.kotlinmania.llama.ore.GGMLType.F32, dims2D, currentOffset, fillSequence = true, startValue = 1.0f, step = 0.5f)
+        val size2D = calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F32, dims2D)
+        val src0_2D = createAndInitTensor("src0_2D", io.github.kotlinmania.llama.core.GGMLType.F32, dims2D, currentOffset, fillSequence = true, startValue = 1.0f, step = 0.5f)
         currentOffset += size2D
-        val src1_2D = createAndInitTensor("src1_2D", io.github.kotlinmania.llama.ore.GGMLType.F32, dims2D, currentOffset, fillSequence = true, startValue = 10.0f, step = 2.0f)
+        val src1_2D = createAndInitTensor("src1_2D", io.github.kotlinmania.llama.core.GGMLType.F32, dims2D, currentOffset, fillSequence = true, startValue = 10.0f, step = 2.0f)
         // currentOffset += size2D; // dst is managed by runBinaryOp
 
         val rows2D = dims2D[1].toInt()
@@ -234,7 +234,7 @@ class GGMLComputeOpsTest {
         }
 
         val resultAdd2D = runBinaryOp(src0_2D, src1_2D, "add_f32_2d") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0_2D, src1_2D, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0_2D, src1_2D, dst)
         }
         for (r in 0 until rows2D) { // rows
             for (c in 0 until cols2D) { // cols
@@ -246,29 +246,29 @@ class GGMLComputeOpsTest {
 
     @Test
     fun testComputeAddF16() {
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         var currentOffset = 0uL
         val dims1D = longArrayOf(5)
-        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F16, dims1D)
+        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F16, dims1D)
 
         val src0Vals = floatArrayOf(1.0f, 2.5f, -3.0f, 0.1f, 100.0f)
         val src1Vals = floatArrayOf(0.5f, -1.5f, 12.5f, 0.05f, -20.0f)
 
-        val src0_1D = createAndInitTensor("src0_F16", io.github.kotlinmania.llama.ore.GGMLType.F16, dims1D, currentOffset)
+        val src0_1D = createAndInitTensor("src0_F16", io.github.kotlinmania.llama.core.GGMLType.F16, dims1D, currentOffset)
         currentOffset += size1D
-        val src1_1D = createAndInitTensor("src1_F16", io.github.kotlinmania.llama.ore.GGMLType.F16, dims1D, currentOffset)
+        val src1_1D = createAndInitTensor("src1_F16", io.github.kotlinmania.llama.core.GGMLType.F16, dims1D, currentOffset)
         // currentOffset += size1D; // dst not used
 
         for(i in src0Vals.indices) src0_1D.setHalf(graphAllocator, src0Vals[i], i)
         for(i in src1Vals.indices) src1_1D.setHalf(graphAllocator, src1Vals[i], i)
 
         val resultAdd1D = runBinaryOp(src0_1D, src1_1D, "add_f16_1d") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0_1D, src1_1D, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0_1D, src1_1D, dst)
         }
         for (i in 0 until dims1D[0].toInt()) {
             val expectedF32 = src0Vals[i] + src1Vals[i]
-            val expectedF16AsF32 = io.github.kotlinmania.llama.ore.halfToFloat(
-                io.github.kotlinmania.llama.ore.floatToHalf(expectedF32)
+            val expectedF16AsF32 = io.github.kotlinmania.llama.core.halfToFloat(
+                io.github.kotlinmania.llama.core.floatToHalf(expectedF32)
             )
             val actual = resultAdd1D.getHalf(graphAllocator, i)
             val tolerance = max(1e-3f, abs(expectedF16AsF32) * 1e-3f)
@@ -279,14 +279,14 @@ class GGMLComputeOpsTest {
 
     @Test
     fun testComputeMulF32() {
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         var currentOffset = 0uL
         val dims1D = longArrayOf(4)
-        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F32, dims1D)
+        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F32, dims1D)
 
-        val src0_1D = createAndInitTensor("src0_MulF32", io.github.kotlinmania.llama.ore.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 1.5f, step = 1.0f)
+        val src0_1D = createAndInitTensor("src0_MulF32", io.github.kotlinmania.llama.core.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 1.5f, step = 1.0f)
         currentOffset += size1D
-        val src1_1D = createAndInitTensor("src1_MulF32", io.github.kotlinmania.llama.ore.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 2.0f, step = 0.5f)
+        val src1_1D = createAndInitTensor("src1_MulF32", io.github.kotlinmania.llama.core.GGMLType.F32, dims1D, currentOffset, fillSequence = true, startValue = 2.0f, step = 0.5f)
 
         val src0_1DMulInitial = FloatArray(dims1D[0].toInt()) { idx ->
             src0_1D.getFloat(graphAllocator, idx)
@@ -296,7 +296,7 @@ class GGMLComputeOpsTest {
         }
 
         val resultMul1D = runBinaryOp(src0_1D, src1_1D, "mul_f16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0_1D, src1_1D, dst)
+            io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0_1D, src1_1D, dst)
         }
         for (i in 0 until dims1D[0].toInt()) {
             val expected = src0_1DMulInitial[i] * src1_1DMulInitial[i]
@@ -306,28 +306,28 @@ class GGMLComputeOpsTest {
 
     @Test
     fun testComputeMulF16() {
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         var currentOffset = 0uL
         val dims1D = longArrayOf(4)
-        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F16, dims1D)
+        val size1D = calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F16, dims1D)
 
         val src0Vals = floatArrayOf(1.0f, -2.0f, 3.5f, 0.5f)
         val src1Vals = floatArrayOf(2.0f, 1.5f, -1.0f, 4.0f)
 
-        val src0_1D = createAndInitTensor("src0_MulF16", io.github.kotlinmania.llama.ore.GGMLType.F16, dims1D, currentOffset)
+        val src0_1D = createAndInitTensor("src0_MulF16", io.github.kotlinmania.llama.core.GGMLType.F16, dims1D, currentOffset)
         currentOffset += size1D
-        val src1_1D = createAndInitTensor("src1_MulF16", io.github.kotlinmania.llama.ore.GGMLType.F16, dims1D, currentOffset)
+        val src1_1D = createAndInitTensor("src1_MulF16", io.github.kotlinmania.llama.core.GGMLType.F16, dims1D, currentOffset)
 
         for(i in src0Vals.indices) src0_1D.setHalf(graphAllocator, src0Vals[i], i)
         for(i in src1Vals.indices) src1_1D.setHalf(graphAllocator, src1Vals[i], i)
 
         val resultMul1D = runBinaryOp(src0_1D, src1_1D, "mul_f16_1d") { dst ->
-            io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0_1D, src1_1D, dst)
+            io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0_1D, src1_1D, dst)
         }
         for (i in 0 until dims1D[0].toInt()) {
             val expectedF32 = src0Vals[i] * src1Vals[i]
-            val expectedF16AsF32 = io.github.kotlinmania.llama.ore.halfToFloat(
-                io.github.kotlinmania.llama.ore.floatToHalf(expectedF32)
+            val expectedF16AsF32 = io.github.kotlinmania.llama.core.halfToFloat(
+                io.github.kotlinmania.llama.core.floatToHalf(expectedF32)
             )
             val actualF16AsF32 = resultMul1D.getHalf(graphAllocator, i)
             // Use a delta for F16 comparisons due to precision
@@ -338,7 +338,7 @@ class GGMLComputeOpsTest {
 
     @Test
     fun testComputeMatMulF32xSF32() {
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         var currentOffset = 0uL
 
         // src0: 2x3 matrix (M=2, K=3)
@@ -346,8 +346,8 @@ class GGMLComputeOpsTest {
         val M0 = 2; val K0 = 3
         val src0Data = floatArrayOf(1f, 2f, 3f,  // Row 0
                                     4f, 5f, 6f)  // Row 1
-        val src0 = createAndInitTensor("src0_MM_F32", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(K0.toLong(), M0.toLong()), currentOffset)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F32, src0.ne)
+        val src0 = createAndInitTensor("src0_MM_F32", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(K0.toLong(), M0.toLong()), currentOffset)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F32, src0.ne)
         for (r in 0 until M0) {
             for (c in 0 until K0) {
                 src0.setFloat(graphAllocator, src0Data[r * K0 + c], c, r)
@@ -360,7 +360,7 @@ class GGMLComputeOpsTest {
         val src1Data = floatArrayOf(7f, 8f,    // Row 0
                                     9f, 10f,   // Row 1
                                     11f, 12f)  // Row 2
-        val src1 = createAndInitTensor("src1_MM_F32", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(N1.toLong(), K1.toLong()), currentOffset)
+        val src1 = createAndInitTensor("src1_MM_F32", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(N1.toLong(), K1.toLong()), currentOffset)
         // currentOffset += calculateTensorByteSize(GGMLType.F32, src1.ne) // Not needed if last alloc in this direct sequence
          for (r in 0 until K1) {
             for (c in 0 until N1) {
@@ -368,10 +368,10 @@ class GGMLComputeOpsTest {
             }
         }
 
-        val resultTensor = allocateTensor("matmul_f32_dst", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(N1.toLong(), M0.toLong()))
-        io.github.kotlinmania.llama.ore.computeMatMul(graphAllocator, src0, src1, resultTensor)
+        val resultTensor = allocateTensor("matmul_f32_dst", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(N1.toLong(), M0.toLong()))
+        io.github.kotlinmania.llama.core.computeMatMul(graphAllocator, src0, src1, resultTensor)
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type, "Result type should be F32")
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type, "Result type should be F32")
         // Result is M0 x N1 (2x2). ne = [cols, rows] -> ne = [2, 2]
         assertEquals(N1.toLong(), resultTensor.ne[0], "Result cols (ne[0]) mismatch")
         assertEquals(M0.toLong(), resultTensor.ne[1], "Result rows (ne[1]) mismatch")
@@ -388,12 +388,12 @@ class GGMLComputeOpsTest {
 
     @Test
     fun testComputeMatMulQ80xSF32() {
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         var currentOffset = 0uL
 
         // src0 (Q8_0): 2 x QK8_0 matrix (M=2, K=QK8_0). ne = [K,M] = [QK8_0,2]
         val M0 = 2
-        val K0 = io.github.kotlinmania.llama.ore.QK8_0
+        val K0 = io.github.kotlinmania.llama.core.QK8_0
         val N1 = 2
         val src0F32Data = FloatArray(M0 * K0) { idx ->
             val row = idx / K0
@@ -401,38 +401,38 @@ class GGMLComputeOpsTest {
             ((row + 1) * 0.12f) * (col - (K0 / 2))
         }
 
-        val tempF32Src0 = createAndInitTensor("tempF32Src0", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(K0.toLong(), M0.toLong()), currentOffset)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F32, tempF32Src0.ne)
+        val tempF32Src0 = createAndInitTensor("tempF32Src0", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(K0.toLong(), M0.toLong()), currentOffset)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F32, tempF32Src0.ne)
         for (r in 0 until M0) {
             for (c in 0 until K0) {
                 tempF32Src0.setFloat(graphAllocator, src0F32Data[r * K0 + c], c, r)
             }
         }
-        val q8Quantized = io.github.kotlinmania.llama.ore.quantizeTensor(
+        val q8Quantized = io.github.kotlinmania.llama.core.quantizeTensor(
             graphAllocator,
             tempF32Src0,
-            io.github.kotlinmania.llama.ore.GGMLType.Q8_0
+            io.github.kotlinmania.llama.core.GGMLType.Q8_0
         )
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.Q8_0, q8Quantized.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.Q8_0, q8Quantized.type)
         assertEquals(K0.toLong(), q8Quantized.ne[0])
         assertEquals(M0.toLong(), q8Quantized.ne[1])
 
         val q8RawData = (q8Quantized.data as? ByteArray)
             ?: error("Quantized tensor should expose ByteArray data for Q8_0")
-        val blockStrideBytes = SHORT_SIZE_BYTES + io.github.kotlinmania.llama.ore.QK8_0
-        val firstScale = io.github.kotlinmania.llama.ore.halfToFloat(q8RawData.getShortLe(0))
+        val blockStrideBytes = SHORT_SIZE_BYTES + io.github.kotlinmania.llama.core.QK8_0
+        val firstScale = io.github.kotlinmania.llama.core.halfToFloat(q8RawData.getShortLe(0))
         val secondScale =
-            io.github.kotlinmania.llama.ore.halfToFloat(q8RawData.getShortLe(blockStrideBytes))
+            io.github.kotlinmania.llama.core.halfToFloat(q8RawData.getShortLe(blockStrideBytes))
         assertTrue(firstScale.isFinite(), "First Q8_0 block scale should be finite")
         assertTrue(secondScale.isFinite(), "Second Q8_0 block scale should be finite")
         assertTrue(firstScale.absoluteValue < 10f, "Unexpectedly large first Q8_0 scale $firstScale")
         assertTrue(secondScale.absoluteValue < 10f, "Unexpectedly large second Q8_0 scale $secondScale")
-        val q8Src0 = allocateTensor("q8_src0", io.github.kotlinmania.llama.ore.GGMLType.Q8_0, longArrayOf(K0.toLong(), M0.toLong()))
+        val q8Src0 = allocateTensor("q8_src0", io.github.kotlinmania.llama.core.GGMLType.Q8_0, longArrayOf(K0.toLong(), M0.toLong()))
         graphAllocator.buffers[q8Src0.bufferId]?.let { buffer ->
             (buffer as? ByteArray)?.let { q8RawData.copyInto(it, destinationOffset = q8Src0.dataOffset.toInt()) }
         } ?: error("Test buffer not initialized for quantized tensor copy")
 
-        val q8Dequant = io.github.kotlinmania.llama.ore.dequantizeTensor(graphAllocator, q8Src0)
+        val q8Dequant = io.github.kotlinmania.llama.core.dequantizeTensor(graphAllocator, q8Src0)
         val q8DequantData = (q8Dequant.data as? FloatArray)
             ?: error("Dequantized tensor should expose FloatArray data for Q8_0")
         val maxAbsDequant = q8DequantData.maxOf { abs(it) }
@@ -444,7 +444,7 @@ class GGMLComputeOpsTest {
             val col = idx % N1
             (col + 1) * 0.05f * (row + 1)
         }
-        val src1F32 = createAndInitTensor("src1_MM_F32", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(N1.toLong(), K0.toLong()), currentOffset)
+        val src1F32 = createAndInitTensor("src1_MM_F32", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(N1.toLong(), K0.toLong()), currentOffset)
         for (r in 0 until K0) {
             for (c in 0 until N1) {
                 src1F32.setFloat(graphAllocator, src1F32Data[r * N1 + c], c, r)
@@ -458,10 +458,10 @@ class GGMLComputeOpsTest {
         }
         assertTrue(maxAbsSrc1 < 10f, "Unexpectedly large F32 RHS magnitude $maxAbsSrc1")
 
-        val resultTensor = allocateTensor("matmul_q8_f32_dst", io.github.kotlinmania.llama.ore.GGMLType.F32, longArrayOf(N1.toLong(), M0.toLong()))
-        io.github.kotlinmania.llama.ore.computeMatMul(graphAllocator, q8Src0, src1F32, resultTensor)
+        val resultTensor = allocateTensor("matmul_q8_f32_dst", io.github.kotlinmania.llama.core.GGMLType.F32, longArrayOf(N1.toLong(), M0.toLong()))
+        io.github.kotlinmania.llama.core.computeMatMul(graphAllocator, q8Src0, src1F32, resultTensor)
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type, "Result type should be F32 for Q8_0 x F32")
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type, "Result type should be F32 for Q8_0 x F32")
         assertEquals(N1.toLong(), resultTensor.ne[0], "Result cols (ne[0]) mismatch")
         assertEquals(M0.toLong(), resultTensor.ne[1], "Result rows (ne[1]) mismatch")
 
@@ -479,11 +479,11 @@ class GGMLComputeOpsTest {
 
     @Test
     fun testComputeRepeatBackF32BroadcastFirstDim() {
-        val context = io.github.kotlinmania.llama.ore.GGMLContext()
+        val context = io.github.kotlinmania.llama.core.GGMLContext()
         var currentOffset = 0uL
 
         val srcNe = longArrayOf(4, 3)
-        val src = createAndInitTensor("repeat_back_src", io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe, currentOffset)
+        val src = createAndInitTensor("repeat_back_src", io.github.kotlinmania.llama.core.GGMLType.F32, srcNe, currentOffset)
         for (i1 in 0 until srcNe[1].toInt()) {
             for (i0 in 0 until srcNe[0].toInt()) {
                 val value = (i1 * srcNe[0].toInt() + i0 + 1).toFloat()
@@ -491,11 +491,11 @@ class GGMLComputeOpsTest {
             }
         }
 
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.F32, srcNe)
         val dstNe = longArrayOf(1, 3)
-        val dst = createAndInitTensor("repeat_back_dst", io.github.kotlinmania.llama.ore.GGMLType.F32, dstNe, currentOffset)
+        val dst = createAndInitTensor("repeat_back_dst", io.github.kotlinmania.llama.core.GGMLType.F32, dstNe, currentOffset)
 
-        io.github.kotlinmania.llama.ore.computeRepeatBack(graphAllocator, src, dst)
+        io.github.kotlinmania.llama.core.computeRepeatBack(graphAllocator, src, dst)
 
         val result = getTensorDataAsFloatArray(dst, graphAllocator)
         val expected = FloatArray(dstNe[1].toInt())
@@ -514,7 +514,7 @@ class GGMLComputeOpsTest {
     // Adapted from GGMLQuantizationAccuracyTest.kt
     // Assumes result tensors from compute ops might have their .data field populated directly
     // or fall back to graphAllocator if .data is null.
-    internal fun getTensorDataAsFloatArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): FloatArray {
+    internal fun getTensorDataAsFloatArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): FloatArray {
         val numElements = tensor.numElements().toInt()
         if (numElements == 0) return floatArrayOf()
 
@@ -527,10 +527,10 @@ class GGMLComputeOpsTest {
         }
 
         // Case 2: Tensor has its own ShortArray in .data (typical for F16 results)
-        if (tensor.type == io.github.kotlinmania.llama.ore.GGMLType.F16 && tensor.data is ShortArray) {
+        if (tensor.type == io.github.kotlinmania.llama.core.GGMLType.F16 && tensor.data is ShortArray) {
             val sa = tensor.data as ShortArray
             if (sa.size == numElements) {
-                return FloatArray(numElements) { i -> io.github.kotlinmania.llama.ore.halfToFloat(sa[i]) }
+                return FloatArray(numElements) { i -> io.github.kotlinmania.llama.core.halfToFloat(sa[i]) }
             }
         }
 
@@ -544,15 +544,15 @@ class GGMLComputeOpsTest {
             // For simplicity, assuming a flat 1D iteration for now if applyNDIter is not in this file.
             // The existing applyNDIter in this file might need adjustment or direct use.
             // The createAndInitTensor sets up ne for up to GGML_MAX_DIMS.
-            io.github.kotlinmania.llama.ore.applyNDIter(tensor, numElements) { _, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(tensor, numElements) { _, indices ->
                 if (idx < numElements) {
                     floatArray[idx++] = when (tensor.type) {
-                        io.github.kotlinmania.llama.ore.GGMLType.F32 -> tensor.getFloat(
+                        io.github.kotlinmania.llama.core.GGMLType.F32 -> tensor.getFloat(
                             graphAllocator,
                             *indices
                         )
 
-                        io.github.kotlinmania.llama.ore.GGMLType.F16 -> tensor.getHalf(
+                        io.github.kotlinmania.llama.core.GGMLType.F16 -> tensor.getHalf(
                             graphAllocator,
                             *indices
                         )
@@ -611,15 +611,15 @@ class GGMLComputeOpsTest {
         val srcNe = longArrayOf(5)
         val srcData = floatArrayOf(-2f, -0.5f, 0f, 0.5f, 2f)
         // Using createAndInitTensor and then populating for consistency
-        val srcTensor = createAndInitTensor("relu_f32_src", io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("relu_f32_src", io.github.kotlinmania.llama.core.GGMLType.F32, srcNe, dataOffset = 0uL)
         for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
 
 
         val resultTensor = runUnaryOp(srcTensor, "relu_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeRelu(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeRelu(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for RELU F32")
 
         val expectedData = floatArrayOf(0f, 0f, 0f, 0.5f, 2f)
@@ -631,14 +631,14 @@ class GGMLComputeOpsTest {
     fun testComputeReluF16() {
         val srcNe = longArrayOf(5)
         val srcDataF32 = floatArrayOf(-2f, -0.5f, 0f, 0.5f, 2f)
-        val srcTensor = createAndInitTensor("relu_f16_src", io.github.kotlinmania.llama.ore.GGMLType.F16, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("relu_f16_src", io.github.kotlinmania.llama.core.GGMLType.F16, srcNe, dataOffset = 0uL)
         for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
 
         val resultTensor = runUnaryOp(srcTensor, "relu_f16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeRelu(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeRelu(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F16, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for RELU F16")
 
         val expectedDataF32 = floatArrayOf(0f, 0f, 0f, 0.5f, 2f)
@@ -646,8 +646,8 @@ class GGMLComputeOpsTest {
 
         for(i in expectedDataF32.indices) {
             assertEquals(
-                io.github.kotlinmania.llama.ore.halfToFloat(
-                    io.github.kotlinmania.llama.ore.floatToHalf(
+                io.github.kotlinmania.llama.core.halfToFloat(
+                    io.github.kotlinmania.llama.core.floatToHalf(
                         expectedDataF32[i]
                     )
                 ), resultDataF16AsF32[i], 0.001f, "RELU F16 output mismatch at index $i")
@@ -659,14 +659,14 @@ class GGMLComputeOpsTest {
     fun testComputeGeluF32() {
         val srcNe = longArrayOf(5)
         val srcData = floatArrayOf(-3f, -1f, 0f, 1f, 3f)
-        val srcTensor = createAndInitTensor("gelu_f32_src", io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("gelu_f32_src", io.github.kotlinmania.llama.core.GGMLType.F32, srcNe, dataOffset = 0uL)
         for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
 
         val resultTensor = runUnaryOp(srcTensor, "gelu_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeGelu(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeGelu(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for GELU F32")
 
         val expectedData = srcData.map { geluApproximation(it) }.toFloatArray()
@@ -681,14 +681,14 @@ class GGMLComputeOpsTest {
     fun testComputeGeluF16() {
         val srcNe = longArrayOf(5)
         val srcDataF32 = floatArrayOf(-3f, -1f, 0f, 1f, 3f)
-        val srcTensor = createAndInitTensor("gelu_f16_src", io.github.kotlinmania.llama.ore.GGMLType.F16, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("gelu_f16_src", io.github.kotlinmania.llama.core.GGMLType.F16, srcNe, dataOffset = 0uL)
         for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
 
         val resultTensor = runUnaryOp(srcTensor, "gelu_f16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeGelu(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeGelu(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F16, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for GELU F16")
 
         val expectedDataF32 = srcDataF32.map { geluApproximation(it) }.toFloatArray()
@@ -696,8 +696,8 @@ class GGMLComputeOpsTest {
 
         for(i in expectedDataF32.indices) {
             assertEquals(
-                io.github.kotlinmania.llama.ore.halfToFloat(
-                    io.github.kotlinmania.llama.ore.floatToHalf(
+                io.github.kotlinmania.llama.core.halfToFloat(
+                    io.github.kotlinmania.llama.core.floatToHalf(
                         expectedDataF32[i]
                     )
                 ), resultDataF16AsF32[i], 0.01f,
@@ -710,15 +710,15 @@ class GGMLComputeOpsTest {
     fun testComputeSiluF32() {
         val srcNe = longArrayOf(5)
         val srcData = floatArrayOf(-5f, -1f, 0f, 1f, 5f)
-        val srcTensor = createAndInitTensor("silu_f32_src", io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("silu_f32_src", io.github.kotlinmania.llama.core.GGMLType.F32, srcNe, dataOffset = 0uL)
         for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
 
         // Assuming computeSilu exists and has signature (GGMLGraphAllocator, GGMLTensor) -> GGMLTensor
         val resultTensor = runUnaryOp(srcTensor, "silu_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSilu(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeSilu(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for SILU F32")
 
         val expectedData = srcData.map { silu(it) }.toFloatArray()
@@ -733,14 +733,14 @@ class GGMLComputeOpsTest {
     fun testComputeSiluF16() {
         val srcNe = longArrayOf(5)
         val srcDataF32 = floatArrayOf(-5f, -1f, 0f, 1f, 5f)
-        val srcTensor = createAndInitTensor("silu_f16_src", io.github.kotlinmania.llama.ore.GGMLType.F16, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("silu_f16_src", io.github.kotlinmania.llama.core.GGMLType.F16, srcNe, dataOffset = 0uL)
         for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
 
         val resultTensor = runUnaryOp(srcTensor, "silu_f16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSilu(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeSilu(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F16, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for SILU F16")
 
         val expectedDataF32 = srcDataF32.map { silu(it) }.toFloatArray()
@@ -748,8 +748,8 @@ class GGMLComputeOpsTest {
 
         for(i in expectedDataF32.indices) {
             assertEquals(
-                io.github.kotlinmania.llama.ore.halfToFloat(
-                    io.github.kotlinmania.llama.ore.floatToHalf(
+                io.github.kotlinmania.llama.core.halfToFloat(
+                    io.github.kotlinmania.llama.core.floatToHalf(
                         expectedDataF32[i]
                     )
                 ), resultDataF16AsF32[i], 0.01f,
@@ -762,14 +762,14 @@ class GGMLComputeOpsTest {
     fun testComputeSoftMaxF32() {
         val srcNe = longArrayOf(4)
         val srcData = floatArrayOf(1f, 2f, 3f, 4f)
-        val srcTensor = createAndInitTensor("softmax_f32_src", io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("softmax_f32_src", io.github.kotlinmania.llama.core.GGMLType.F32, srcNe, dataOffset = 0uL)
         for (i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
 
         val resultTensor = runUnaryOp(srcTensor, "softmax_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSoftMax(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeSoftMax(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for SoftMax F32")
 
         val max = srcData.maxOrNull()!!
@@ -786,14 +786,14 @@ class GGMLComputeOpsTest {
     fun testComputeSoftMaxF16() {
         val srcNe = longArrayOf(4)
         val srcDataF32 = floatArrayOf(1f, 2f, 3f, 4f)
-        val srcTensor = createAndInitTensor("softmax_f16_src", io.github.kotlinmania.llama.ore.GGMLType.F16, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("softmax_f16_src", io.github.kotlinmania.llama.core.GGMLType.F16, srcNe, dataOffset = 0uL)
         for (i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
 
         val resultTensor = runUnaryOp(srcTensor, "softmax_f16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSoftMax(graphAllocator, srcTensor, dst)
+            io.github.kotlinmania.llama.core.computeSoftMax(graphAllocator, srcTensor, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F16, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "Dimensions should match for SoftMax F16")
 
         val max = srcDataF32.maxOrNull()!!
@@ -803,8 +803,8 @@ class GGMLComputeOpsTest {
         val resultDataF16AsF32 = getTensorDataAsFloatArray(resultTensor, graphAllocator)
         for (i in expectedF32.indices) {
             assertEquals(
-                io.github.kotlinmania.llama.ore.halfToFloat(
-                    io.github.kotlinmania.llama.ore.floatToHalf(
+                io.github.kotlinmania.llama.core.halfToFloat(
+                    io.github.kotlinmania.llama.core.floatToHalf(
                         expectedF32[i]
                     )
                 ), resultDataF16AsF32[i], 0.001f,
@@ -819,16 +819,16 @@ class GGMLComputeOpsTest {
         val srcData = floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f)
 
         // Using createAndInitTensor and then populating for consistency
-        val srcTensor = createAndInitTensor("rms_f32_src", io.github.kotlinmania.llama.ore.GGMLType.F32, srcNe, dataOffset = 0uL)
+        val srcTensor = createAndInitTensor("rms_f32_src", io.github.kotlinmania.llama.core.GGMLType.F32, srcNe, dataOffset = 0uL)
         for(i in srcData.indices) srcTensor.setFloat(graphAllocator, srcData[i], i)
 
         val eps = 1e-5f
 
         val resultTensor = runUnaryOp(srcTensor, "rms_f32_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeRMSNorm(graphAllocator, srcTensor, eps, dst)
+            io.github.kotlinmania.llama.core.computeRMSNorm(graphAllocator, srcTensor, eps, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F32, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "RMSNorm F32 result dimensions mismatch")
 
         val expectedData = manualRMSNorm(srcData, eps)
@@ -846,16 +846,16 @@ class GGMLComputeOpsTest {
         val srcDataF32 = floatArrayOf(1.0f, 2.0f, -1.0f, -2.0f)
 
         var currentOffset = 0uL // Manage offset if other tensors were created in testBuffer, though this test is self-contained for src
-        val srcTensor = createAndInitTensor("rms_f16_src", io.github.kotlinmania.llama.ore.GGMLType.F16, srcNe, dataOffset = currentOffset)
+        val srcTensor = createAndInitTensor("rms_f16_src", io.github.kotlinmania.llama.core.GGMLType.F16, srcNe, dataOffset = currentOffset)
         for(i in srcDataF32.indices) srcTensor.setHalf(graphAllocator, srcDataF32[i], i)
 
         val eps = 1e-5f
 
         val resultTensor = runUnaryOp(srcTensor, "rms_f16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeRMSNorm(graphAllocator, srcTensor, eps, dst)
+            io.github.kotlinmania.llama.core.computeRMSNorm(graphAllocator, srcTensor, eps, dst)
         }
 
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.F16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.F16, resultTensor.type)
         assertTrue(srcTensor.ne.contentEquals(resultTensor.ne), "RMSNorm F16 result dimensions mismatch")
 
         val expectedDataF32 = manualRMSNorm(srcDataF32, eps)
@@ -864,8 +864,8 @@ class GGMLComputeOpsTest {
         assertEquals(expectedDataF32.size, resultDataF16AsF32.size, "RMSNorm F16 result data size mismatch")
         for(i in expectedDataF32.indices) {
             assertEquals(
-                io.github.kotlinmania.llama.ore.halfToFloat(
-                    io.github.kotlinmania.llama.ore.floatToHalf(
+                io.github.kotlinmania.llama.core.halfToFloat(
+                    io.github.kotlinmania.llama.core.floatToHalf(
                         expectedDataF32[i]
                     )
                 ), resultDataF16AsF32[i], 0.01f,
@@ -874,7 +874,7 @@ class GGMLComputeOpsTest {
     }
 
     // --- Integer Type Data Extraction Helpers ---
-    internal fun getTensorDataAsByteArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): ByteArray {
+    internal fun getTensorDataAsByteArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): ByteArray {
         val numElements = tensor.numElements().toInt()
         if (numElements == 0) return byteArrayOf()
         if (tensor.data is ByteArray && (tensor.data as ByteArray).size == numElements) {
@@ -883,7 +883,7 @@ class GGMLComputeOpsTest {
         if (tensor.bufferId != -1) {
             val byteArray = ByteArray(numElements)
             var idx = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensor, numElements) { _, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(tensor, numElements) { _, indices ->
                 if (idx < numElements) {
                     byteArray[idx++] = tensor.getByte(graphAllocator, *indices)
                 }
@@ -893,7 +893,7 @@ class GGMLComputeOpsTest {
         throw IllegalStateException("Tensor ${tensor.name} (I8) has no accessible data.")
     }
 
-    internal fun getTensorDataAsShortArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): ShortArray {
+    internal fun getTensorDataAsShortArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): ShortArray {
         val numElements = tensor.numElements().toInt()
         if (numElements == 0) return shortArrayOf()
         if (tensor.data is ShortArray && (tensor.data as ShortArray).size == numElements) {
@@ -902,7 +902,7 @@ class GGMLComputeOpsTest {
         if (tensor.bufferId != -1) {
             val shortArray = ShortArray(numElements)
             var idx = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensor, numElements) { _, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(tensor, numElements) { _, indices ->
                 if (idx < numElements) {
                     shortArray[idx++] = tensor.getShort(graphAllocator, *indices)
                 }
@@ -912,7 +912,7 @@ class GGMLComputeOpsTest {
         throw IllegalStateException("Tensor ${tensor.name} (I16) has no accessible data.")
     }
 
-    internal fun getTensorDataAsIntArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): IntArray {
+    internal fun getTensorDataAsIntArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): IntArray {
         val numElements = tensor.numElements().toInt()
         if (numElements == 0) return intArrayOf()
         if (tensor.data is IntArray && (tensor.data as IntArray).size == numElements) {
@@ -921,7 +921,7 @@ class GGMLComputeOpsTest {
         if (tensor.bufferId != -1) {
             val intArray = IntArray(numElements)
             var idx = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensor, numElements) { _, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(tensor, numElements) { _, indices ->
                 if (idx < numElements) {
                     intArray[idx++] = tensor.getInt(graphAllocator, *indices)
                 }
@@ -931,7 +931,7 @@ class GGMLComputeOpsTest {
         throw IllegalStateException("Tensor ${tensor.name} (I32) has no accessible data.")
     }
 
-    internal fun getTensorDataAsLongArray(tensor: io.github.kotlinmania.llama.ore.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.ore.GGMLGraphAllocator): LongArray {
+    internal fun getTensorDataAsLongArray(tensor: io.github.kotlinmania.llama.core.GGMLTensor, graphAllocator: io.github.kotlinmania.llama.core.GGMLGraphAllocator): LongArray {
         val numElements = tensor.numElements().toInt()
         if (numElements == 0) return longArrayOf()
         if (tensor.data is LongArray && (tensor.data as LongArray).size == numElements) {
@@ -940,7 +940,7 @@ class GGMLComputeOpsTest {
         if (tensor.bufferId != -1) {
             val longArray = LongArray(numElements)
             var idx = 0
-            io.github.kotlinmania.llama.ore.applyNDIter(tensor, numElements) { _, indices ->
+            io.github.kotlinmania.llama.core.applyNDIter(tensor, numElements) { _, indices ->
                 if (idx < numElements) {
                     longArray[idx++] = tensor.getLong(graphAllocator, *indices)
                 }
@@ -952,7 +952,7 @@ class GGMLComputeOpsTest {
 
     // --- Integer ComputeOp Tests ---
     private val dummyContext =
-        io.github.kotlinmania.llama.ore.GGMLContext() // Reusable dummy context
+        io.github.kotlinmania.llama.core.GGMLContext() // Reusable dummy context
 
     @Test
     fun testComputeAddI32() {
@@ -962,17 +962,17 @@ class GGMLComputeOpsTest {
         val src1Data = intArrayOf(5, 15, 10) // Adding 10 to MAX_VALUE-5 will overflow
         val expectedData = intArrayOf(15, 35, Int.MAX_VALUE - 5 + 10) // Standard Int addition wraps
 
-        val src0 = createAndInitTensor("add_i32_src0", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("add_i32_src0", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setInt(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I32, srcNe)
 
-        val src1 = createAndInitTensor("add_i32_src1", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("add_i32_src1", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setInt(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "add_i32_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I32, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsIntArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "ADD I32 output mismatch")
@@ -986,17 +986,17 @@ class GGMLComputeOpsTest {
         val src1Data = shortArrayOf(5, 1)
         val expectedData = shortArrayOf(15, Short.MAX_VALUE) // Expect coercion
 
-        val src0 = createAndInitTensor("add_i16_src0", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("add_i16_src0", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setShort(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I16, srcNe)
 
-        val src1 = createAndInitTensor("add_i16_src1", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("add_i16_src1", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setShort(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "add_i16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I16, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsShortArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "ADD I16 output mismatch")
@@ -1010,17 +1010,17 @@ class GGMLComputeOpsTest {
         val src1Data = byteArrayOf(5, 100, (-1).toByte()) // 100+100=200 (overflows Byte), MIN_VALUE-1 (underflows)
         val expectedData = byteArrayOf(15, Byte.MAX_VALUE, Byte.MIN_VALUE) // Expect coercion for overflow, underflow wraps for Byte to -128
 
-        val src0 = createAndInitTensor("add_i8_src0", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("add_i8_src0", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setByte(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I8, srcNe)
 
-        val src1 = createAndInitTensor("add_i8_src1", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("add_i8_src1", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setByte(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "add_i8_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I8, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I8, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsByteArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "ADD I8 output mismatch")
@@ -1034,17 +1034,17 @@ class GGMLComputeOpsTest {
         val src1Data = longArrayOf(50L, 10L) // Adding 10 to MAX_VALUE-5 will overflow
         val expectedData = longArrayOf(150L, Long.MAX_VALUE - 5L + 10L) // Standard Long addition wraps
 
-        val src0 = createAndInitTensor("add_i64_src0", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("add_i64_src0", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setLong(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I64, srcNe)
 
-        val src1 = createAndInitTensor("add_i64_src1", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("add_i64_src1", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setLong(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "add_i64_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeAdd(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeAdd(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I64, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I64, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsLongArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "ADD I64 output mismatch")
@@ -1058,17 +1058,17 @@ class GGMLComputeOpsTest {
         val src1Data = intArrayOf(3, 5, 2)
         val expectedData = intArrayOf(6, 50, (Int.MAX_VALUE / 2 + 10) * 2) // Standard Int multiplication wraps
 
-        val src0 = createAndInitTensor("mul_i32_src0", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("mul_i32_src0", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setInt(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I32, srcNe)
 
-        val src1 = createAndInitTensor("mul_i32_src1", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("mul_i32_src1", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setInt(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "mul_i32_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I32, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsIntArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "MUL I32 output mismatch")
@@ -1082,17 +1082,17 @@ class GGMLComputeOpsTest {
         val src1Data = shortArrayOf(3, 3) // (MAX/2)*3 will overflow
         val expectedData = shortArrayOf(30, Short.MAX_VALUE) // Expect coercion
 
-        val src0 = createAndInitTensor("mul_i16_src0", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("mul_i16_src0", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setShort(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I16, srcNe)
 
-        val src1 = createAndInitTensor("mul_i16_src1", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("mul_i16_src1", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setShort(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "mul_i16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I16, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsShortArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "MUL I16 output mismatch")
@@ -1106,17 +1106,17 @@ class GGMLComputeOpsTest {
         val src1Data = byteArrayOf(3, 3) // (MAX/2)*3 will overflow
         val expectedData = byteArrayOf(30, Byte.MAX_VALUE) // Expect coercion
 
-        val src0 = createAndInitTensor("mul_i8_src0", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("mul_i8_src0", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setByte(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I8, srcNe)
 
-        val src1 = createAndInitTensor("mul_i8_src1", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("mul_i8_src1", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setByte(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "mul_i8_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I8, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I8, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsByteArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "MUL I8 output mismatch")
@@ -1130,17 +1130,17 @@ class GGMLComputeOpsTest {
         val src1Data = longArrayOf(3L, 2L)
         val expectedData = longArrayOf(300L, (Long.MAX_VALUE / 2L + 10L) * 2L) // Standard Long multiplication wraps
 
-        val src0 = createAndInitTensor("mul_i64_src0", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("mul_i64_src0", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setLong(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I64, srcNe)
 
-        val src1 = createAndInitTensor("mul_i64_src1", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("mul_i64_src1", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setLong(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "mul_i64_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeMul(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeMul(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I64, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I64, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsLongArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "MUL I64 output mismatch")
@@ -1155,17 +1155,17 @@ class GGMLComputeOpsTest {
         val src1Data = intArrayOf(5, 10, 10, 1) // MIN_VALUE - 1 will underflow
         val expectedData = intArrayOf(5, -5, Int.MIN_VALUE + 5 - 10, Int.MIN_VALUE - 1) // Standard Int subtraction wraps
 
-        val src0 = createAndInitTensor("sub_i32_src0", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("sub_i32_src0", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setInt(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I32, srcNe)
 
-        val src1 = createAndInitTensor("sub_i32_src1", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("sub_i32_src1", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setInt(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "sub_i32_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSub(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeSub(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I32, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsIntArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "SUB I32 output mismatch")
@@ -1179,17 +1179,17 @@ class GGMLComputeOpsTest {
         val src1Data = shortArrayOf(5, 10, 1, (-1).toShort()) // MIN_VALUE - 1 (underflow), MAX_VALUE - (-1) (overflow)
         val expectedData = shortArrayOf(5, -5, Short.MIN_VALUE, Short.MAX_VALUE) // Expect coercion
 
-        val src0 = createAndInitTensor("sub_i16_src0", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("sub_i16_src0", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setShort(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I16, srcNe)
 
-        val src1 = createAndInitTensor("sub_i16_src1", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("sub_i16_src1", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setShort(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "sub_i16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSub(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeSub(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I16, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsShortArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "SUB I16 output mismatch")
@@ -1203,17 +1203,17 @@ class GGMLComputeOpsTest {
         val src1Data = byteArrayOf(5, 10, 1, (-1).toByte()) // MIN_VALUE - 1 (underflow), MAX_VALUE - (-1) (overflow)
         val expectedData = byteArrayOf(5, (-5).toByte(), Byte.MIN_VALUE, Byte.MAX_VALUE) // Expect coercion
 
-        val src0 = createAndInitTensor("sub_i8_src0", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("sub_i8_src0", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setByte(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I8, srcNe)
 
-        val src1 = createAndInitTensor("sub_i8_src1", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("sub_i8_src1", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setByte(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "sub_i8_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSub(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeSub(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I8, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I8, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsByteArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "SUB I8 output mismatch")
@@ -1227,17 +1227,17 @@ class GGMLComputeOpsTest {
         val src1Data = longArrayOf(50L, 100L, 100L, 1L) // MIN_VALUE - 1 will underflow
         val expectedData = longArrayOf(50L, -50L, Long.MIN_VALUE + 50L - 100L, Long.MIN_VALUE - 1L) // Standard Long subtraction wraps
 
-        val src0 = createAndInitTensor("sub_i64_src0", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("sub_i64_src0", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setLong(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I64, srcNe)
 
-        val src1 = createAndInitTensor("sub_i64_src1", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("sub_i64_src1", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setLong(graphAllocator, src1Data[i], i)
 
         val resultTensor = runBinaryOp(src0, src1, "sub_i64_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeSub(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeSub(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I64, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I64, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsLongArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "SUB I64 output mismatch")
@@ -1253,30 +1253,30 @@ class GGMLComputeOpsTest {
         val src1Data = intArrayOf(3, 3, 3, -3, -1, 5) // Last is 0/5
         val expectedData = intArrayOf(3, 0, -3, 3, Int.MIN_VALUE, 0) // MIN_VALUE / -1 wraps to MIN_VALUE in Kotlin Int
 
-        val src0 = createAndInitTensor("div_i32_src0", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("div_i32_src0", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setInt(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I32, srcNe)
 
-        val src1 = createAndInitTensor("div_i32_src1", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("div_i32_src1", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setInt(graphAllocator, src1Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I32, srcNe)
 
 
         val resultTensor = runBinaryOp(src0, src1, "div_i32_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I32, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I32, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsIntArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "DIV I32 output mismatch")
 
         // Test division by zero
         val src1DivByZeroData = intArrayOf(3, 0, 3, -3, -1, 0) // one zero
-        val src1DivByZero = createAndInitTensor("div_i32_src1_div_zero", io.github.kotlinmania.llama.ore.GGMLType.I32, srcNe, dataOffset = currentOffset)
+        val src1DivByZero = createAndInitTensor("div_i32_src1_div_zero", io.github.kotlinmania.llama.core.GGMLType.I32, srcNe, dataOffset = currentOffset)
         for(i in src1DivByZeroData.indices) src1DivByZero.setInt(graphAllocator, src1DivByZeroData[i], i)
         assertFailsWith<ArithmeticException>("DIV I32 by zero should throw ArithmeticException") {
             val dst = allocateLike(src0, "div_i32_fail")
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1DivByZero, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1DivByZero, dst)
         }
     }
 
@@ -1289,29 +1289,29 @@ class GGMLComputeOpsTest {
         // MIN_VALUE / -1 is coerced to MAX_VALUE for I16 in computeDiv
         val expectedData = shortArrayOf(3, 0, -3, 3, Short.MAX_VALUE, 0)
 
-        val src0 = createAndInitTensor("div_i16_src0", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("div_i16_src0", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setShort(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I16, srcNe)
 
-        val src1 = createAndInitTensor("div_i16_src1", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("div_i16_src1", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setShort(graphAllocator, src1Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I16, srcNe)
 
         val resultTensor = runBinaryOp(src0, src1, "div_i16_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I16, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I16, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsShortArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "DIV I16 output mismatch")
 
         // Test division by zero
         val src1DivByZeroData = shortArrayOf(3, 0, 3, -3, -1, 0)
-        val src1DivByZero = createAndInitTensor("div_i16_src1_div_zero", io.github.kotlinmania.llama.ore.GGMLType.I16, srcNe, dataOffset = currentOffset)
+        val src1DivByZero = createAndInitTensor("div_i16_src1_div_zero", io.github.kotlinmania.llama.core.GGMLType.I16, srcNe, dataOffset = currentOffset)
         for(i in src1DivByZeroData.indices) src1DivByZero.setShort(graphAllocator, src1DivByZeroData[i], i)
         assertFailsWith<ArithmeticException>("DIV I16 by zero should throw ArithmeticException") {
             val dst = allocateLike(src0, "div_i16_fail")
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1DivByZero, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1DivByZero, dst)
         }
     }
 
@@ -1325,29 +1325,29 @@ class GGMLComputeOpsTest {
         val expectedData = byteArrayOf(3, 0, -3, 3, Byte.MAX_VALUE, 0)
 
 
-        val src0 = createAndInitTensor("div_i8_src0", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("div_i8_src0", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setByte(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I8, srcNe)
 
-        val src1 = createAndInitTensor("div_i8_src1", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("div_i8_src1", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setByte(graphAllocator, src1Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I8, srcNe)
 
         val resultTensor = runBinaryOp(src0, src1, "div_i8_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I8, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I8, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsByteArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "DIV I8 output mismatch")
 
         // Test division by zero
         val src1DivByZeroData = byteArrayOf(3, 0, 3, -3, -1, 0)
-        val src1DivByZero = createAndInitTensor("div_i8_src1_div_zero", io.github.kotlinmania.llama.ore.GGMLType.I8, srcNe, dataOffset = currentOffset)
+        val src1DivByZero = createAndInitTensor("div_i8_src1_div_zero", io.github.kotlinmania.llama.core.GGMLType.I8, srcNe, dataOffset = currentOffset)
         for(i in src1DivByZeroData.indices) src1DivByZero.setByte(graphAllocator, src1DivByZeroData[i], i)
         assertFailsWith<ArithmeticException>("DIV I8 by zero should throw ArithmeticException") {
             val dst = allocateLike(src0, "div_i8_fail")
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1DivByZero, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1DivByZero, dst)
         }
     }
 
@@ -1360,29 +1360,29 @@ class GGMLComputeOpsTest {
         // MIN_VALUE / -1 wraps to MIN_VALUE in Kotlin Long
         val expectedData = longArrayOf(3L, 0L, -3L, 3L, Long.MIN_VALUE, 0L)
 
-        val src0 = createAndInitTensor("div_i64_src0", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src0 = createAndInitTensor("div_i64_src0", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src0Data.indices) src0.setLong(graphAllocator, src0Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I64, srcNe)
 
-        val src1 = createAndInitTensor("div_i64_src1", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src1 = createAndInitTensor("div_i64_src1", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src1Data.indices) src1.setLong(graphAllocator, src1Data[i], i)
-        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe)
+        currentOffset += calculateTensorByteSize(io.github.kotlinmania.llama.core.GGMLType.I64, srcNe)
 
         val resultTensor = runBinaryOp(src0, src1, "div_i64_dst") { dst ->
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1, dst)
         }
-        assertEquals(io.github.kotlinmania.llama.ore.GGMLType.I64, resultTensor.type)
+        assertEquals(io.github.kotlinmania.llama.core.GGMLType.I64, resultTensor.type)
         assertTrue(src0.ne.contentEquals(resultTensor.ne))
         val resultData = getTensorDataAsLongArray(resultTensor, graphAllocator)
         assertContentEquals(expectedData, resultData, "DIV I64 output mismatch")
 
         // Test division by zero
         val src1DivByZeroData = longArrayOf(3L, 0L, 3L, -3L, -1L, 0L)
-        val src1DivByZero = createAndInitTensor("div_i64_src1_div_zero", io.github.kotlinmania.llama.ore.GGMLType.I64, srcNe, dataOffset = currentOffset)
+        val src1DivByZero = createAndInitTensor("div_i64_src1_div_zero", io.github.kotlinmania.llama.core.GGMLType.I64, srcNe, dataOffset = currentOffset)
         for(i in src1DivByZeroData.indices) src1DivByZero.setLong(graphAllocator, src1DivByZeroData[i], i)
         assertFailsWith<ArithmeticException>("DIV I64 by zero should throw ArithmeticException") {
             val dst = allocateLike(src0, "div_i64_fail")
-            io.github.kotlinmania.llama.ore.computeDiv(graphAllocator, src0, src1DivByZero, dst)
+            io.github.kotlinmania.llama.core.computeDiv(graphAllocator, src0, src1DivByZero, dst)
         }
     }
 }

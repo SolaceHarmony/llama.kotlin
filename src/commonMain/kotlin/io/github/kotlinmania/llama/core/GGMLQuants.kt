@@ -2,10 +2,10 @@
 package io.github.kotlinmania.llama.ore
 
 
-import io.github.kotlinmania.llama.ore.readIntLE
-import io.github.kotlinmania.llama.ore.readShortLE
-import io.github.kotlinmania.llama.ore.readUIntLE
-import io.github.kotlinmania.llama.ore.weightAt
+import io.github.kotlinmania.llama.core.readIntLE
+import io.github.kotlinmania.llama.core.readShortLE
+import io.github.kotlinmania.llama.core.readUIntLE
+import io.github.kotlinmania.llama.core.weightAt
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -53,7 +53,7 @@ private fun ByteArray.readIntLE(offset: Int): Int =
 private fun ByteArray.readUIntLE(offset: Int): UInt = readIntLE(offset).toUInt()
 
 private fun fp16ToF32(bits: Short): Float =
-    io.github.kotlinmania.llama.ore.GGML_FP16_TO_FP32(bits)
+    io.github.kotlinmania.llama.core.GGML_FP16_TO_FP32(bits)
 
 // ---------------------------------------------------------------------------
 // quantize_row_* delegates (from ggml-cpu/quants.c)
@@ -61,72 +61,72 @@ private fun fp16ToF32(bits: Short): Float =
 // ---------------------------------------------------------------------------
 
 fun quantize_row_q1_0(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q1_0_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q1_0_ref(x, y, k)
 }
 fun quantize_row_q4_0(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_0_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_0_ref(x, y, k)
 }
 fun quantize_row_q4_1(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_1_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_1_ref(x, y, k)
 }
 fun quantize_row_q5_0(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_0_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_0_ref(x, y, k)
 }
 fun quantize_row_q5_1(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_1_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_1_ref(x, y, k)
 }
 fun quantize_row_q8_0_generic(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_0_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_0_ref(x, y, k)
 }
 fun quantize_row_q8_1_generic(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_1_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_1_ref(x, y, k)
 }
 fun quantize_row_mxfp4(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_mxfp4_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_mxfp4_ref(x, y, k)
 }
 fun quantize_row_nvfp4(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_nvfp4_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_nvfp4_ref(x, y, k)
 }
 fun quantize_row_q2_K(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q2_K_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q2_K_ref(x, y, k)
 }
 fun quantize_row_q3_K(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q3_K_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q3_K_ref(x, y, k)
 }
-fun quantize_row_q4_K(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK_K == 0L); io.github.kotlinmania.llama.ore.quantize_row_q4_K_ref(
+fun quantize_row_q4_K(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK_K == 0L); io.github.kotlinmania.llama.core.quantize_row_q4_K_ref(
     x,
     y,
     k
 )
 }
-fun quantize_row_q5_K(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK_K == 0L); io.github.kotlinmania.llama.ore.quantize_row_q5_K_ref(
+fun quantize_row_q5_K(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK_K == 0L); io.github.kotlinmania.llama.core.quantize_row_q5_K_ref(
     x,
     y,
     k
 )
 }
-fun quantize_row_q6_K(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK_K == 0L); io.github.kotlinmania.llama.ore.quantize_row_q6_K_ref(
+fun quantize_row_q6_K(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK_K == 0L); io.github.kotlinmania.llama.core.quantize_row_q6_K_ref(
     x,
     y,
     k
 )
 }
-fun quantize_row_tq1_0(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK_K == 0L); io.github.kotlinmania.llama.ore.quantize_row_tq1_0_ref(
+fun quantize_row_tq1_0(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK_K == 0L); io.github.kotlinmania.llama.core.quantize_row_tq1_0_ref(
     x,
     y,
     k
 )
 }
-fun quantize_row_tq2_0(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK_K == 0L); io.github.kotlinmania.llama.ore.quantize_row_tq2_0_ref(
+fun quantize_row_tq2_0(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK_K == 0L); io.github.kotlinmania.llama.core.quantize_row_tq2_0_ref(
     x,
     y,
     k
 )
 }
 fun quantize_row_q8_K_generic(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_K_ref(x, y, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_K_ref(x, y, k)
 }
-fun quantize_row_iq4_nl(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK4_NL == 0L); io.github.kotlinmania.llama.ore.quantize_row_iq4_nl_ref(
+fun quantize_row_iq4_nl(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK4_NL == 0L); io.github.kotlinmania.llama.core.quantize_row_iq4_nl_ref(
     x,
     y,
     k
@@ -135,63 +135,63 @@ fun quantize_row_iq4_nl(x: FloatArray, y: ByteArray, k: Long) { require(k % io.g
 
 // _ref implementations — delegate to GGMLQuantsRef top-level functions with offset 0
 private fun quantize_row_q1_0_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q1_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q1_0_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q4_0_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_0_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q4_1_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_1_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_1_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q5_0_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_0_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q5_1_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_1_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_1_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q8_0_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_0_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q8_1_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_1_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_1_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_mxfp4_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_mxfp4_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_mxfp4_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_nvfp4_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_nvfp4_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_nvfp4_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q2_K_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q2_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q2_K_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q3_K_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q3_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q3_K_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q4_K_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q4_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q4_K_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q5_K_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q5_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q5_K_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q6_K_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q6_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q6_K_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_tq1_0_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_tq1_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_tq1_0_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_tq2_0_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_tq2_0_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_tq2_0_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_q8_K_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_q8_K_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_q8_K_ref(x, 0, y, 0, k)
 }
 private fun quantize_row_iq4_nl_ref(x: FloatArray, y: ByteArray, k: Long) {
-    io.github.kotlinmania.llama.ore.quantize_row_iq4_nl_ref(x, 0, y, 0, k)
+    io.github.kotlinmania.llama.core.quantize_row_iq4_nl_ref(x, 0, y, 0, k)
 }
 private fun quantize_iq4_xs(x: FloatArray, y: ByteArray, nrow: Int, k: Long, imatrix: FloatArray?) {
-    io.github.kotlinmania.llama.ore.quantize_iq4_xs(x, y, nrow.toLong(), k, imatrix)
+    io.github.kotlinmania.llama.core.quantize_iq4_xs(x, y, nrow.toLong(), k, imatrix)
 }
-fun quantize_row_iq4_xs(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.ore.QK_K == 0L); io.github.kotlinmania.llama.ore.quantize_iq4_xs(
+fun quantize_row_iq4_xs(x: FloatArray, y: ByteArray, k: Long) { require(k % io.github.kotlinmania.llama.core.QK_K == 0L); io.github.kotlinmania.llama.core.quantize_iq4_xs(
     x,
     y,
     1,
@@ -217,30 +217,30 @@ fun ggml_vec_dot_q1_0_q8_0_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    val qk = io.github.kotlinmania.llama.ore.QK1_0
+    val qk = io.github.kotlinmania.llama.core.QK1_0
     val nb = n / qk
     require(n % qk == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ1_0.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ1_0.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
 
     var sumf = 0.0f
 
     for (i in 0 until nb) {
         val xOff = vxOffset + i * xBlockSize
-        val d0 = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff))
+        val d0 = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff))
 
         var sumi = 0.0f
 
         for (k in 0 until 4) {
             val yOff = vyOffset + (i * 4 + k) * yBlockSize
-            val d1 = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff))
+            val d1 = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff))
 
             var sumiBlock = 0
 
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK8_0) {
-                val bitIndex = k * io.github.kotlinmania.llama.ore.QK8_0 + j
+            for (j in 0 until io.github.kotlinmania.llama.core.QK8_0) {
+                val bitIndex = k * io.github.kotlinmania.llama.core.QK8_0 + j
                 val byteIndex = bitIndex / 8
                 val bitOffset = bitIndex % 8
 
@@ -266,13 +266,13 @@ fun ggml_vec_dot_q4_0_q8_0_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     val nb = n / qk
     require(n % qk == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ4_0.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ4_0.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
 
     var sumf = 0.0f
 
@@ -291,7 +291,7 @@ fun ggml_vec_dot_q4_0_q8_0_generic(
         }
 
         val sumi = sumi0 + sumi1
-        sumf += sumi * io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * io.github.kotlinmania.llama.ore.fp16ToF32(
+        sumf += sumi * io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * io.github.kotlinmania.llama.core.fp16ToF32(
             vy.readShortLE(yOff)
         )
     }
@@ -308,15 +308,15 @@ fun ggml_vec_dot_q4_1_q8_1_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_1
+    val qk = io.github.kotlinmania.llama.core.QK8_1
     val nb = n / qk
     require(n % qk == 0)
     require(nrc == 1)
 
     // BlockQ4_1: d(2) + m(2) + qs(QK4_1/2)
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ4_1.SIZE_BYTES
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ4_1.SIZE_BYTES
     // BlockQ8_1: d(2) + s(2) + qs(QK8_1)
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_1.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_1.SIZE_BYTES
 
     var sumf = 0.0f
 
@@ -335,10 +335,10 @@ fun ggml_vec_dot_q4_1_q8_1_generic(
         }
 
         val sumi = sumi0 + sumi1
-        val xd = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff))
-        val yd = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff))
-        val xm = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + 2))
-        val ys = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff + 2))
+        val xd = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff))
+        val yd = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff))
+        val xm = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + 2))
+        val ys = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff + 2))
         sumf += (xd * yd) * sumi + xm * ys
     }
 
@@ -354,12 +354,12 @@ fun ggml_vec_dot_mxfp4_q8_0_generic(
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
     require(nrc == 1)
-    require(n % io.github.kotlinmania.llama.ore.QK_MXFP4 == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_MXFP4 == 0)
 
     // BlockMXFP4: e(1) + qs(QK_MXFP4/2)
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockMXFP4.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_MXFP4
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockMXFP4.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_MXFP4
 
     var sumf = 0.0f
 
@@ -367,16 +367,16 @@ fun ggml_vec_dot_mxfp4_q8_0_generic(
         val xOff = vxOffset + ib * xBlockSize
         val yOff = vyOffset + ib * yBlockSize
         val e = vx[xOff].toInt() and 0xFF
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff)) * io.github.kotlinmania.llama.ore.ggml_e8m0_to_fp32_half(
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff)) * io.github.kotlinmania.llama.core.ggml_e8m0_to_fp32_half(
             e.toUByte()
         )
 
         var sumi1 = 0
         var sumi2 = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_MXFP4 / 2) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_MXFP4 / 2) {
             val qsByte = vx[xOff + 1 + j].toInt() and 0xFF
-            sumi1 += vy[yOff + 2 + j].toInt() * io.github.kotlinmania.llama.ore.kvalues_mxfp4[qsByte and 0xf].toInt()
-            sumi2 += vy[yOff + 2 + j + io.github.kotlinmania.llama.ore.QK_MXFP4 / 2].toInt() * io.github.kotlinmania.llama.ore.kvalues_mxfp4[qsByte ushr 4].toInt()
+            sumi1 += vy[yOff + 2 + j].toInt() * io.github.kotlinmania.llama.core.kvalues_mxfp4[qsByte and 0xf].toInt()
+            sumi2 += vy[yOff + 2 + j + io.github.kotlinmania.llama.core.QK_MXFP4 / 2].toInt() * io.github.kotlinmania.llama.core.kvalues_mxfp4[qsByte ushr 4].toInt()
         }
         sumf += d * (sumi1 + sumi2)
     }
@@ -392,33 +392,33 @@ fun ggml_vec_dot_nvfp4_q8_0_generic(
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
     require(nrc == 1)
-    require(n % io.github.kotlinmania.llama.ore.QK_NVFP4 == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_NVFP4 == 0)
 
     // BlockNVFP4: d(QK_NVFP4/QK_NVFP4_SUB bytes) + qs(QK_NVFP4/2 bytes)
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockNVFP4.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_NVFP4
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockNVFP4.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_NVFP4
 
     var sumf = 0.0f
 
     for (ib in 0 until nb) {
         val xOff = vxOffset + ib * xBlockSize
-        val dFieldSize = io.github.kotlinmania.llama.ore.QK_NVFP4 / io.github.kotlinmania.llama.ore.QK_NVFP4_SUB
+        val dFieldSize = io.github.kotlinmania.llama.core.QK_NVFP4 / io.github.kotlinmania.llama.core.QK_NVFP4_SUB
 
         for (sIdx in 0 until 4) {
             val d =
-                io.github.kotlinmania.llama.ore.ggml_ue4m3_to_fp32((vx[xOff + sIdx].toInt() and 0xFF).toUByte())
+                io.github.kotlinmania.llama.core.ggml_ue4m3_to_fp32((vx[xOff + sIdx].toInt() and 0xFF).toUByte())
             val q8Block = sIdx / 2
-            val q8Off = (sIdx % 2) * io.github.kotlinmania.llama.ore.QK_NVFP4_SUB
+            val q8Off = (sIdx % 2) * io.github.kotlinmania.llama.core.QK_NVFP4_SUB
             val yOff = vyOffset + (2 * ib + q8Block) * yBlockSize
-            val dy = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff))
+            val dy = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff))
 
             var sumiLo = 0
             var sumiHi = 0
-            for (j in 0 until io.github.kotlinmania.llama.ore.QK_NVFP4_SUB / 2) {
-                val qv = vx[xOff + dFieldSize + sIdx * (io.github.kotlinmania.llama.ore.QK_NVFP4_SUB / 2) + j].toInt() and 0xFF
-                sumiLo += vy[yOff + 2 + q8Off + j].toInt() * io.github.kotlinmania.llama.ore.kvalues_mxfp4[qv and 0xf].toInt()
-                sumiHi += vy[yOff + 2 + q8Off + j + io.github.kotlinmania.llama.ore.QK_NVFP4_SUB / 2].toInt() * io.github.kotlinmania.llama.ore.kvalues_mxfp4[qv ushr 4].toInt()
+            for (j in 0 until io.github.kotlinmania.llama.core.QK_NVFP4_SUB / 2) {
+                val qv = vx[xOff + dFieldSize + sIdx * (io.github.kotlinmania.llama.core.QK_NVFP4_SUB / 2) + j].toInt() and 0xFF
+                sumiLo += vy[yOff + 2 + q8Off + j].toInt() * io.github.kotlinmania.llama.core.kvalues_mxfp4[qv and 0xf].toInt()
+                sumiHi += vy[yOff + 2 + q8Off + j + io.github.kotlinmania.llama.core.QK_NVFP4_SUB / 2].toInt() * io.github.kotlinmania.llama.core.kvalues_mxfp4[qv ushr 4].toInt()
             }
 
             sumf += dy * d * (sumiLo + sumiHi)
@@ -435,14 +435,14 @@ fun ggml_vec_dot_q5_0_q8_0_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     val nb = n / qk
     require(n % qk == 0)
     require(nrc == 1)
 
     // BlockQ5_0: d(2) + qh(4) + qs(QK5_0/2)
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ5_0.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ5_0.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
 
     var sumf = 0.0f
 
@@ -467,7 +467,7 @@ fun ggml_vec_dot_q5_0_q8_0_generic(
         }
 
         val sumi = sumi0 + sumi1
-        sumf += (io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * io.github.kotlinmania.llama.ore.fp16ToF32(
+        sumf += (io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * io.github.kotlinmania.llama.core.fp16ToF32(
             vy.readShortLE(yOff)
         )) * sumi
     }
@@ -483,15 +483,15 @@ fun ggml_vec_dot_q5_1_q8_1_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_1
+    val qk = io.github.kotlinmania.llama.core.QK8_1
     val nb = n / qk
     require(n % qk == 0)
     require(nrc == 1)
 
     // BlockQ5_1: d(2) + m(2) + qh(4) + qs(QK5_1/2)
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ5_1.SIZE_BYTES
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ5_1.SIZE_BYTES
     // BlockQ8_1: d(2) + s(2) + qs(QK8_1)
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_1.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_1.SIZE_BYTES
 
     var sumf = 0.0f
 
@@ -516,10 +516,10 @@ fun ggml_vec_dot_q5_1_q8_1_generic(
         }
 
         val sumi = sumi0 + sumi1
-        val xd = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff))
-        val yd = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff))
-        val xm = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + 2))
-        val ys = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff + 2))
+        val xd = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff))
+        val yd = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff))
+        val xm = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + 2))
+        val ys = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff + 2))
         sumf += (xd * yd) * sumi + xm * ys
     }
 
@@ -535,12 +535,12 @@ fun ggml_vec_dot_q8_0_q8_0_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    val qk = io.github.kotlinmania.llama.ore.QK8_0
+    val qk = io.github.kotlinmania.llama.core.QK8_0
     val nb = n / qk
     require(n % qk == 0)
     require(nrc == 1)
 
-    val blockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
+    val blockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
 
     var sumf = 0.0f
 
@@ -553,7 +553,7 @@ fun ggml_vec_dot_q8_0_q8_0_generic(
             sumi += vx[xOff + 2 + j].toInt() * vy[yOff + 2 + j].toInt()
         }
 
-        sumf += sumi * (io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * io.github.kotlinmania.llama.ore.fp16ToF32(
+        sumf += sumi * (io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * io.github.kotlinmania.llama.core.fp16ToF32(
             vy.readShortLE(yOff)
         ))
     }
@@ -572,15 +572,15 @@ fun ggml_vec_dot_tq1_0_q8_K_generic(
 ) {
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockTQ1_0.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockTQ1_0.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     val pow3 = intArrayOf(1, 3, 9, 27, 81, 243)
 
     // BlockTQ1_0: d(2) + qs[QK_K/64 + (QK_K - 4*QK_K/64)/5] + qh[QK_K/64]
-    val qsSize = io.github.kotlinmania.llama.ore.QK_K / 64 + (io.github.kotlinmania.llama.ore.QK_K - 4 * io.github.kotlinmania.llama.ore.QK_K / 64) / 5
-    val qhSize = io.github.kotlinmania.llama.ore.QK_K / 64
+    val qsSize = io.github.kotlinmania.llama.core.QK_K / 64 + (io.github.kotlinmania.llama.core.QK_K - 4 * io.github.kotlinmania.llama.core.QK_K / 64) / 5
+    val qhSize = io.github.kotlinmania.llama.core.QK_K / 64
 
     // BlockQ8K: d(4 float) + qs[QK_K] + bsums[QK_K/16]
     // Layout: d(4 bytes float) + qs(QK_K bytes) + bsums(QK_K/16 * 2 bytes)
@@ -622,7 +622,7 @@ fun ggml_vec_dot_tq1_0_q8_K_generic(
             }
         }
 
-        val xd = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff))
+        val xd = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff))
         val yd = Float.fromBits(vy.readIntLE(yOff))
         sumf += sum.toFloat() * (xd * yd)
     }
@@ -641,11 +641,11 @@ fun ggml_vec_dot_tq2_0_q8_K_generic(
 ) {
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockTQ2_0.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockTQ2_0.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
     // BlockTQ2_0: d(2) + qs(QK_K/4)
-    val qsSize = io.github.kotlinmania.llama.ore.QK_K / 4
+    val qsSize = io.github.kotlinmania.llama.core.QK_K / 4
 
     var sumf = 0.0f
 
@@ -665,7 +665,7 @@ fun ggml_vec_dot_tq2_0_q8_K_generic(
         }
 
         val yd = Float.fromBits(vy.readIntLE(yOff))
-        val xd = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff))
+        val xd = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff))
         sumf += sumi.toFloat() * (yd * xd)
     }
 
@@ -682,20 +682,20 @@ fun ggml_vec_dot_q2_K_q8_K_generic(
 ) {
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ2K.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ2K.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockQ2K: scales(QK_K/16=16) + qs(QK_K/4=64) + d(2) + dmin(2) = 84
     val q2ScalesOff = 0
-    val q2QsOff = io.github.kotlinmania.llama.ore.QK_K / 16
-    val q2dOff = io.github.kotlinmania.llama.ore.QK_K / 16 + io.github.kotlinmania.llama.ore.QK_K / 4
-    val q2dminOff = io.github.kotlinmania.llama.ore.QK_K / 16 + io.github.kotlinmania.llama.ore.QK_K / 4 + 2
+    val q2QsOff = io.github.kotlinmania.llama.core.QK_K / 16
+    val q2dOff = io.github.kotlinmania.llama.core.QK_K / 16 + io.github.kotlinmania.llama.core.QK_K / 4
+    val q2dminOff = io.github.kotlinmania.llama.core.QK_K / 16 + io.github.kotlinmania.llama.core.QK_K / 4 + 2
 
     // BlockQ8K: d(4 float) + qs(QK_K) + bsums(QK_K/16 * 2)
     val q8dOff = 0
     val q8QsOff = 4
-    val q8BsumsOff = 4 + io.github.kotlinmania.llama.ore.QK_K
+    val q8BsumsOff = 4 + io.github.kotlinmania.llama.core.QK_K
 
     var sumf = 0.0f
 
@@ -712,16 +712,16 @@ fun ggml_vec_dot_q2_K_q8_K_generic(
             summs += bsum * ((vx[xOff + q2ScalesOff + j].toInt() and 0xFF) ushr 4)
         }
 
-        val dall = Float.fromBits(vy.readIntLE(yOff + q8dOff)) * io.github.kotlinmania.llama.ore.fp16ToF32(
+        val dall = Float.fromBits(vy.readIntLE(yOff + q8dOff)) * io.github.kotlinmania.llama.core.fp16ToF32(
             vx.readShortLE(xOff + q2dOff)
         )
-        val dmin = Float.fromBits(vy.readIntLE(yOff + q8dOff)) * io.github.kotlinmania.llama.ore.fp16ToF32(
+        val dmin = Float.fromBits(vy.readIntLE(yOff + q8dOff)) * io.github.kotlinmania.llama.core.fp16ToF32(
             vx.readShortLE(xOff + q2dminOff)
         )
 
         var isum = 0
         var isIdx = 0
-        for (k in 0 until io.github.kotlinmania.llama.ore.QK_K / 128) {
+        for (k in 0 until io.github.kotlinmania.llama.core.QK_K / 128) {
             var shift = 0
             for (j in 0 until 4) {
                 val d1 = (vx[xOff + q2ScalesOff + isIdx].toInt() and 0xFF) and 0xF
@@ -760,26 +760,26 @@ fun ggml_vec_dot_q3_K_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
     val kmask1 = 0x03030303u
     val kmask2 = 0x0f0f0f0fu
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ3K.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ3K.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockQ3K: hmask(QK_K/8=32) + qs(QK_K/4=64) + scales(12) + d(2) = 110
     val hmaskOff = 0
-    val q3QsOff = io.github.kotlinmania.llama.ore.QK_K / 8
-    val q3ScalesOff = io.github.kotlinmania.llama.ore.QK_K / 8 + io.github.kotlinmania.llama.ore.QK_K / 4
-    val q3dOff = io.github.kotlinmania.llama.ore.QK_K / 8 + io.github.kotlinmania.llama.ore.QK_K / 4 + 12
+    val q3QsOff = io.github.kotlinmania.llama.core.QK_K / 8
+    val q3ScalesOff = io.github.kotlinmania.llama.core.QK_K / 8 + io.github.kotlinmania.llama.core.QK_K / 4
+    val q3dOff = io.github.kotlinmania.llama.core.QK_K / 8 + io.github.kotlinmania.llama.core.QK_K / 4 + 12
 
     val q8dOff = 0
     val q8QsOff = 4
 
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -794,7 +794,7 @@ fun ggml_vec_dot_q3_K_q8_K_generic(
         var aIdx = 0
         var q3Pos = 0
         var m = 1
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) aux8[aIdx + l] = (vx[xOff + q3QsOff + q3Pos + l].toInt() and 0xFF) and 3
             for (l in 0 until 32) aux8[aIdx + l] -= if ((vx[xOff + hmaskOff + l].toInt() and 0xFF) and m != 0) 0 else 4
             aIdx += 32; m = m shl 1
@@ -823,7 +823,7 @@ fun ggml_vec_dot_q3_K_q8_K_generic(
 
         // Interpret auxs as byte array of scales
         var q8Pos = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val scaleIdx = j
             val scaleWord = auxs[scaleIdx / 4]
             val scaleByte = ((scaleWord ushr ((scaleIdx % 4) * 8)) and 0xFF).toByte().toInt()
@@ -835,7 +835,7 @@ fun ggml_vec_dot_q3_K_q8_K_generic(
             for (l in 0 until 8) aux32[l] += (scaleByte - 32) * aux16[l]
             q8Pos += 8; aIdx += 8
         }
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + q3dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + q3dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         for (l in 0 until 8) sums[l] += d * aux32[l]
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -850,16 +850,16 @@ fun ggml_vec_dot_q4_K_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
     val kmask1 = 0x3f3f3f3fu
     val kmask2 = 0x0f0f0f0fu
     val kmask3 = 0x03030303u
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ4K.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ4K.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockQ4K: d(2) + dmin(2) + scales(12) + qs(QK_K/2)
     val q4dOff = 0
@@ -869,10 +869,10 @@ fun ggml_vec_dot_q4_K_q8_K_generic(
 
     val q8dOff = 0
     val q8QsOff = 4
-    val q8BsumsOff = 4 + io.github.kotlinmania.llama.ore.QK_K
+    val q8BsumsOff = 4 + io.github.kotlinmania.llama.core.QK_K
 
     val utmp = UIntArray(4)
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -885,7 +885,7 @@ fun ggml_vec_dot_q4_K_q8_K_generic(
 
         var aIdx = 0
         var q4Pos = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 64) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 64) {
             for (l in 0 until 32) aux8[aIdx + l] = (vx[xOff + q4QsOff + q4Pos + l].toInt() and 0xFF) and 0xF
             aIdx += 32
             for (l in 0 until 32) aux8[aIdx + l] = ((vx[xOff + q4QsOff + q4Pos + l].toInt() and 0xFF) ushr 4)
@@ -903,7 +903,7 @@ fun ggml_vec_dot_q4_K_q8_K_generic(
 
         // scales = bytes of utmp[0..1], mins = bytes of utmp[2..3]
         var sumi = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val bsum = vy.readShortLE(yOff + q8BsumsOff + j * 2).toInt()
             val minByte = ((utmp[2 + j / 4] shr ((j % 4) * 8)) and 0xFFu).toInt()
             sumi += bsum * minByte
@@ -912,7 +912,7 @@ fun ggml_vec_dot_q4_K_q8_K_generic(
         aIdx = 0
         var isIdx = 0
         var q8Pos = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scale = ((utmp[isIdx / 4] shr ((isIdx % 4) * 8)) and 0xFFu).toInt()
             isIdx++
             for (l in 0 until 8) aux16[l] = vy[yOff + q8QsOff + q8Pos + l].toInt() * aux8[aIdx + l]
@@ -928,9 +928,9 @@ fun ggml_vec_dot_q4_K_q8_K_generic(
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
             q8Pos += 8; aIdx += 8
         }
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + q4dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + q4dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         for (l in 0 until 8) sums[l] += d * aux32[l]
-        val dmin = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + q4dminOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val dmin = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + q4dminOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         sumf -= dmin * sumi
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -945,30 +945,30 @@ fun ggml_vec_dot_q5_K_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
     val kmask1 = 0x3f3f3f3fu
     val kmask2 = 0x0f0f0f0fu
     val kmask3 = 0x03030303u
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ5K.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ5K.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockQ5K: d(2) + dmin(2) + scales(12) + qh(QK_K/8) + qs(QK_K/2)
     val q5dOff = 0
     val q5dminOff = 2
     val q5ScalesOff = 4
     val q5QhOff = 16
-    val q5QsOff = 16 + io.github.kotlinmania.llama.ore.QK_K / 8
+    val q5QsOff = 16 + io.github.kotlinmania.llama.core.QK_K / 8
 
     val q8dOff = 0
     val q8QsOff = 4
-    val q8BsumsOff = 4 + io.github.kotlinmania.llama.ore.QK_K
+    val q8BsumsOff = 4 + io.github.kotlinmania.llama.core.QK_K
 
     val utmp = UIntArray(4)
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -982,7 +982,7 @@ fun ggml_vec_dot_q5_K_q8_K_generic(
         var aIdx = 0
         var q4Pos = 0
         var m = 1
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 64) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 64) {
             for (l in 0 until 32) aux8[aIdx + l] = (vx[xOff + q5QsOff + q4Pos + l].toInt() and 0xFF) and 0xF
             for (l in 0 until 32) aux8[aIdx + l] += if ((vx[xOff + q5QhOff + l].toInt() and 0xFF) and m != 0) 16 else 0
             aIdx += 32; m = m shl 1
@@ -1002,7 +1002,7 @@ fun ggml_vec_dot_q5_K_q8_K_generic(
         utmp[0] = utmp[0] and kmask1
 
         var sumi = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val bsum = vy.readShortLE(yOff + q8BsumsOff + j * 2).toInt()
             val minByte = ((utmp[2 + j / 4] shr ((j % 4) * 8)) and 0xFFu).toInt()
             sumi += bsum * minByte
@@ -1011,7 +1011,7 @@ fun ggml_vec_dot_q5_K_q8_K_generic(
         aIdx = 0
         var isIdx = 0
         var q8Pos = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scale = ((utmp[isIdx / 4] shr ((isIdx % 4) * 8)) and 0xFFu).toInt()
             isIdx++
             for (l in 0 until 8) aux16[l] = vy[yOff + q8QsOff + q8Pos + l].toInt() * aux8[aIdx + l]
@@ -1027,9 +1027,9 @@ fun ggml_vec_dot_q5_K_q8_K_generic(
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
             q8Pos += 8; aIdx += 8
         }
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + q5dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + q5dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         for (l in 0 until 8) sums[l] += d * aux32[l]
-        val dmin = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + q5dminOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val dmin = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + q5dminOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         sumf -= dmin * sumi
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -1044,23 +1044,23 @@ fun ggml_vec_dot_q6_K_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockQ6K.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockQ6K.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockQ6K: ql(QK_K/2) + qh(QK_K/4) + scales(QK_K/16) + d(2)
     val qlOff = 0
-    val qhOff = io.github.kotlinmania.llama.ore.QK_K / 2
-    val scalesOff = io.github.kotlinmania.llama.ore.QK_K / 2 + io.github.kotlinmania.llama.ore.QK_K / 4
-    val q6dOff = io.github.kotlinmania.llama.ore.QK_K / 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + io.github.kotlinmania.llama.ore.QK_K / 16
+    val qhOff = io.github.kotlinmania.llama.core.QK_K / 2
+    val scalesOff = io.github.kotlinmania.llama.core.QK_K / 2 + io.github.kotlinmania.llama.core.QK_K / 4
+    val q6dOff = io.github.kotlinmania.llama.core.QK_K / 2 + io.github.kotlinmania.llama.core.QK_K / 4 + io.github.kotlinmania.llama.core.QK_K / 16
 
     val q8dOff = 0
     val q8QsOff = 4
 
-    val aux8 = IntArray(io.github.kotlinmania.llama.ore.QK_K)
+    val aux8 = IntArray(io.github.kotlinmania.llama.core.QK_K)
     val aux16 = IntArray(8)
     val sums = FloatArray(8)
     val aux32 = IntArray(8)
@@ -1074,7 +1074,7 @@ fun ggml_vec_dot_q6_K_q8_K_generic(
         var aIdx = 0
         var q4Pos = 0
         var qhPos = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K step 128) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K step 128) {
             for (l in 0 until 32) {
                 aux8[aIdx + l + 0] = ((vx[xOff + qlOff + q4Pos + l].toInt() and 0xFF) and 0xF) or
                     ((((vx[xOff + qhOff + qhPos + l].toInt() and 0xFF) ushr 0) and 3) shl 4) - 32
@@ -1092,7 +1092,7 @@ fun ggml_vec_dot_q6_K_q8_K_generic(
         aIdx = 0
         var isIdx = 0
         var q8Pos = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK_K / 16) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK_K / 16) {
             val scale = vx[xOff + scalesOff + isIdx].toInt()
             isIdx++
             for (l in 0 until 8) aux16[l] = vy[yOff + q8QsOff + q8Pos + l].toInt() * aux8[aIdx + l]
@@ -1102,7 +1102,7 @@ fun ggml_vec_dot_q6_K_q8_K_generic(
             for (l in 0 until 8) aux32[l] += scale * aux16[l]
             q8Pos += 8; aIdx += 8
         }
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff + q6dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff + q6dOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         for (l in 0 until 8) sums[l] += d * aux32[l]
     }
     for (l in 0 until 8) sumf += sums[l]
@@ -1118,27 +1118,27 @@ fun ggml_vec_dot_iq4_nl_q8_0_generic(
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
     require(nrc == 1)
-    require(n % io.github.kotlinmania.llama.ore.QK4_NL == 0)
+    require(n % io.github.kotlinmania.llama.core.QK4_NL == 0)
 
     // BlockIQ4NL: d(2) + qs(QK4_NL/2)
-    val xBlockSize = 2 + io.github.kotlinmania.llama.ore.QK4_NL / 2
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8_0.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK4_NL
+    val xBlockSize = 2 + io.github.kotlinmania.llama.core.QK4_NL / 2
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8_0.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK4_NL
 
     var sumf = 0.0f
 
     for (ib in 0 until nb) {
         val xOff = vxOffset + ib * xBlockSize
         val yOff = vyOffset + ib * yBlockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vy.readShortLE(yOff)) * io.github.kotlinmania.llama.ore.fp16ToF32(
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vy.readShortLE(yOff)) * io.github.kotlinmania.llama.core.fp16ToF32(
             vx.readShortLE(xOff)
         )
         var sumi1 = 0
         var sumi2 = 0
-        for (j in 0 until io.github.kotlinmania.llama.ore.QK4_NL / 2) {
+        for (j in 0 until io.github.kotlinmania.llama.core.QK4_NL / 2) {
             val qsByte = vx[xOff + 2 + j].toInt() and 0xFF
-            sumi1 += vy[yOff + 2 + j].toInt() * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qsByte and 0xf].toInt()
-            sumi2 += vy[yOff + 2 + j + io.github.kotlinmania.llama.ore.QK4_NL / 2].toInt() * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qsByte ushr 4].toInt()
+            sumi1 += vy[yOff + 2 + j].toInt() * io.github.kotlinmania.llama.core.kvalues_iq4nl[qsByte and 0xf].toInt()
+            sumi2 += vy[yOff + 2 + j + io.github.kotlinmania.llama.core.QK4_NL / 2].toInt() * io.github.kotlinmania.llama.core.kvalues_iq4nl[qsByte ushr 4].toInt()
         }
         sumf += d * (sumi1 + sumi2)
     }
@@ -1154,15 +1154,15 @@ fun ggml_vec_dot_iq4_xs_q8_K_generic(
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
     require(nrc == 1)
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
 
     // BlockIQ4XS: d(2) + scales_h(2) + scales_l(QK_K/64) + qs(QK_K/2)
     val xScalesHOff = 2
     val xScalesLOff = 4
-    val xQsOff = 4 + io.github.kotlinmania.llama.ore.QK_K / 64
-    val xBlockSize = 4 + io.github.kotlinmania.llama.ore.QK_K / 64 + io.github.kotlinmania.llama.ore.QK_K / 2
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xQsOff = 4 + io.github.kotlinmania.llama.core.QK_K / 64
+    val xBlockSize = 4 + io.github.kotlinmania.llama.core.QK_K / 64 + io.github.kotlinmania.llama.core.QK_K / 2
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1171,11 +1171,11 @@ fun ggml_vec_dot_iq4_xs_q8_K_generic(
     for (ibl in 0 until nb) {
         val xOff = vxOffset + ibl * xBlockSize
         val yOff = vyOffset + ibl * yBlockSize
-        val d4d8 = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d4d8 = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
         var h = vx.readShortLE(xOff + xScalesHOff).toInt() and 0xFFFF
         var qsPos = 0
         var q8Pos = 0
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32 step 2) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32 step 2) {
             val ls1byte = vx[xOff + xScalesLOff + ib / 2].toInt() and 0xFF
             val ls1 = (ls1byte and 0xf) or ((h shl 4) and 0x30)
             val ls2 = (ls1byte ushr 4) or ((h shl 2) and 0x30)
@@ -1185,16 +1185,16 @@ fun ggml_vec_dot_iq4_xs_q8_K_generic(
             var sumi1 = 0; var sumi2 = 0
             for (j in 0 until 16) {
                 val qsByte = vx[xOff + xQsOff + qsPos + j].toInt() and 0xFF
-                sumi1 += vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qsByte and 0xf].toInt()
-                sumi2 += vy[yOff + q8QsOff + q8Pos + j + 16].toInt() * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qsByte ushr 4].toInt()
+                sumi1 += vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * io.github.kotlinmania.llama.core.kvalues_iq4nl[qsByte and 0xf].toInt()
+                sumi2 += vy[yOff + q8QsOff + q8Pos + j + 16].toInt() * io.github.kotlinmania.llama.core.kvalues_iq4nl[qsByte ushr 4].toInt()
             }
             sumf += d1 * (sumi1 + sumi2)
             qsPos += 16; q8Pos += 32
             sumi1 = 0; sumi2 = 0
             for (j in 0 until 16) {
                 val qsByte = vx[xOff + xQsOff + qsPos + j].toInt() and 0xFF
-                sumi1 += vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qsByte and 0xf].toInt()
-                sumi2 += vy[yOff + q8QsOff + q8Pos + j + 16].toInt() * io.github.kotlinmania.llama.ore.kvalues_iq4nl[qsByte ushr 4].toInt()
+                sumi1 += vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * io.github.kotlinmania.llama.core.kvalues_iq4nl[qsByte and 0xf].toInt()
+                sumi2 += vy[yOff + q8QsOff + q8Pos + j + 16].toInt() * io.github.kotlinmania.llama.core.kvalues_iq4nl[qsByte ushr 4].toInt()
             }
             sumf += d2 * (sumi1 + sumi2)
             qsPos += 16; q8Pos += 32
@@ -1211,12 +1211,12 @@ fun ggml_vec_dot_iq2_xxs_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ2XXS.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ2XXS.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1225,14 +1225,14 @@ fun ggml_vec_dot_iq2_xxs_q8_K_generic(
     for (i in 0 until nb) {
         val xOff = vxOffset + i * xBlockSize
         val yOff = vyOffset + i * yBlockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
 
         // qs starts at xOff + 2 (uint16_t[QK_K/8], read as raw bytes)
         var q2Pos = xOff + 2
         var q8Pos = 0
 
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             // memcpy(aux32, q2, 2*sizeof(uint32_t))
             val aux32_0 = vx.readUIntLE(q2Pos)
             val aux32_1 = vx.readUIntLE(q2Pos + 4)
@@ -1242,13 +1242,13 @@ fun ggml_vec_dot_iq2_xxs_q8_K_generic(
             var sumi = 0
             for (l in 0 until 4) {
                 val gridIdx = ((aux32_0 shr (l * 8)) and 0xFFu).toInt()
-                val gridVal = io.github.kotlinmania.llama.ore.iq2xxs_grid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.iq2xxs_grid[gridIdx]
                 val signIdx = ((aux32_1 shr (7 * l)) and 127u).toInt()
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[signIdx]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[signIdx]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal shr (j * 8)) and 0xFFu).toInt()
                     val q8val = vy[yOff + q8QsOff + q8Pos + j].toInt()
-                    val sign = if ((signs and io.github.kotlinmania.llama.ore.kmask_iq2xs[j]) != 0.toUByte()) -1 else 1
+                    val sign = if ((signs and io.github.kotlinmania.llama.core.kmask_iq2xs[j]) != 0.toUByte()) -1 else 1
                     sumi += gridByte * q8val * sign
                 }
                 q8Pos += 8
@@ -1268,16 +1268,16 @@ fun ggml_vec_dot_iq2_xs_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ2XS.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ2XS.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockIQ2XS: d(2) + qs(uint16_t[32]=64) + scales(8)
     val xQsOff = 2
-    val xScOff = 2 + (io.github.kotlinmania.llama.ore.QK_K / 8) * 2  // 66
+    val xScOff = 2 + (io.github.kotlinmania.llama.core.QK_K / 8) * 2  // 66
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1286,13 +1286,13 @@ fun ggml_vec_dot_iq2_xs_q8_K_generic(
     for (i in 0 until nb) {
         val xOff = vxOffset + i * xBlockSize
         val yOff = vyOffset + i * yBlockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
 
         var q2Pos = xOff + xQsOff
         var q8Pos = 0
 
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scByte = vx[xOff + xScOff + ib32].toInt() and 0xFF
             val ls1 = 2 * (scByte and 0xf) + 1
             val ls2 = 2 * (scByte ushr 4) + 1
@@ -1301,12 +1301,12 @@ fun ggml_vec_dot_iq2_xs_q8_K_generic(
             for (l in 0 until 2) {
                 val q2val = (vx[q2Pos + l * 2].toInt() and 0xFF) or
                     ((vx[q2Pos + l * 2 + 1].toInt() and 0xFF) shl 8)
-                val gridVal = io.github.kotlinmania.llama.ore.iq2xs_grid[q2val and 511]
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[q2val ushr 9]
+                val gridVal = io.github.kotlinmania.llama.core.iq2xs_grid[q2val and 511]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[q2val ushr 9]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal shr (j * 8)) and 0xFFu).toInt()
                     val q8val = vy[yOff + q8QsOff + q8Pos + j].toInt()
-                    val sign = if ((signs and io.github.kotlinmania.llama.ore.kmask_iq2xs[j]) != 0.toUByte()) -1 else 1
+                    val sign = if ((signs and io.github.kotlinmania.llama.core.kmask_iq2xs[j]) != 0.toUByte()) -1 else 1
                     sumi += gridByte * q8val * sign
                 }
                 q8Pos += 8
@@ -1317,12 +1317,12 @@ fun ggml_vec_dot_iq2_xs_q8_K_generic(
             for (l in 2 until 4) {
                 val q2val = (vx[q2Pos + l * 2].toInt() and 0xFF) or
                     ((vx[q2Pos + l * 2 + 1].toInt() and 0xFF) shl 8)
-                val gridVal = io.github.kotlinmania.llama.ore.iq2xs_grid[q2val and 511]
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[q2val ushr 9]
+                val gridVal = io.github.kotlinmania.llama.core.iq2xs_grid[q2val and 511]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[q2val ushr 9]
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal shr (j * 8)) and 0xFFu).toInt()
                     val q8val = vy[yOff + q8QsOff + q8Pos + j].toInt()
-                    val sign = if ((signs and io.github.kotlinmania.llama.ore.kmask_iq2xs[j]) != 0.toUByte()) -1 else 1
+                    val sign = if ((signs and io.github.kotlinmania.llama.core.kmask_iq2xs[j]) != 0.toUByte()) -1 else 1
                     sumi += gridByte * q8val * sign
                 }
                 q8Pos += 8
@@ -1343,17 +1343,17 @@ fun ggml_vec_dot_iq2_s_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ2S.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ2S.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockIQ2S: d(2) + qs[QK_K/4](64) + qh[QK_K/32](8) + scales[QK_K/32](8)
     val xQsOff = 2
-    val xQhOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 4          // 66
-    val xScalesOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + io.github.kotlinmania.llama.ore.QK_K / 32  // 74
+    val xQhOff = 2 + io.github.kotlinmania.llama.core.QK_K / 4          // 66
+    val xScalesOff = 2 + io.github.kotlinmania.llama.core.QK_K / 4 + io.github.kotlinmania.llama.core.QK_K / 32  // 74
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1362,14 +1362,14 @@ fun ggml_vec_dot_iq2_s_q8_K_generic(
     for (i in 0 until nb) {
         val xOff = vxOffset + i * xBlockSize
         val yOff = vyOffset + i * yBlockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
 
         var qsPos = xOff + xQsOff
-        var signsPos = xOff + xQsOff + io.github.kotlinmania.llama.ore.QK_K / 8  // signs = qs + QK_K/8
+        var signsPos = xOff + xQsOff + io.github.kotlinmania.llama.core.QK_K / 8  // signs = qs + QK_K/8
         var q8Pos = 0
 
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val scByte = vx[xOff + xScalesOff + ib32].toInt() and 0xFF
             val ls1 = 1 + 2 * (scByte and 0xf)
             val ls2 = 1 + 2 * (scByte ushr 4)
@@ -1379,24 +1379,24 @@ fun ggml_vec_dot_iq2_s_q8_K_generic(
             var sumi2 = 0
             for (l in 0 until 2) {
                 val gridIdx = (vx[qsPos + l].toInt() and 0xFF) or (((qhVal shl (8 - 2 * l)) and 0x300))
-                val gridVal = io.github.kotlinmania.llama.ore.iq2s_grid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.iq2s_grid[gridIdx]
                 val signByte = vx[signsPos + l].toInt() and 0xFF
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal shr (j * 8)) and 0xFFu).toInt()
                     val q8val = vy[yOff + q8QsOff + q8Pos + j].toInt()
-                    val sign = if ((signByte and io.github.kotlinmania.llama.ore.kmask_iq2xs[j].toInt()) != 0) -1 else 1
+                    val sign = if ((signByte and io.github.kotlinmania.llama.core.kmask_iq2xs[j].toInt()) != 0) -1 else 1
                     sumi1 += q8val * gridByte * sign
                 }
                 q8Pos += 8
             }
             for (l in 2 until 4) {
                 val gridIdx = (vx[qsPos + l].toInt() and 0xFF) or (((qhVal shl (8 - 2 * l)) and 0x300))
-                val gridVal = io.github.kotlinmania.llama.ore.iq2s_grid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.iq2s_grid[gridIdx]
                 val signByte = vx[signsPos + l].toInt() and 0xFF
                 for (j in 0 until 8) {
                     val gridByte = ((gridVal shr (j * 8)) and 0xFFu).toInt()
                     val q8val = vy[yOff + q8QsOff + q8Pos + j].toInt()
-                    val sign = if ((signByte and io.github.kotlinmania.llama.ore.kmask_iq2xs[j].toInt()) != 0) -1 else 1
+                    val sign = if ((signByte and io.github.kotlinmania.llama.core.kmask_iq2xs[j].toInt()) != 0) -1 else 1
                     sumi2 += q8val * gridByte * sign
                 }
                 q8Pos += 8
@@ -1418,17 +1418,17 @@ fun ggml_vec_dot_iq3_xxs_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ3XXS.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ3XXS.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockIQ3XXS: d(2) + qs[3*QK_K/8](96)
     // First QK_K/4 = 64 bytes are quant indices (q3), rest is gas (scale+sign aux)
     val xQsOff = 2
-    val xGasOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 4  // 66
+    val xGasOff = 2 + io.github.kotlinmania.llama.core.QK_K / 4  // 66
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1437,28 +1437,28 @@ fun ggml_vec_dot_iq3_xxs_q8_K_generic(
     for (i in 0 until nb) {
         val xOff = vxOffset + i * xBlockSize
         val yOff = vyOffset + i * yBlockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
 
         var q3Pos = xOff + xQsOff
         var gasPos = xOff + xGasOff
         var q8Pos = 0
 
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val aux32 = vx.readUIntLE(gasPos)
             gasPos += 4
 
             val ls = (2u * (aux32 shr 28) + 1u).toInt()
             var sumi = 0
             for (l in 0 until 4) {
-                val grid1Val = io.github.kotlinmania.llama.ore.iq3xxs_grid[vx[q3Pos + 2 * l + 0].toInt() and 0xFF]
-                val grid2Val = io.github.kotlinmania.llama.ore.iq3xxs_grid[vx[q3Pos + 2 * l + 1].toInt() and 0xFF]
-                val signs = io.github.kotlinmania.llama.ore.ksigns_iq2xs[((aux32 shr (7 * l)) and 127u).toInt()]
+                val grid1Val = io.github.kotlinmania.llama.core.iq3xxs_grid[vx[q3Pos + 2 * l + 0].toInt() and 0xFF]
+                val grid2Val = io.github.kotlinmania.llama.core.iq3xxs_grid[vx[q3Pos + 2 * l + 1].toInt() and 0xFF]
+                val signs = io.github.kotlinmania.llama.core.ksigns_iq2xs[((aux32 shr (7 * l)) and 127u).toInt()]
                 for (j in 0 until 4) {
                     val g1byte = ((grid1Val shr (j * 8)) and 0xFFu).toInt()
                     val g2byte = ((grid2Val shr (j * 8)) and 0xFFu).toInt()
-                    val sign0 = if ((signs and io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 0]) != 0.toUByte()) -1 else 1
-                    val sign1 = if ((signs and io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 4]) != 0.toUByte()) -1 else 1
+                    val sign0 = if ((signs and io.github.kotlinmania.llama.core.kmask_iq2xs[j + 0]) != 0.toUByte()) -1 else 1
+                    val sign1 = if ((signs and io.github.kotlinmania.llama.core.kmask_iq2xs[j + 4]) != 0.toUByte()) -1 else 1
                     sumi += g1byte * vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * sign0
                     sumi += g2byte * vy[yOff + q8QsOff + q8Pos + j + 4].toInt() * sign1
                 }
@@ -1480,18 +1480,18 @@ fun ggml_vec_dot_iq3_s_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ3S.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ3S.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockIQ3S: d(2) + qs[QK_K/4](64) + qh[QK_K/32](8) + signs[QK_K/8](32) + scales[IQ3S_N_SCALE](4)
     val xQsOff = 2
-    val xQhOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 4                       // 66
-    val xSignsOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + io.github.kotlinmania.llama.ore.QK_K / 32        // 74
-    val xScalesOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 4 + io.github.kotlinmania.llama.ore.QK_K / 32 + io.github.kotlinmania.llama.ore.QK_K / 8  // 106
+    val xQhOff = 2 + io.github.kotlinmania.llama.core.QK_K / 4                       // 66
+    val xSignsOff = 2 + io.github.kotlinmania.llama.core.QK_K / 4 + io.github.kotlinmania.llama.core.QK_K / 32        // 74
+    val xScalesOff = 2 + io.github.kotlinmania.llama.core.QK_K / 4 + io.github.kotlinmania.llama.core.QK_K / 32 + io.github.kotlinmania.llama.core.QK_K / 8  // 106
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1500,14 +1500,14 @@ fun ggml_vec_dot_iq3_s_q8_K_generic(
     for (i in 0 until nb) {
         val xOff = vxOffset + i * xBlockSize
         val yOff = vyOffset + i * yBlockSize
-        val d = io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
+        val d = io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff))
 
         var qsPos = xOff + xQsOff
         var signsPos = xOff + xSignsOff
         var q8Pos = 0
 
         var bsum = 0
-        for (ib32 in 0 until io.github.kotlinmania.llama.ore.QK_K / 32 step 2) {
+        for (ib32 in 0 until io.github.kotlinmania.llama.core.QK_K / 32 step 2) {
             val scByte = vx[xOff + xScalesOff + ib32 / 2].toInt() and 0xFF
             val ls1 = 2 * (scByte and 0xf) + 1
             val ls2 = 2 * (scByte ushr 4) + 1
@@ -1518,14 +1518,14 @@ fun ggml_vec_dot_iq3_s_q8_K_generic(
             for (l in 0 until 4) {
                 val gridIdx1 = (vx[qsPos + 2 * l + 0].toInt() and 0xFF) or (((qh0 shl (8 - 2 * l)) and 256))
                 val gridIdx2 = (vx[qsPos + 2 * l + 1].toInt() and 0xFF) or (((qh0 shl (7 - 2 * l)) and 256))
-                val grid1Val = io.github.kotlinmania.llama.ore.iq3s_grid[gridIdx1]
-                val grid2Val = io.github.kotlinmania.llama.ore.iq3s_grid[gridIdx2]
+                val grid1Val = io.github.kotlinmania.llama.core.iq3s_grid[gridIdx1]
+                val grid2Val = io.github.kotlinmania.llama.core.iq3s_grid[gridIdx2]
                 val signByte = vx[signsPos + l].toInt() and 0xFF
                 for (j in 0 until 4) {
                     val g1byte = ((grid1Val shr (j * 8)) and 0xFFu).toInt()
                     val g2byte = ((grid2Val shr (j * 8)) and 0xFFu).toInt()
-                    val sign0 = if ((signByte and io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 0].toInt()) != 0) -1 else 1
-                    val sign1 = if ((signByte and io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 4].toInt()) != 0) -1 else 1
+                    val sign0 = if ((signByte and io.github.kotlinmania.llama.core.kmask_iq2xs[j + 0].toInt()) != 0) -1 else 1
+                    val sign1 = if ((signByte and io.github.kotlinmania.llama.core.kmask_iq2xs[j + 4].toInt()) != 0) -1 else 1
                     sumi += g1byte * vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * sign0
                     sumi += g2byte * vy[yOff + q8QsOff + q8Pos + j + 4].toInt() * sign1
                 }
@@ -1541,14 +1541,14 @@ fun ggml_vec_dot_iq3_s_q8_K_generic(
             for (l in 0 until 4) {
                 val gridIdx1 = (vx[qsPos + 2 * l + 0].toInt() and 0xFF) or (((qh1 shl (8 - 2 * l)) and 256))
                 val gridIdx2 = (vx[qsPos + 2 * l + 1].toInt() and 0xFF) or (((qh1 shl (7 - 2 * l)) and 256))
-                val grid1Val = io.github.kotlinmania.llama.ore.iq3s_grid[gridIdx1]
-                val grid2Val = io.github.kotlinmania.llama.ore.iq3s_grid[gridIdx2]
+                val grid1Val = io.github.kotlinmania.llama.core.iq3s_grid[gridIdx1]
+                val grid2Val = io.github.kotlinmania.llama.core.iq3s_grid[gridIdx2]
                 val signByte = vx[signsPos + l].toInt() and 0xFF
                 for (j in 0 until 4) {
                     val g1byte = ((grid1Val shr (j * 8)) and 0xFFu).toInt()
                     val g2byte = ((grid2Val shr (j * 8)) and 0xFFu).toInt()
-                    val sign0 = if ((signByte and io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 0].toInt()) != 0) -1 else 1
-                    val sign1 = if ((signByte and io.github.kotlinmania.llama.ore.kmask_iq2xs[j + 4].toInt()) != 0) -1 else 1
+                    val sign0 = if ((signByte and io.github.kotlinmania.llama.core.kmask_iq2xs[j + 0].toInt()) != 0) -1 else 1
+                    val sign1 = if ((signByte and io.github.kotlinmania.llama.core.kmask_iq2xs[j + 4].toInt()) != 0) -1 else 1
                     sumi += g1byte * vy[yOff + q8QsOff + q8Pos + j + 0].toInt() * sign0
                     sumi += g2byte * vy[yOff + q8QsOff + q8Pos + j + 4].toInt() * sign1
                 }
@@ -1571,20 +1571,20 @@ fun ggml_vec_dot_iq1_s_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ1S.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ1S.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockIQ1S: d(2) + qs[QK_K/8](32) + qh[QK_K/32] as uint16_t[8](16)
     val xQsOff = 2
-    val xQhOff = 2 + io.github.kotlinmania.llama.ore.QK_K / 8  // 34
+    val xQhOff = 2 + io.github.kotlinmania.llama.core.QK_K / 8  // 34
 
     val q8dOff = 0
     val q8QsOff = 4
-    val q8BsumsOff = 4 + io.github.kotlinmania.llama.ore.QK_K  // 260
+    val q8BsumsOff = 4 + io.github.kotlinmania.llama.core.QK_K  // 260
 
     var sumf = 0.0f
     for (i in 0 until nb) {
@@ -1596,7 +1596,7 @@ fun ggml_vec_dot_iq1_s_q8_K_generic(
 
         var sumi = 0
         var sumi1 = 0
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val qhVal = (vx[xOff + xQhOff + ib * 2].toInt() and 0xFF) or
                 ((vx[xOff + xQhOff + ib * 2 + 1].toInt() and 0xFF) shl 8)
             val ls = 2 * ((qhVal ushr 12) and 7) + 1
@@ -1605,7 +1605,7 @@ fun ggml_vec_dot_iq1_s_q8_K_generic(
             var lsum = 0
             for (l in 0 until 4) {
                 val gridIdx = (vx[qsPos + l].toInt() and 0xFF) or ((((qhVal ushr (3 * l)) and 7) shl 8))
-                val gridVal = io.github.kotlinmania.llama.ore.iq1s_grid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.iq1s_grid[gridIdx]
                 for (j in 0 until 8) {
                     // iq1s_grid is accessed as int8_t — signed byte extraction
                     val gridByte = ((gridVal shr (j * 8)) and 0xFFu).toByte().toInt()
@@ -1621,8 +1621,8 @@ fun ggml_vec_dot_iq1_s_q8_K_generic(
             qsPos += 4
         }
 
-        sumf += io.github.kotlinmania.llama.ore.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff)) *
-            (sumi + io.github.kotlinmania.llama.ore.IQ1S_DELTA * sumi1)
+        sumf += io.github.kotlinmania.llama.core.fp16ToF32(vx.readShortLE(xOff)) * Float.fromBits(vy.readIntLE(yOff + q8dOff)) *
+            (sumi + io.github.kotlinmania.llama.core.IQ1S_DELTA * sumi1)
     }
     s[sOffset] = sumf
 }
@@ -1635,17 +1635,17 @@ fun ggml_vec_dot_iq1_m_q8_K_generic(
     vx: ByteArray, vxOffset: Int,
     vy: ByteArray, vyOffset: Int, nrc: Int
 ) {
-    require(n % io.github.kotlinmania.llama.ore.QK_K == 0)
+    require(n % io.github.kotlinmania.llama.core.QK_K == 0)
     require(nrc == 1)
 
-    val xBlockSize = io.github.kotlinmania.llama.ore.BlockIQ1M.SIZE_BYTES
-    val yBlockSize = io.github.kotlinmania.llama.ore.BlockQ8K.SIZE_BYTES
-    val nb = n / io.github.kotlinmania.llama.ore.QK_K
+    val xBlockSize = io.github.kotlinmania.llama.core.BlockIQ1M.SIZE_BYTES
+    val yBlockSize = io.github.kotlinmania.llama.core.BlockQ8K.SIZE_BYTES
+    val nb = n / io.github.kotlinmania.llama.core.QK_K
 
     // BlockIQ1M: qs[QK_K/8](32) + qh[QK_K/16](16) + scales[QK_K/32](8)
     val xQsOff = 0
-    val xQhOff = io.github.kotlinmania.llama.ore.QK_K / 8              // 32
-    val xScalesOff = io.github.kotlinmania.llama.ore.QK_K / 8 + io.github.kotlinmania.llama.ore.QK_K / 16  // 48
+    val xQhOff = io.github.kotlinmania.llama.core.QK_K / 8              // 32
+    val xScalesOff = io.github.kotlinmania.llama.core.QK_K / 8 + io.github.kotlinmania.llama.core.QK_K / 16  // 48
 
     val q8dOff = 0
     val q8QsOff = 4
@@ -1681,7 +1681,7 @@ fun ggml_vec_dot_iq1_m_q8_K_generic(
         var sumi1 = 0
         var sumi2 = 0
 
-        for (ib in 0 until io.github.kotlinmania.llama.ore.QK_K / 32) {
+        for (ib in 0 until io.github.kotlinmania.llama.core.QK_K / 32) {
             val qh0 = vx[qhPos + 0].toInt() and 0xFF
             val qh1 = vx[qhPos + 1].toInt() and 0xFF
             delta[0] = if (qh0 and 0x08 != 0) -1 else 1
@@ -1694,7 +1694,7 @@ fun ggml_vec_dot_iq1_m_q8_K_generic(
                 val qhByte = vx[qhPos + l / 2].toInt() and 0xFF
                 val gridIdx = (vx[qsPos + l].toInt() and 0xFF) or
                     (((qhByte shl (8 - 4 * (l % 2))) and 0x700))
-                val gridVal = io.github.kotlinmania.llama.ore.iq1s_grid[gridIdx]
+                val gridVal = io.github.kotlinmania.llama.core.iq1s_grid[gridIdx]
                 var lsum1 = 0
                 var lsum2 = 0
                 for (j in 0 until 8) {
@@ -1717,8 +1717,8 @@ fun ggml_vec_dot_iq1_m_q8_K_generic(
             qhPos += 2
         }
 
-        sumf += io.github.kotlinmania.llama.ore.fp16ToF32(scaleU16.toShort()) * Float.fromBits(vy.readIntLE(yOff + q8dOff)) *
-            (sumi1 + io.github.kotlinmania.llama.ore.IQ1M_DELTA * sumi2)
+        sumf += io.github.kotlinmania.llama.core.fp16ToF32(scaleU16.toShort()) * Float.fromBits(vy.readIntLE(yOff + q8dOff)) *
+            (sumi1 + io.github.kotlinmania.llama.core.IQ1M_DELTA * sumi2)
     }
     s[sOffset] = sumf
 }
@@ -1794,7 +1794,7 @@ internal fun makeQ3Quants(
         }
     }
 
-    if (absMax < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+    if (absMax < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
         for (i in 0 until n) dest[destOffset + i] = 0
         return 0f
     }
@@ -1807,7 +1807,7 @@ internal fun makeQ3Quants(
         var sumL2 = 0f
         for (i in 0 until n) {
             val xi = values[valuesOffset + i]
-            var l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * xi)
+            var l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * xi)
             l = l.coerceIn(-nmax, nmax - 1)
             codes[i] = l
             val w = xi * xi
@@ -1824,7 +1824,7 @@ internal fun makeQ3Quants(
                 val slx = sumLx - w * xi * current
                 if (slx > 0f) {
                     val sl2 = sumL2 - w * current * current
-                    var newCode = io.github.kotlinmania.llama.ore.nearestIntFloat(xi * sl2 / slx)
+                    var newCode = io.github.kotlinmania.llama.core.nearestIntFloat(xi * sl2 / slx)
                     newCode = newCode.coerceIn(-nmax, nmax - 1)
                     if (newCode != current) {
                         val candidateSlx = slx + w * xi * newCode
@@ -1849,7 +1849,7 @@ internal fun makeQ3Quants(
 
     for (i in 0 until n) {
         val xi = values[valuesOffset + i]
-        var l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * xi)
+        var l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * xi)
         l = l.coerceIn(-nmax, nmax - 1)
         dest[destOffset + i] = (l + nmax).toByte()
     }
@@ -1873,7 +1873,7 @@ internal fun makeQKX2Quants(
     rdelta: Float,
     nstep: Int,
     useMad: Boolean
-): io.github.kotlinmania.llama.ore.QuantizationStats {
+): io.github.kotlinmania.llama.core.QuantizationStats {
     var minVal = values[valuesOffset]
     var maxVal = minVal
     var sumW = weights.weightAt(weightsOffset, 0)
@@ -1890,7 +1890,7 @@ internal fun makeQKX2Quants(
     if (maxVal == minVal) {
         for (i in 0 until n) dest[destOffset + i] = 0
         mins[minsIndex] = -minVal
-        return io.github.kotlinmania.llama.ore.QuantizationStats(scale = 0f, min = -minVal)
+        return io.github.kotlinmania.llama.core.QuantizationStats(scale = 0f, min = -minVal)
     }
 
     val maxFixed = maxVal
@@ -1900,7 +1900,7 @@ internal fun makeQKX2Quants(
     var bestMetric = 0f
     for (i in 0 until n) {
         val xi = values[valuesOffset + i]
-        val l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * (xi - currentMin))
+        val l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * (xi - currentMin))
             .coerceIn(0, nmax)
         dest[destOffset + i] = l.toByte()
         var diff = scale * l + currentMin - xi
@@ -1910,7 +1910,7 @@ internal fun makeQKX2Quants(
     }
     if (nstep < 1) {
         mins[minsIndex] = -currentMin
-        return io.github.kotlinmania.llama.ore.QuantizationStats(scale = scale, min = -currentMin)
+        return io.github.kotlinmania.llama.core.QuantizationStats(scale = scale, min = -currentMin)
     }
 
     for (step in 0..nstep) {
@@ -1920,7 +1920,7 @@ internal fun makeQKX2Quants(
         var sumXL = 0f
         for (i in 0 until n) {
             val xi = values[valuesOffset + i]
-            var l = io.github.kotlinmania.llama.ore.nearestIntFloat(stepIscale * (xi - currentMin))
+            var l = io.github.kotlinmania.llama.core.nearestIntFloat(stepIscale * (xi - currentMin))
             l = l.coerceIn(0, nmax)
             aux[auxOffset + i] = l.toByte()
             val w = weights.weightAt(weightsOffset, i)
@@ -1956,7 +1956,7 @@ internal fun makeQKX2Quants(
     }
 
     mins[minsIndex] = -currentMin
-    return io.github.kotlinmania.llama.ore.QuantizationStats(scale = scale, min = -currentMin)
+    return io.github.kotlinmania.llama.core.QuantizationStats(scale = scale, min = -currentMin)
 }
 
 internal fun makeQKX3Quants(
@@ -1976,17 +1976,17 @@ internal fun makeQKX3Quants(
     rdelta: Float,
     nstep: Int,
     useMad: Boolean
-): io.github.kotlinmania.llama.ore.QuantizationStats {
+): io.github.kotlinmania.llama.core.QuantizationStats {
     var minVal = values[valuesOffset]
     var maxVal = minVal
     var sumW =
-        io.github.kotlinmania.llama.ore.qkx3Weight(values, valuesOffset, weights, weightsOffset, 0)
+        io.github.kotlinmania.llama.core.qkx3Weight(values, valuesOffset, weights, weightsOffset, 0)
     var sumX = sumW * values[valuesOffset]
     for (i in 1 until n) {
         val xi = values[valuesOffset + i]
         if (xi < minVal) minVal = xi
         if (xi > maxVal) maxVal = xi
-        val w = io.github.kotlinmania.llama.ore.qkx3Weight(
+        val w = io.github.kotlinmania.llama.core.qkx3Weight(
             values,
             valuesOffset,
             weights,
@@ -2000,7 +2000,7 @@ internal fun makeQKX3Quants(
     if (maxVal <= minVal) {
         for (i in 0 until n) dest[destOffset + i] = 0
         mins[minsIndex] = -minVal
-        return io.github.kotlinmania.llama.ore.QuantizationStats(scale = 0f, min = -minVal)
+        return io.github.kotlinmania.llama.core.QuantizationStats(scale = 0f, min = -minVal)
     }
 
     val maxFixed = maxVal
@@ -2010,12 +2010,12 @@ internal fun makeQKX3Quants(
     var bestMetric = 0f
     for (i in 0 until n) {
         val xi = values[valuesOffset + i]
-        val l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * (xi - currentMin))
+        val l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * (xi - currentMin))
             .coerceIn(0, nmax)
         dest[destOffset + i] = l.toByte()
         var diff = scale * l + currentMin - xi
         diff = if (useMad) abs(diff) else diff * diff
-        val w = io.github.kotlinmania.llama.ore.qkx3Weight(
+        val w = io.github.kotlinmania.llama.core.qkx3Weight(
             values,
             valuesOffset,
             weights,
@@ -2026,7 +2026,7 @@ internal fun makeQKX3Quants(
     }
     if (nstep < 1) {
         mins[minsIndex] = -currentMin
-        return io.github.kotlinmania.llama.ore.QuantizationStats(scale = scale, min = -currentMin)
+        return io.github.kotlinmania.llama.core.QuantizationStats(scale = scale, min = -currentMin)
     }
 
     for (step in 0..nstep) {
@@ -2036,10 +2036,10 @@ internal fun makeQKX3Quants(
         var sumXL = 0f
         for (i in 0 until n) {
             val xi = values[valuesOffset + i]
-            var l = io.github.kotlinmania.llama.ore.nearestIntFloat(stepIscale * (xi - currentMin))
+            var l = io.github.kotlinmania.llama.core.nearestIntFloat(stepIscale * (xi - currentMin))
             l = l.coerceIn(0, nmax)
             aux[auxOffset + i] = l.toByte()
-            val w = io.github.kotlinmania.llama.ore.qkx3Weight(
+            val w = io.github.kotlinmania.llama.core.qkx3Weight(
                 values,
                 valuesOffset,
                 weights,
@@ -2065,7 +2065,7 @@ internal fun makeQKX3Quants(
                 val li = (aux[auxOffset + i].toInt() and 0xFF).toFloat()
                 var diff = scaleCand * li + minCand - xi
                 diff = if (useMad) abs(diff) else diff * diff
-                val w = io.github.kotlinmania.llama.ore.qkx3Weight(
+                val w = io.github.kotlinmania.llama.core.qkx3Weight(
                     values,
                     valuesOffset,
                     weights,
@@ -2084,7 +2084,7 @@ internal fun makeQKX3Quants(
     }
 
     mins[minsIndex] = -currentMin
-    return io.github.kotlinmania.llama.ore.QuantizationStats(scale = scale, min = -currentMin)
+    return io.github.kotlinmania.llama.core.QuantizationStats(scale = scale, min = -currentMin)
 }
 
 internal fun makeQPQuants(
@@ -2108,7 +2108,7 @@ internal fun makeQPQuants(
     var iscale = nmax.toFloat() / maxVal
     val tempCodes = IntArray(n)
     for (i in 0 until n) {
-        val l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * values[valuesOffset + i])
+        val l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * values[valuesOffset + i])
             .coerceIn(0, nmax)
         dest[destOffset + i] = l.toByte()
         tempCodes[i] = l
@@ -2126,7 +2126,7 @@ internal fun makeQPQuants(
         var mse = 0f
         for (i in 0 until n) {
             var l =
-                io.github.kotlinmania.llama.ore.nearestIntFloat(candidateIscale * values[valuesOffset + i])
+                io.github.kotlinmania.llama.core.nearestIntFloat(candidateIscale * values[valuesOffset + i])
             l = min(nmax, l)
             val diff = values[valuesOffset + i] - candidateScale * l
             mse += quantWeights[weightsOffset + i] * diff * diff
@@ -2140,7 +2140,7 @@ internal fun makeQPQuants(
     var sumLx = 0f
     var sumL2 = 0f
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * values[valuesOffset + i])
+        var l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * values[valuesOffset + i])
         l = min(nmax, l)
         dest[destOffset + i] = l.toByte()
         val w = quantWeights[weightsOffset + i]
@@ -2156,7 +2156,7 @@ internal fun makeQPQuants(
             var slx = sumLx - w * xi * current
             var sl2 = sumL2 - w * current * current
             if (slx > 0f && sl2 > 0f) {
-                var newL = io.github.kotlinmania.llama.ore.nearestIntFloat(xi * sl2 / slx)
+                var newL = io.github.kotlinmania.llama.core.nearestIntFloat(xi * sl2 / slx)
                 newL = min(nmax, newL)
                 if (newL != current) {
                     slx += w * xi * newL
@@ -2195,7 +2195,7 @@ internal fun makeQXQuants(
             maxValue = values[valuesOffset + i]
         }
     }
-    if (absMax < io.github.kotlinmania.llama.ore.GROUP_MAX_EPS) {
+    if (absMax < io.github.kotlinmania.llama.core.GROUP_MAX_EPS) {
         for (i in 0 until n) dest[destOffset + i] = 0
         return 0f
     }
@@ -2204,7 +2204,7 @@ internal fun makeQXQuants(
     if (rmseType == 0) {
         for (i in 0 until n) {
             var l =
-                io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * values[valuesOffset + i])
+                io.github.kotlinmania.llama.core.nearestIntFloat(iscale * values[valuesOffset + i])
             l = max(-nmax, min(nmax - 1, l))
             dest[destOffset + i] = (nmax + l).toByte()
         }
@@ -2219,10 +2219,10 @@ internal fun makeQXQuants(
     var sumLx = 0f
     var sumL2 = 0f
     for (i in 0 until n) {
-        var l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * values[valuesOffset + i])
+        var l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * values[valuesOffset + i])
         l = max(-nmax, min(nmax - 1, l))
         dest[destOffset + i] = (nmax + l).toByte()
-        val w = io.github.kotlinmania.llama.ore.computeRmseWeight(
+        val w = io.github.kotlinmania.llama.core.computeRmseWeight(
             values,
             valuesOffset,
             quantWeights,
@@ -2245,9 +2245,9 @@ internal fun makeQXQuants(
         var candidateSumLx = 0f
         var candidateSumL2 = 0f
         for (i in 0 until n) {
-            val l = io.github.kotlinmania.llama.ore.nearestIntFloat(candidateIscale * values[valuesOffset + i])
+            val l = io.github.kotlinmania.llama.core.nearestIntFloat(candidateIscale * values[valuesOffset + i])
                 .coerceIn(-nmax, nmax - 1)
-            val w = io.github.kotlinmania.llama.ore.computeRmseWeight(
+            val w = io.github.kotlinmania.llama.core.computeRmseWeight(
                 values,
                 valuesOffset,
                 quantWeights,
@@ -2263,7 +2263,7 @@ internal fun makeQXQuants(
             scale = candidateSumLx / candidateSumL2
             best = scale * candidateSumLx
             for (i in 0 until n) {
-                val l = io.github.kotlinmania.llama.ore.nearestIntFloat(iscale * values[valuesOffset + i])
+                val l = io.github.kotlinmania.llama.core.nearestIntFloat(iscale * values[valuesOffset + i])
                     .coerceIn(-nmax, nmax - 1)
                 dest[destOffset + i] = (nmax + l).toByte()
             }

@@ -1,12 +1,12 @@
 // port-lint: source ggml/src/ggml-cpu/ops.cpp
 package io.github.kotlinmania.llama.ore
 
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setFloatLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getShortLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setShortLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.getIntLe
-import io.github.kotlinmania.llama.ore.ByteArrayExtensions.setIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setFloatLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setShortLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.getIntLe
+import io.github.kotlinmania.llama.core.ByteArrayExtensions.setIntLe
 import kotlin.math.*
 
 /**
@@ -44,9 +44,9 @@ private data class UnaryOpLocals3(
     val nb0: Long, val nb1: Long, val nb2: Long, val nb3: Long
 )
 
-private fun unaryOpLocals3(dst: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.UnaryOpLocals3 {
+private fun unaryOpLocals3(dst: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.UnaryOpLocals3 {
     val src0 = dst.src[0]!!
-    return io.github.kotlinmania.llama.ore.UnaryOpLocals3(
+    return io.github.kotlinmania.llama.core.UnaryOpLocals3(
         ne00 = src0.ne[0], ne01 = src0.ne[1], ne02 = src0.ne[2], ne03 = src0.ne[3],
         nb00 = src0.nb[0].toLong(), nb01 = src0.nb[1].toLong(), nb02 = src0.nb[2].toLong(), nb03 = src0.nb[3].toLong(),
         ne0 = dst.ne[0], ne1 = dst.ne[1], ne2 = dst.ne[2], ne3 = dst.ne[3],
@@ -63,10 +63,10 @@ private data class BinaryOpLocals3(
     val nb0: Long, val nb1: Long, val nb2: Long, val nb3: Long
 )
 
-private fun binaryOpLocals3(dst: io.github.kotlinmania.llama.ore.GGMLTensor): io.github.kotlinmania.llama.ore.BinaryOpLocals3 {
+private fun binaryOpLocals3(dst: io.github.kotlinmania.llama.core.GGMLTensor): io.github.kotlinmania.llama.core.BinaryOpLocals3 {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
-    return io.github.kotlinmania.llama.ore.BinaryOpLocals3(
+    return io.github.kotlinmania.llama.core.BinaryOpLocals3(
         ne00 = src0.ne[0], ne01 = src0.ne[1], ne02 = src0.ne[2], ne03 = src0.ne[3],
         nb00 = src0.nb[0].toLong(), nb01 = src0.nb[1].toLong(), nb02 = src0.nb[2].toLong(), nb03 = src0.nb[3].toLong(),
         ne10 = src1.ne[0], ne11 = src1.ne[1], ne12 = src1.ne[2], ne13 = src1.ne[3],
@@ -81,8 +81,8 @@ private fun binaryOpLocals3(dst: io.github.kotlinmania.llama.ore.GGMLTensor): io
 // ============================================================================
 
 private fun ggmlComputeForwardClampF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
@@ -92,7 +92,7 @@ private fun ggmlComputeForwardClampF32(
     val ith = params.ith
     val nth = params.nth
 
-    val n = io.github.kotlinmania.llama.ore.ggmlNrows(src0).toInt()
+    val n = io.github.kotlinmania.llama.core.ggmlNrows(src0).toInt()
     val nc = src0.ne[0].toInt()
 
     val nb00 = src0.nb[0].toLong()
@@ -113,8 +113,8 @@ private fun ggmlComputeForwardClampF32(
         val src0Off = (j * nb01).toInt()
 
         for (i in 0 until nc) {
-            val v = io.github.kotlinmania.llama.ore.readFloat3(src0Data, src0Off + i * 4)
-            io.github.kotlinmania.llama.ore.writeFloat3(
+            val v = io.github.kotlinmania.llama.core.readFloat3(src0Data, src0Off + i * 4)
+            io.github.kotlinmania.llama.core.writeFloat3(
                 dstData,
                 dstOff + i * 4,
                 max(min(v, maxVal), minVal)
@@ -125,8 +125,8 @@ private fun ggmlComputeForwardClampF32(
 }
 
 private fun ggmlComputeForwardClampF16(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
@@ -136,7 +136,7 @@ private fun ggmlComputeForwardClampF16(
     val ith = params.ith
     val nth = params.nth
 
-    val n = io.github.kotlinmania.llama.ore.ggmlNrows(src0).toInt()
+    val n = io.github.kotlinmania.llama.core.ggmlNrows(src0).toInt()
     val nc = src0.ne[0].toInt()
 
     val nb00 = src0.nb[0].toLong()
@@ -157,13 +157,13 @@ private fun ggmlComputeForwardClampF16(
         val src0Off = (j * nb01).toInt()
 
         for (i in 0 until nc) {
-            val bits = io.github.kotlinmania.llama.ore.readShort3(src0Data, src0Off + i * 2)
-            val v = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(bits.toUShort())
+            val bits = io.github.kotlinmania.llama.core.readShort3(src0Data, src0Off + i * 2)
+            val v = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(bits.toUShort())
             val clamped = max(min(v, maxVal), minVal)
-            io.github.kotlinmania.llama.ore.writeShort3(
+            io.github.kotlinmania.llama.core.writeShort3(
                 dstData,
                 dstOff + i * 2,
-                io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(clamped).toShort()
+                io.github.kotlinmania.llama.core.ggmlFp32ToFp16(clamped).toShort()
             )
         }
         j += nth
@@ -171,17 +171,17 @@ private fun ggmlComputeForwardClampF16(
 }
 
 fun ggmlComputeForwardClamp(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardClampF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardClampF32(
             params,
             dst
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardClampF16(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardClampF16(
             params,
             dst
         )
@@ -207,7 +207,7 @@ private fun ropeYarn(
     val thetaInterp = freqScale * thetaExtrap
     var theta = thetaInterp
     if (extFactor != 0.0f) {
-        val rampMix = io.github.kotlinmania.llama.ore.ropeYarnRamp(
+        val rampMix = io.github.kotlinmania.llama.core.ropeYarnRamp(
             corrDims[0],
             corrDims[1],
             i0.toInt()
@@ -229,7 +229,7 @@ private fun ggmlRopeCacheInit(
     var i0 = 0L
     while (i0 < ne0) {
         val ff = if (freqFactors != null) freqFactors[(i0 / 2).toInt()] else 1.0f
-        val (cosVal, sinVal) = io.github.kotlinmania.llama.ore.ropeYarn(
+        val (cosVal, sinVal) = io.github.kotlinmania.llama.core.ropeYarn(
             theta / ff, freqScale, corrDims, i0, extFactor, mscale
         )
         cache[i0.toInt() + 0] = cosVal
@@ -293,7 +293,7 @@ private fun ggmlMropeCacheInit(
             }
         }
 
-        val (cosVal, sinVal) = io.github.kotlinmania.llama.ore.ropeYarn(
+        val (cosVal, sinVal) = io.github.kotlinmania.llama.core.ropeYarn(
             theta / ff, freqScale, corrDims, i0, extFactor, mscale
         )
         cache[i0.toInt() + 0] = cosVal
@@ -318,16 +318,16 @@ private fun rotatePairsF32(
         val cosTheta = cache[i0.toInt() + 0]
         val sinTheta = cache[i0.toInt() + 1]
 
-        val x0 = io.github.kotlinmania.llama.ore.readFloat3(srcData, srcOff + ic * 4)
+        val x0 = io.github.kotlinmania.llama.core.readFloat3(srcData, srcOff + ic * 4)
         val x1 =
-            io.github.kotlinmania.llama.ore.readFloat3(srcData, srcOff + (ic + nOffset.toInt()) * 4)
+            io.github.kotlinmania.llama.core.readFloat3(srcData, srcOff + (ic + nOffset.toInt()) * 4)
 
-        io.github.kotlinmania.llama.ore.writeFloat3(
+        io.github.kotlinmania.llama.core.writeFloat3(
             dstData,
             dstOff + ic * 4,
             x0 * cosTheta - x1 * sinTheta
         )
-        io.github.kotlinmania.llama.ore.writeFloat3(
+        io.github.kotlinmania.llama.core.writeFloat3(
             dstData,
             dstOff + (ic + nOffset.toInt()) * 4,
             x0 * sinTheta + x1 * cosTheta
@@ -347,44 +347,44 @@ private fun rotatePairsF16(
         val cosTheta = cache[i0.toInt() + 0]
         val sinTheta = cache[i0.toInt() + 1]
 
-        val x0 = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-            io.github.kotlinmania.llama.ore.readShort3(
+        val x0 = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+            io.github.kotlinmania.llama.core.readShort3(
                 srcData,
                 srcOff + ic * 2
             ).toUShort()
         )
-        val x1 = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-            io.github.kotlinmania.llama.ore.readShort3(
+        val x1 = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+            io.github.kotlinmania.llama.core.readShort3(
                 srcData,
                 srcOff + (ic + nOffset.toInt()) * 2
             ).toUShort()
         )
 
-        io.github.kotlinmania.llama.ore.writeShort3(
+        io.github.kotlinmania.llama.core.writeShort3(
             dstData,
             dstOff + ic * 2,
-            io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(x0 * cosTheta - x1 * sinTheta).toShort()
+            io.github.kotlinmania.llama.core.ggmlFp32ToFp16(x0 * cosTheta - x1 * sinTheta).toShort()
         )
-        io.github.kotlinmania.llama.ore.writeShort3(
+        io.github.kotlinmania.llama.core.writeShort3(
             dstData,
             dstOff + (ic + nOffset.toInt()) * 2,
-            io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(x0 * sinTheta + x1 * cosTheta).toShort()
+            io.github.kotlinmania.llama.core.ggmlFp32ToFp16(x0 * sinTheta + x1 * cosTheta).toShort()
         )
         i0 += 2
     }
 }
 
 fun ggmlComputeForwardRopeFltF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
     forward: Boolean
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
     val src2 = dst.src.getOrNull(2)
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.I32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.I32)
 
     val nDims = dst.opParams[1]
     val mode = dst.opParams[2]
@@ -398,7 +398,7 @@ fun ggmlComputeForwardRopeFltF32(
     val betaSlow = Float.fromBits(dst.opParams[10])
     val sections = intArrayOf(dst.opParams[11], dst.opParams[12], dst.opParams[13], dst.opParams[14])
 
-    val u = io.github.kotlinmania.llama.ore.unaryOpLocals3(dst)
+    val u = io.github.kotlinmania.llama.core.unaryOpLocals3(dst)
     val ne0 = u.ne0; val ne1 = u.ne1; val ne2 = u.ne2; val ne3 = u.ne3
     val nb0 = u.nb0; val nb1 = u.nb1; val nb2 = u.nb2; val nb3 = u.nb3
     val nb00 = u.nb00; val nb01 = u.nb01; val nb02 = u.nb02; val nb03 = u.nb03
@@ -409,7 +409,7 @@ fun ggmlComputeForwardRopeFltF32(
     val ith = params.ith
     val nth = params.nth
 
-    val nr = io.github.kotlinmania.llama.ore.ggmlNrows(dst).toInt()
+    val nr = io.github.kotlinmania.llama.core.ggmlNrows(dst).toInt()
 
     require(nDims <= ne0.toInt())
     require(nDims % 2 == 0)
@@ -422,7 +422,7 @@ fun ggmlComputeForwardRopeFltF32(
 
     val thetaScale = freqBase.pow(-2.0f / nDims)
 
-    val corrDims = io.github.kotlinmania.llama.ore.ggmlRopeYarnCorrDims(
+    val corrDims = io.github.kotlinmania.llama.core.ggmlRopeYarnCorrDims(
         nDims,
         nCtxOrig,
         freqBase,
@@ -430,9 +430,9 @@ fun ggmlComputeForwardRopeFltF32(
         betaSlow
     )
 
-    val isImrope = mode == io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_IMROPE
-    val mropeUsed = (mode and io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_MROPE) != 0
-    val isVision = mode == io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_VISION
+    val isImrope = mode == io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_IMROPE
+    val mropeUsed = (mode and io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_MROPE) != 0
+    val isVision = mode == io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_VISION
 
     if (mropeUsed) {
         require(sections[0] > 0 || sections[1] > 0 || sections[2] > 0)
@@ -443,11 +443,11 @@ fun ggmlComputeForwardRopeFltF32(
     }
 
     val freqFactors: FloatArray? = if (src2 != null) {
-        require(src2.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+        require(src2.type == io.github.kotlinmania.llama.core.GGMLType.F32)
         require(src2.ne[0] >= nDims / 2)
         val src2Data = src2.data as ByteArray
         FloatArray(nDims / 2) { i ->
-            io.github.kotlinmania.llama.ore.readFloat3(
+            io.github.kotlinmania.llama.core.readFloat3(
                 src2Data,
                 i * 4
             )
@@ -463,7 +463,7 @@ fun ggmlComputeForwardRopeFltF32(
 
     var lastI2 = -1L
 
-    val cache = FloatArray((ne0 + io.github.kotlinmania.llama.ore.CACHE_LINE_SIZE_F32_3).toInt())
+    val cache = FloatArray((ne0 + io.github.kotlinmania.llama.core.CACHE_LINE_SIZE_F32_3).toInt())
 
     for (i3 in 0 until ne3) {
         for (i2 in 0 until ne2) {
@@ -473,26 +473,26 @@ fun ggmlComputeForwardRopeFltF32(
 
                 if (lastI2 != i2) {
                     if (!mropeUsed) {
-                        val p = io.github.kotlinmania.llama.ore.readInt3(posData, i2.toInt() * 4)
-                        io.github.kotlinmania.llama.ore.ggmlRopeCacheInit(
+                        val p = io.github.kotlinmania.llama.core.readInt3(posData, i2.toInt() * 4)
+                        io.github.kotlinmania.llama.core.ggmlRopeCacheInit(
                             p.toFloat(), freqScale, freqFactors, corrDims,
                             ne0, extFactor, attnFactor, cache, sinSign, thetaScale
                         )
                     } else {
-                        val pT = io.github.kotlinmania.llama.ore.readInt3(posData, i2.toInt() * 4)
-                        val pH = io.github.kotlinmania.llama.ore.readInt3(
+                        val pT = io.github.kotlinmania.llama.core.readInt3(posData, i2.toInt() * 4)
+                        val pH = io.github.kotlinmania.llama.core.readInt3(
                             posData,
                             (i2 + ne2).toInt() * 4
                         )
-                        val pW = io.github.kotlinmania.llama.ore.readInt3(
+                        val pW = io.github.kotlinmania.llama.core.readInt3(
                             posData,
                             (i2 + ne2 * 2).toInt() * 4
                         )
-                        val pE = io.github.kotlinmania.llama.ore.readInt3(
+                        val pE = io.github.kotlinmania.llama.core.readInt3(
                             posData,
                             (i2 + ne2 * 3).toInt() * 4
                         )
-                        io.github.kotlinmania.llama.ore.ggmlMropeCacheInit(
+                        io.github.kotlinmania.llama.core.ggmlMropeCacheInit(
                             pT.toFloat(), pH.toFloat(), pW.toFloat(), pE.toFloat(),
                             sections, isImrope, isVision,
                             freqScale, freqFactors, corrDims, ne0, extFactor, attnFactor,
@@ -506,8 +506,8 @@ fun ggmlComputeForwardRopeFltF32(
                 val dstOff = (i3 * nb3 + i2 * nb2 + i1 * nb1).toInt()
 
                 when (mode) {
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_NORMAL ->
-                        io.github.kotlinmania.llama.ore.rotatePairsF32(
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_NORMAL ->
+                        io.github.kotlinmania.llama.core.rotatePairsF32(
                             nDims.toLong(),
                             1L,
                             cache,
@@ -517,8 +517,8 @@ fun ggmlComputeForwardRopeFltF32(
                             dstOff,
                             1
                         )
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_NEOX, io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_MROPE, io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_IMROPE ->
-                        io.github.kotlinmania.llama.ore.rotatePairsF32(
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_NEOX, io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_MROPE, io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_IMROPE ->
+                        io.github.kotlinmania.llama.core.rotatePairsF32(
                             nDims.toLong(),
                             (nDims / 2).toLong(),
                             cache,
@@ -527,8 +527,8 @@ fun ggmlComputeForwardRopeFltF32(
                             dstData,
                             dstOff
                         )
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_VISION ->
-                        io.github.kotlinmania.llama.ore.rotatePairsF32(
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_VISION ->
+                        io.github.kotlinmania.llama.core.rotatePairsF32(
                             ne0,
                             nDims.toLong(),
                             cache,
@@ -545,15 +545,15 @@ fun ggmlComputeForwardRopeFltF32(
                     while (i0 < ne0) {
                         val srcI0Off = (i3 * nb03 + i2 * nb02 + i1 * nb01 + i0 * nb00).toInt()
                         val dstI0Off = (i3 * nb3 + i2 * nb2 + i1 * nb1 + i0 * nb0).toInt()
-                        io.github.kotlinmania.llama.ore.writeFloat3(
+                        io.github.kotlinmania.llama.core.writeFloat3(
                             dstData,
                             dstI0Off,
-                            io.github.kotlinmania.llama.ore.readFloat3(src0Data, srcI0Off)
+                            io.github.kotlinmania.llama.core.readFloat3(src0Data, srcI0Off)
                         )
-                        io.github.kotlinmania.llama.ore.writeFloat3(
+                        io.github.kotlinmania.llama.core.writeFloat3(
                             dstData,
                             dstI0Off + 4,
-                            io.github.kotlinmania.llama.ore.readFloat3(src0Data, srcI0Off + 4)
+                            io.github.kotlinmania.llama.core.readFloat3(src0Data, srcI0Off + 4)
                         )
                         i0 += 2
                     }
@@ -564,16 +564,16 @@ fun ggmlComputeForwardRopeFltF32(
 }
 
 fun ggmlComputeForwardRopeFltF16(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
     forward: Boolean
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
     val src2 = dst.src.getOrNull(2)
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.I32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F16)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.I32)
 
     val nDims = dst.opParams[1]
     val mode = dst.opParams[2]
@@ -587,7 +587,7 @@ fun ggmlComputeForwardRopeFltF16(
     val betaSlow = Float.fromBits(dst.opParams[10])
     val sections = intArrayOf(dst.opParams[11], dst.opParams[12], dst.opParams[13], dst.opParams[14])
 
-    val u = io.github.kotlinmania.llama.ore.unaryOpLocals3(dst)
+    val u = io.github.kotlinmania.llama.core.unaryOpLocals3(dst)
     val ne0 = u.ne0; val ne1 = u.ne1; val ne2 = u.ne2; val ne3 = u.ne3
     val nb0 = u.nb0; val nb1 = u.nb1; val nb2 = u.nb2; val nb3 = u.nb3
     val nb00 = u.nb00; val nb01 = u.nb01; val nb02 = u.nb02; val nb03 = u.nb03
@@ -598,7 +598,7 @@ fun ggmlComputeForwardRopeFltF16(
     val ith = params.ith
     val nth = params.nth
 
-    val nr = io.github.kotlinmania.llama.ore.ggmlNrows(dst).toInt()
+    val nr = io.github.kotlinmania.llama.core.ggmlNrows(dst).toInt()
 
     require(nDims <= ne0.toInt())
     require(nDims % 2 == 0)
@@ -611,7 +611,7 @@ fun ggmlComputeForwardRopeFltF16(
 
     val thetaScale = freqBase.pow(-2.0f / nDims)
 
-    val corrDims = io.github.kotlinmania.llama.ore.ggmlRopeYarnCorrDims(
+    val corrDims = io.github.kotlinmania.llama.core.ggmlRopeYarnCorrDims(
         nDims,
         nCtxOrig,
         freqBase,
@@ -619,9 +619,9 @@ fun ggmlComputeForwardRopeFltF16(
         betaSlow
     )
 
-    val isImrope = mode == io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_IMROPE
-    val mropeUsed = (mode and io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_MROPE) != 0
-    val isVision = mode == io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_VISION
+    val isImrope = mode == io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_IMROPE
+    val mropeUsed = (mode and io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_MROPE) != 0
+    val isVision = mode == io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_VISION
 
     if (mropeUsed) {
         require(sections[0] > 0 || sections[1] > 0 || sections[2] > 0)
@@ -632,11 +632,11 @@ fun ggmlComputeForwardRopeFltF16(
     }
 
     val freqFactors: FloatArray? = if (src2 != null) {
-        require(src2.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+        require(src2.type == io.github.kotlinmania.llama.core.GGMLType.F32)
         require(src2.ne[0] >= nDims / 2)
         val src2Data = src2.data as ByteArray
         FloatArray(nDims / 2) { i ->
-            io.github.kotlinmania.llama.ore.readFloat3(
+            io.github.kotlinmania.llama.core.readFloat3(
                 src2Data,
                 i * 4
             )
@@ -652,7 +652,7 @@ fun ggmlComputeForwardRopeFltF16(
 
     var lastI2 = -1L
 
-    val cache = FloatArray((ne0 + io.github.kotlinmania.llama.ore.CACHE_LINE_SIZE_F32_3).toInt())
+    val cache = FloatArray((ne0 + io.github.kotlinmania.llama.core.CACHE_LINE_SIZE_F32_3).toInt())
 
     for (i3 in 0 until ne3) {
         for (i2 in 0 until ne2) {
@@ -662,26 +662,26 @@ fun ggmlComputeForwardRopeFltF16(
 
                 if (lastI2 != i2) {
                     if (!mropeUsed) {
-                        val p = io.github.kotlinmania.llama.ore.readInt3(posData, i2.toInt() * 4)
-                        io.github.kotlinmania.llama.ore.ggmlRopeCacheInit(
+                        val p = io.github.kotlinmania.llama.core.readInt3(posData, i2.toInt() * 4)
+                        io.github.kotlinmania.llama.core.ggmlRopeCacheInit(
                             p.toFloat(), freqScale, freqFactors, corrDims,
                             ne0, extFactor, attnFactor, cache, sinSign, thetaScale
                         )
                     } else {
-                        val pT = io.github.kotlinmania.llama.ore.readInt3(posData, i2.toInt() * 4)
-                        val pH = io.github.kotlinmania.llama.ore.readInt3(
+                        val pT = io.github.kotlinmania.llama.core.readInt3(posData, i2.toInt() * 4)
+                        val pH = io.github.kotlinmania.llama.core.readInt3(
                             posData,
                             (i2 + ne2).toInt() * 4
                         )
-                        val pW = io.github.kotlinmania.llama.ore.readInt3(
+                        val pW = io.github.kotlinmania.llama.core.readInt3(
                             posData,
                             (i2 + ne2 * 2).toInt() * 4
                         )
-                        val pE = io.github.kotlinmania.llama.ore.readInt3(
+                        val pE = io.github.kotlinmania.llama.core.readInt3(
                             posData,
                             (i2 + ne2 * 3).toInt() * 4
                         )
-                        io.github.kotlinmania.llama.ore.ggmlMropeCacheInit(
+                        io.github.kotlinmania.llama.core.ggmlMropeCacheInit(
                             pT.toFloat(), pH.toFloat(), pW.toFloat(), pE.toFloat(),
                             sections, isImrope, isVision,
                             freqScale, freqFactors, corrDims, ne0, extFactor, attnFactor,
@@ -695,8 +695,8 @@ fun ggmlComputeForwardRopeFltF16(
                 val dstOff = (i3 * nb3 + i2 * nb2 + i1 * nb1).toInt()
 
                 when (mode) {
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_NORMAL ->
-                        io.github.kotlinmania.llama.ore.rotatePairsF16(
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_NORMAL ->
+                        io.github.kotlinmania.llama.core.rotatePairsF16(
                             nDims.toLong(),
                             1L,
                             cache,
@@ -706,8 +706,8 @@ fun ggmlComputeForwardRopeFltF16(
                             dstOff,
                             1
                         )
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_NEOX, io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_MROPE, io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_IMROPE ->
-                        io.github.kotlinmania.llama.ore.rotatePairsF16(
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_NEOX, io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_MROPE, io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_IMROPE ->
+                        io.github.kotlinmania.llama.core.rotatePairsF16(
                             nDims.toLong(),
                             (nDims / 2).toLong(),
                             cache,
@@ -716,8 +716,8 @@ fun ggmlComputeForwardRopeFltF16(
                             dstData,
                             dstOff
                         )
-                    io.github.kotlinmania.llama.ore.GGML_ROPE_TYPE_VISION ->
-                        io.github.kotlinmania.llama.ore.rotatePairsF16(
+                    io.github.kotlinmania.llama.core.GGML_ROPE_TYPE_VISION ->
+                        io.github.kotlinmania.llama.core.rotatePairsF16(
                             ne0,
                             nDims.toLong(),
                             cache,
@@ -734,15 +734,15 @@ fun ggmlComputeForwardRopeFltF16(
                     while (i0 < ne0) {
                         val srcI0Off = (i3 * nb03 + i2 * nb02 + i1 * nb01 + i0 * nb00).toInt()
                         val dstI0Off = (i3 * nb3 + i2 * nb2 + i1 * nb1 + i0 * nb0).toInt()
-                        io.github.kotlinmania.llama.ore.writeShort3(
+                        io.github.kotlinmania.llama.core.writeShort3(
                             dstData,
                             dstI0Off,
-                            io.github.kotlinmania.llama.ore.readShort3(src0Data, srcI0Off)
+                            io.github.kotlinmania.llama.core.readShort3(src0Data, srcI0Off)
                         )
-                        io.github.kotlinmania.llama.ore.writeShort3(
+                        io.github.kotlinmania.llama.core.writeShort3(
                             dstData,
                             dstI0Off + 2,
-                            io.github.kotlinmania.llama.ore.readShort3(src0Data, srcI0Off + 2)
+                            io.github.kotlinmania.llama.core.readShort3(src0Data, srcI0Off + 2)
                         )
                         i0 += 2
                     }
@@ -753,18 +753,18 @@ fun ggmlComputeForwardRopeFltF16(
 }
 
 fun ggmlComputeForwardRope(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardRopeFltF16(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardRopeFltF16(
             params,
             dst,
             true
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardRopeFltF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardRopeFltF32(
             params,
             dst,
             true
@@ -776,18 +776,18 @@ fun ggmlComputeForwardRope(
 // ggml_compute_forward_rope_back
 
 fun ggmlComputeForwardRopeBack(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardRopeFltF16(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardRopeFltF16(
             params,
             dst,
             false
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardRopeFltF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardRopeFltF32(
             params,
             dst,
             false
@@ -803,14 +803,14 @@ fun ggmlComputeForwardRopeBack(
 private fun ggmlVecDotF16(n: Long, src0: ByteArray, src0Off: Int, src1: ByteArray, src1Off: Int): Float {
     var v = 0.0f
     for (i in 0 until n.toInt()) {
-        val a = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-            io.github.kotlinmania.llama.ore.readShort3(
+        val a = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+            io.github.kotlinmania.llama.core.readShort3(
                 src0,
                 src0Off + i * 2
             ).toUShort()
         )
-        val b = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-            io.github.kotlinmania.llama.ore.readShort3(
+        val b = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+            io.github.kotlinmania.llama.core.readShort3(
                 src1,
                 src1Off + i * 2
             ).toUShort()
@@ -829,17 +829,17 @@ private fun ggmlVecDotF32Simple(n: Long, src0: FloatArray, src0Off: Int, src1: F
 }
 
 private fun ggmlComputeForwardConvTranspose1dF16F32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F16)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01; val ne02 = b.ne02
     val nb00 = b.nb00; val nb01 = b.nb01; val nb02 = b.nb02
     val ne10 = b.ne10; val ne11 = b.ne11
@@ -871,8 +871,8 @@ private fun ggmlComputeForwardConvTranspose1dF16F32(
                 val dstOff = (i01 * ne00 * ne02).toInt() * 2
                 for (i00 in 0 until ne00.toInt()) {
                     val srcVal =
-                        io.github.kotlinmania.llama.ore.readShort3(src0Data, srcOff + i00 * 2)
-                    io.github.kotlinmania.llama.ore.writeShort3(
+                        io.github.kotlinmania.llama.core.readShort3(src0Data, srcOff + i00 * 2)
+                    io.github.kotlinmania.llama.core.writeShort3(
                         wdata,
                         dstOff + (i00 * ne02.toInt() + i02) * 2,
                         srcVal
@@ -888,9 +888,9 @@ private fun ggmlComputeForwardConvTranspose1dF16F32(
             val srcRowOff = (i11 * nb11).toInt()
             for (i10 in 0 until ne10.toInt()) {
                 val srcVal =
-                    io.github.kotlinmania.llama.ore.readFloat3(src1Data, srcRowOff + i10 * 4)
-                val fp16 = io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(srcVal).toShort()
-                io.github.kotlinmania.llama.ore.writeShort3(
+                    io.github.kotlinmania.llama.core.readFloat3(src1Data, srcRowOff + i10 * 4)
+                val fp16 = io.github.kotlinmania.llama.core.ggmlFp32ToFp16(srcVal).toShort()
+                io.github.kotlinmania.llama.core.writeShort3(
                     wdata,
                     wdataOff + (i10 * ne11.toInt() + i11) * 2,
                     fp16
@@ -900,11 +900,11 @@ private fun ggmlComputeForwardConvTranspose1dF16F32(
 
         // zero dst
         val dstData = dst.data as ByteArray
-        for (i in 0 until io.github.kotlinmania.llama.ore.ggmlNbytes(dst).toInt()) {
+        for (i in 0 until io.github.kotlinmania.llama.core.ggmlNbytes(dst).toInt()) {
             dstData[i] = 0
         }
     }
-    io.github.kotlinmania.llama.ore.ggmlBarrier(params.threadpool!!)
+    io.github.kotlinmania.llama.core.ggmlBarrier(params.threadpool!!)
 
     val s0 = dst.opParams[0]
 
@@ -922,31 +922,31 @@ private fun ggmlComputeForwardConvTranspose1dF16F32(
         for (i10 in 0 until ne10.toInt()) {
             val i1n = i10 * ne11.toInt()
             for (i00 in 0 until ne00.toInt()) {
-                val v = io.github.kotlinmania.llama.ore.ggmlVecDotF16(
+                val v = io.github.kotlinmania.llama.core.ggmlVecDotF16(
                     ne02,
                     wdata, wdataSrcOff + i1n * 2,
                     wdata, wdataKernelOff + i00 * ne02.toInt() * 2
                 )
                 val idx = (i10 * s0 + i00) * 4
-                val prev = io.github.kotlinmania.llama.ore.readFloat3(dstData, dstRowOff + idx)
-                io.github.kotlinmania.llama.ore.writeFloat3(dstData, dstRowOff + idx, prev + v)
+                val prev = io.github.kotlinmania.llama.core.readFloat3(dstData, dstRowOff + idx)
+                io.github.kotlinmania.llama.core.writeFloat3(dstData, dstRowOff + idx, prev + v)
             }
         }
     }
 }
 
 private fun ggmlComputeForwardConvTranspose1dF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01; val ne02 = b.ne02
     val nb01 = b.nb01; val nb02 = b.nb02
     val ne10 = b.ne10; val ne11 = b.ne11
@@ -978,8 +978,8 @@ private fun ggmlComputeForwardConvTranspose1dF32(
                 val dstOff = (i01 * ne00 * ne02).toInt() * 4
                 for (i00 in 0 until ne00.toInt()) {
                     val srcVal =
-                        io.github.kotlinmania.llama.ore.readFloat3(src0Data, srcOff + i00 * 4)
-                    io.github.kotlinmania.llama.ore.writeFloat3(
+                        io.github.kotlinmania.llama.core.readFloat3(src0Data, srcOff + i00 * 4)
+                    io.github.kotlinmania.llama.core.writeFloat3(
                         wdataBytes,
                         dstOff + (i00 * ne02.toInt() + i02) * 4,
                         srcVal
@@ -995,8 +995,8 @@ private fun ggmlComputeForwardConvTranspose1dF32(
             val srcRowOff = (i11 * nb11).toInt()
             for (i10 in 0 until ne10.toInt()) {
                 val srcVal =
-                    io.github.kotlinmania.llama.ore.readFloat3(src1Data, srcRowOff + i10 * 4)
-                io.github.kotlinmania.llama.ore.writeFloat3(
+                    io.github.kotlinmania.llama.core.readFloat3(src1Data, srcRowOff + i10 * 4)
+                io.github.kotlinmania.llama.core.writeFloat3(
                     wdataBytes,
                     wdataOff + (i10 * ne11.toInt() + i11) * 4,
                     srcVal
@@ -1006,11 +1006,11 @@ private fun ggmlComputeForwardConvTranspose1dF32(
 
         // zero dst
         val dstData = dst.data as ByteArray
-        for (i in 0 until io.github.kotlinmania.llama.ore.ggmlNbytes(dst).toInt()) {
+        for (i in 0 until io.github.kotlinmania.llama.core.ggmlNbytes(dst).toInt()) {
             dstData[i] = 0
         }
     }
-    io.github.kotlinmania.llama.ore.ggmlBarrier(params.threadpool!!)
+    io.github.kotlinmania.llama.core.ggmlBarrier(params.threadpool!!)
 
     val s0 = dst.opParams[0]
 
@@ -1030,36 +1030,36 @@ private fun ggmlComputeForwardConvTranspose1dF32(
             for (i00 in 0 until ne00.toInt()) {
                 var v = 0.0f
                 for (k in 0 until ne02.toInt()) {
-                    val a = io.github.kotlinmania.llama.ore.readFloat3(
+                    val a = io.github.kotlinmania.llama.core.readFloat3(
                         wdataBytes,
                         wdataSrcOff + (i1n + k) * 4
                     )
-                    val bVal = io.github.kotlinmania.llama.ore.readFloat3(
+                    val bVal = io.github.kotlinmania.llama.core.readFloat3(
                         wdataBytes,
                         wdataKernelOff + (i00 * ne02.toInt() + k) * 4
                     )
                     v += a * bVal
                 }
                 val idx = (i10 * s0 + i00) * 4
-                val prev = io.github.kotlinmania.llama.ore.readFloat3(dstData, dstRowOff + idx)
-                io.github.kotlinmania.llama.ore.writeFloat3(dstData, dstRowOff + idx, prev + v)
+                val prev = io.github.kotlinmania.llama.core.readFloat3(dstData, dstRowOff + idx)
+                io.github.kotlinmania.llama.core.writeFloat3(dstData, dstRowOff + idx, prev + v)
             }
         }
     }
 }
 
 fun ggmlComputeForwardConvTranspose1d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardConvTranspose1dF16F32(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardConvTranspose1dF16F32(
             params,
             dst
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardConvTranspose1dF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardConvTranspose1dF32(
             params,
             dst
         )
@@ -1072,16 +1072,16 @@ fun ggmlComputeForwardConvTranspose1d(
 // ============================================================================
 
 private fun ggmlComputeForwardIm2colF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01
     val ne10 = b.ne10; val ne11 = b.ne11; val ne12 = b.ne12; val ne13 = b.ne13
     val nb10 = b.nb10; val nb11 = b.nb11; val nb12 = b.nb12; val nb13 = b.nb13
@@ -1133,17 +1133,17 @@ private fun ggmlComputeForwardIm2colF32(
                             val dstIdx = (iic * (KH * KW) + ikh * KW + ikw).toInt()
 
                             if (iih < 0 || iih >= IH || iiw < 0 || iiw >= IW) {
-                                io.github.kotlinmania.llama.ore.writeFloat3(
+                                io.github.kotlinmania.llama.core.writeFloat3(
                                     wdata,
                                     (dstBase + dstIdx) * 4,
                                     0.0f
                                 )
                             } else {
-                                val srcVal = io.github.kotlinmania.llama.ore.readFloat3(
+                                val srcVal = io.github.kotlinmania.llama.core.readFloat3(
                                     src1Data,
                                     srcBase + (iih * IW + iiw).toInt() * 4
                                 )
-                                io.github.kotlinmania.llama.ore.writeFloat3(
+                                io.github.kotlinmania.llama.core.writeFloat3(
                                     wdata,
                                     (dstBase + dstIdx) * 4,
                                     srcVal
@@ -1159,17 +1159,17 @@ private fun ggmlComputeForwardIm2colF32(
 }
 
 private fun ggmlComputeForwardIm2colF16(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F16 || src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F16)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F16 || src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F16)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01
     val nb00 = b.nb00
     val ne10 = b.ne10; val ne11 = b.ne11; val ne12 = b.ne12; val ne13 = b.ne13
@@ -1202,11 +1202,11 @@ private fun ggmlComputeForwardIm2colF16(
     val ofs1 = if (is2D) nb12 else nb11
 
     require(nb00 == 2L)
-    require(nb10 == io.github.kotlinmania.llama.ore.ggmlTypeSize(src1.type).toLong())
+    require(nb10 == io.github.kotlinmania.llama.core.ggmlTypeSize(src1.type).toLong())
 
     val wdata = dst.data as ByteArray
     val src1Data = src1.data as ByteArray
-    val isSrc1F32 = src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32
+    val isSrc1F32 = src1.type == io.github.kotlinmania.llama.core.GGMLType.F32
 
     for (inn in 0 until N) {
         for (ioh in 0 until OH) {
@@ -1224,29 +1224,29 @@ private fun ggmlComputeForwardIm2colF16(
                             val dstIdx = (iic * (KH * KW) + ikh * KW + ikw).toInt()
 
                             if (iih < 0 || iih >= IH || iiw < 0 || iiw >= IW) {
-                                io.github.kotlinmania.llama.ore.writeShort3(
+                                io.github.kotlinmania.llama.core.writeShort3(
                                     wdata,
                                     (dstBase + dstIdx) * 2,
                                     0
                                 )
                             } else {
                                 if (isSrc1F32) {
-                                    val srcVal = io.github.kotlinmania.llama.ore.readFloat3(
+                                    val srcVal = io.github.kotlinmania.llama.core.readFloat3(
                                         src1Data,
                                         srcBase + (iih * IW + iiw).toInt() * 4
                                     )
-                                    io.github.kotlinmania.llama.ore.writeShort3(
+                                    io.github.kotlinmania.llama.core.writeShort3(
                                         wdata,
                                         (dstBase + dstIdx) * 2,
-                                        io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(srcVal)
+                                        io.github.kotlinmania.llama.core.ggmlFp32ToFp16(srcVal)
                                             .toShort()
                                     )
                                 } else {
-                                    val srcVal = io.github.kotlinmania.llama.ore.readShort3(
+                                    val srcVal = io.github.kotlinmania.llama.core.readShort3(
                                         src1Data,
                                         srcBase + (iih * IW + iiw).toInt() * 2
                                     )
-                                    io.github.kotlinmania.llama.ore.writeShort3(
+                                    io.github.kotlinmania.llama.core.writeShort3(
                                         wdata,
                                         (dstBase + dstIdx) * 2,
                                         srcVal
@@ -1263,15 +1263,15 @@ private fun ggmlComputeForwardIm2colF16(
 }
 
 fun ggmlComputeForwardIm2col(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     when (dst.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardIm2colF16(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardIm2colF16(
             params,
             dst
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardIm2colF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardIm2colF32(
             params,
             dst
         )
@@ -1284,17 +1284,17 @@ fun ggmlComputeForwardIm2col(
 // ============================================================================
 
 fun ggmlComputeForwardIm2colBackF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne0 = b.ne0; val ne1 = b.ne1; val ne2 = b.ne2; val ne3 = b.ne3
     val nb0 = b.nb0; val nb1 = b.nb1; val nb2 = b.nb2; val nb3 = b.nb3
     val ne01 = b.ne01; val ne02 = b.ne02
@@ -1355,14 +1355,14 @@ fun ggmlComputeForwardIm2colBackF32(
 
                             val gradInOff = ((inn * OH * OW + ioh * OW + iow) * (IC * KH * KW)).toInt()
                             val gradIdx = (iic * (KH * KW) + ikh * KW + ikw).toInt()
-                            grad += io.github.kotlinmania.llama.ore.readFloat3(
+                            grad += io.github.kotlinmania.llama.core.readFloat3(
                                 src0Data,
                                 (gradInOff + gradIdx) * 4
                             )
                         }
                     }
                     val dstOff = (inn * ofs0 + iic * ofs1).toInt()
-                    io.github.kotlinmania.llama.ore.writeFloat3(
+                    io.github.kotlinmania.llama.core.writeFloat3(
                         wdata,
                         dstOff + (iih * IW + iiw).toInt() * 4,
                         grad
@@ -1379,17 +1379,17 @@ fun ggmlComputeForwardIm2colBackF32(
 // ============================================================================
 
 private fun ggmlComputeForwardIm2col3dF16(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F16)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F16)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01; val ne02 = b.ne02; val ne03 = b.ne03
     val ne10 = b.ne10; val ne11 = b.ne11; val ne12 = b.ne12; val ne13 = b.ne13
     val nb10 = b.nb10; val nb11 = b.nb11; val nb12 = b.nb12; val nb13 = b.nb13
@@ -1444,21 +1444,21 @@ private fun ggmlComputeForwardIm2col3dF16(
                                     val dstIdx = (iic * KD_KH_KW + ikd * KH_KW + ikh * KW + ikw).toInt()
 
                                     if (iid < 0 || iid >= ID || iih < 0 || iih >= IH || iiw < 0 || iiw >= IW) {
-                                        io.github.kotlinmania.llama.ore.writeShort3(
+                                        io.github.kotlinmania.llama.core.writeShort3(
                                             wdata,
                                             (dstBase + dstIdx) * 2,
                                             0
                                         )
                                     } else {
                                         val sOff = srcDataOff + (iid * nb12 + iih * nb11 + iiw * nb10).toInt()
-                                        val srcVal = io.github.kotlinmania.llama.ore.readFloat3(
+                                        val srcVal = io.github.kotlinmania.llama.core.readFloat3(
                                             src1Data,
                                             sOff
                                         )
-                                        io.github.kotlinmania.llama.ore.writeShort3(
+                                        io.github.kotlinmania.llama.core.writeShort3(
                                             wdata,
                                             (dstBase + dstIdx) * 2,
-                                            io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(srcVal)
+                                            io.github.kotlinmania.llama.core.ggmlFp32ToFp16(srcVal)
                                                 .toShort()
                                         )
                                     }
@@ -1474,16 +1474,16 @@ private fun ggmlComputeForwardIm2col3dF16(
 }
 
 private fun ggmlComputeForwardIm2col3dF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01; val ne02 = b.ne02; val ne03 = b.ne03
     val ne10 = b.ne10; val ne11 = b.ne11; val ne12 = b.ne12; val ne13 = b.ne13
     val nb10 = b.nb10; val nb11 = b.nb11; val nb12 = b.nb12; val nb13 = b.nb13
@@ -1538,18 +1538,18 @@ private fun ggmlComputeForwardIm2col3dF32(
                                     val dstIdx = (iic * KD_KH_KW + ikd * KH_KW + ikh * KW + ikw).toInt()
 
                                     if (iid < 0 || iid >= ID || iih < 0 || iih >= IH || iiw < 0 || iiw >= IW) {
-                                        io.github.kotlinmania.llama.ore.writeFloat3(
+                                        io.github.kotlinmania.llama.core.writeFloat3(
                                             wdata,
                                             (dstBase + dstIdx) * 4,
                                             0.0f
                                         )
                                     } else {
                                         val sOff = srcDataOff + (iid * nb12 + iih * nb11 + iiw * nb10).toInt()
-                                        val srcVal = io.github.kotlinmania.llama.ore.readFloat3(
+                                        val srcVal = io.github.kotlinmania.llama.core.readFloat3(
                                             src1Data,
                                             sOff
                                         )
-                                        io.github.kotlinmania.llama.ore.writeFloat3(
+                                        io.github.kotlinmania.llama.core.writeFloat3(
                                             wdata,
                                             (dstBase + dstIdx) * 4,
                                             srcVal
@@ -1567,15 +1567,15 @@ private fun ggmlComputeForwardIm2col3dF32(
 }
 
 fun ggmlComputeForwardIm2col3d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     when (dst.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardIm2col3dF16(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardIm2col3dF16(
             params,
             dst
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardIm2col3dF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardIm2col3dF32(
             params,
             dst
         )
@@ -1592,17 +1592,17 @@ private fun ggmlWrapAround(coord: Long, size: Long): Long {
 }
 
 private fun ggmlComputeForwardConv2dImpl(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    kernel: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
-    kernelType: io.github.kotlinmania.llama.ore.GGMLType
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    kernel: io.github.kotlinmania.llama.core.GGMLTensor,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
+    kernelType: io.github.kotlinmania.llama.core.GGMLType
 ) {
-    require(io.github.kotlinmania.llama.ore.ggmlIsContiguous(kernel))
-    require(kernelType == io.github.kotlinmania.llama.ore.GGMLType.F16 || kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(io.github.kotlinmania.llama.core.ggmlIsContiguous(kernel))
+    require(kernelType == io.github.kotlinmania.llama.core.GGMLType.F16 || kernelType == io.github.kotlinmania.llama.core.GGMLType.F32)
     require(kernel.type == kernelType)
 
-    val traits = io.github.kotlinmania.llama.ore.ggmlGetTypeTraits(kernelType)
+    val traits = io.github.kotlinmania.llama.core.ggmlGetTypeTraits(kernelType)
 
     val strideX = dst.opParams[0]
     val strideY = dst.opParams[1]
@@ -1671,17 +1671,17 @@ private fun ggmlComputeForwardConv2dImpl(
                             srcVal = 0.0f
                         } else {
                             val srcOff = srcBaseOff + (sx * src.nb[0].toLong() + sy * src.nb[1].toLong() + ic * src.nb[2].toLong()).toInt()
-                            srcVal = io.github.kotlinmania.llama.ore.readFloat3(srcData, srcOff)
+                            srcVal = io.github.kotlinmania.llama.core.readFloat3(srcData, srcOff)
                         }
 
                         val elemOff = dstRowOff + dstIdx * typeSizeBytes
-                        if (kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                            io.github.kotlinmania.llama.ore.writeFloat3(tmp, elemOff, srcVal)
+                        if (kernelType == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                            io.github.kotlinmania.llama.core.writeFloat3(tmp, elemOff, srcVal)
                         } else {
-                            io.github.kotlinmania.llama.ore.writeShort3(
+                            io.github.kotlinmania.llama.core.writeShort3(
                                 tmp,
                                 elemOff,
-                                io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(srcVal).toShort()
+                                io.github.kotlinmania.llama.core.ggmlFp32ToFp16(srcVal).toShort()
                             )
                         }
                     }
@@ -1689,7 +1689,7 @@ private fun ggmlComputeForwardConv2dImpl(
             }
         }
 
-        io.github.kotlinmania.llama.ore.ggmlBarrier(threadpool)
+        io.github.kotlinmania.llama.core.ggmlBarrier(threadpool)
 
         val gemmOutputOff = (patchesPerBatch * knlN * typeSizeBytes).toInt()
 
@@ -1705,11 +1705,11 @@ private fun ggmlComputeForwardConv2dImpl(
                 for (k in 0 until knlN) {
                     val aVal: Float
                     val aOff = (row * knlN * typeSizeBytes + k * typeSizeBytes).toInt()
-                    if (kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                        aVal = io.github.kotlinmania.llama.ore.readFloat3(tmp, aOff)
+                    if (kernelType == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                        aVal = io.github.kotlinmania.llama.core.readFloat3(tmp, aOff)
                     } else {
-                        aVal = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                            io.github.kotlinmania.llama.ore.readShort3(
+                        aVal = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                            io.github.kotlinmania.llama.core.readShort3(
                                 tmp,
                                 aOff
                             ).toUShort()
@@ -1717,11 +1717,11 @@ private fun ggmlComputeForwardConv2dImpl(
                     }
                     val bOff = (oc * knlN * typeSizeBytes + k * typeSizeBytes).toInt()
                     val bVal: Float
-                    if (kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                        bVal = io.github.kotlinmania.llama.ore.readFloat3(knlData, bOff)
+                    if (kernelType == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                        bVal = io.github.kotlinmania.llama.core.readFloat3(knlData, bOff)
                     } else {
-                        bVal = io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                            io.github.kotlinmania.llama.ore.readShort3(
+                        bVal = io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                            io.github.kotlinmania.llama.core.readShort3(
                                 knlData,
                                 bOff
                             ).toUShort()
@@ -1729,7 +1729,7 @@ private fun ggmlComputeForwardConv2dImpl(
                     }
                     sum += aVal * bVal
                 }
-                io.github.kotlinmania.llama.ore.writeFloat3(
+                io.github.kotlinmania.llama.core.writeFloat3(
                     tmp,
                     gemmOutputOff + (row * cOut + oc).toInt() * 4,
                     sum
@@ -1737,7 +1737,7 @@ private fun ggmlComputeForwardConv2dImpl(
             }
         }
 
-        io.github.kotlinmania.llama.ore.ggmlBarrier(threadpool)
+        io.github.kotlinmania.llama.core.ggmlBarrier(threadpool)
 
         // permute back
         val permutePerThread = (patchN + params.nth - 1) / params.nth
@@ -1751,25 +1751,25 @@ private fun ggmlComputeForwardConv2dImpl(
             val dstX = p % dstW
 
             for (oc in 0 until cOut) {
-                val value = io.github.kotlinmania.llama.ore.readFloat3(
+                val value = io.github.kotlinmania.llama.core.readFloat3(
                     tmp,
                     gemmOutputOff + (i * cOut + oc).toInt() * 4
                 )
                 val dstOff = (dstX * dst.nb[0].toLong() + dstY * dst.nb[1].toLong() + oc * dst.nb[2].toLong() + batchIdx * dst.nb[3].toLong()).toInt()
-                io.github.kotlinmania.llama.ore.writeFloat3(dstData, dstOff, value)
+                io.github.kotlinmania.llama.core.writeFloat3(dstData, dstOff, value)
             }
         }
     }
 }
 
 fun ggmlComputeForwardConv2d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    io.github.kotlinmania.llama.ore.ggmlComputeForwardConv2dImpl(params, src0, src1, dst, src0.type)
+    io.github.kotlinmania.llama.core.ggmlComputeForwardConv2dImpl(params, src0, src1, dst, src0.type)
 }
 
 // ============================================================================
@@ -1777,17 +1777,17 @@ fun ggmlComputeForwardConv2d(
 // ============================================================================
 
 private fun ggmlComputeForwardConv3dImpl(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    kernel: io.github.kotlinmania.llama.ore.GGMLTensor,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
-    kernelType: io.github.kotlinmania.llama.ore.GGMLType
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    kernel: io.github.kotlinmania.llama.core.GGMLTensor,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
+    kernelType: io.github.kotlinmania.llama.core.GGMLType
 ) {
-    require(io.github.kotlinmania.llama.ore.ggmlIsContiguous(kernel))
-    require(kernelType == io.github.kotlinmania.llama.ore.GGMLType.F16 || kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(io.github.kotlinmania.llama.core.ggmlIsContiguous(kernel))
+    require(kernelType == io.github.kotlinmania.llama.core.GGMLType.F16 || kernelType == io.github.kotlinmania.llama.core.GGMLType.F32)
     require(kernel.type == kernelType)
 
-    val traits = io.github.kotlinmania.llama.ore.ggmlGetTypeTraits(kernelType)
+    val traits = io.github.kotlinmania.llama.core.ggmlGetTypeTraits(kernelType)
 
     val s0 = dst.opParams[0]; val s1 = dst.opParams[1]; val s2 = dst.opParams[2]
     val p0 = dst.opParams[3]; val p1 = dst.opParams[4]; val p2 = dst.opParams[5]
@@ -1853,17 +1853,17 @@ private fun ggmlComputeForwardConv3dImpl(
                             } else {
                                 val cnIdx = batchIdx * c + ic
                                 val srcOff = (sx * src.nb[0].toLong() + sy * src.nb[1].toLong() + sz * src.nb[2].toLong() + cnIdx * src.nb[3].toLong()).toInt()
-                                srcVal = io.github.kotlinmania.llama.ore.readFloat3(srcData, srcOff)
+                                srcVal = io.github.kotlinmania.llama.core.readFloat3(srcData, srcOff)
                             }
 
                             val elemOff = dstRowOff + dstIdx * typeSizeBytes
-                            if (kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                                io.github.kotlinmania.llama.ore.writeFloat3(tmp, elemOff, srcVal)
+                            if (kernelType == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                                io.github.kotlinmania.llama.core.writeFloat3(tmp, elemOff, srcVal)
                             } else {
-                                io.github.kotlinmania.llama.ore.writeShort3(
+                                io.github.kotlinmania.llama.core.writeShort3(
                                     tmp,
                                     elemOff,
-                                    io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(srcVal).toShort()
+                                    io.github.kotlinmania.llama.core.ggmlFp32ToFp16(srcVal).toShort()
                                 )
                             }
                         }
@@ -1873,7 +1873,7 @@ private fun ggmlComputeForwardConv3dImpl(
         }
 
         val threadpool = params.threadpool ?: return
-        io.github.kotlinmania.llama.ore.ggmlBarrier(threadpool)
+        io.github.kotlinmania.llama.core.ggmlBarrier(threadpool)
 
         val gemmOutputOff = (patchesPerBatch * knlNTotal * typeSizeBytes).toInt()
 
@@ -1887,22 +1887,22 @@ private fun ggmlComputeForwardConv3dImpl(
                 var sum = 0.0f
                 for (k in 0 until knlNTotal) {
                     val aOff = (row * knlNTotal * typeSizeBytes + k * typeSizeBytes).toInt()
-                    val aVal: Float = if (kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                        io.github.kotlinmania.llama.ore.readFloat3(tmp, aOff)
+                    val aVal: Float = if (kernelType == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                        io.github.kotlinmania.llama.core.readFloat3(tmp, aOff)
                     } else {
-                        io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                            io.github.kotlinmania.llama.ore.readShort3(
+                        io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                            io.github.kotlinmania.llama.core.readShort3(
                                 tmp,
                                 aOff
                             ).toUShort()
                         )
                     }
                     val bOff = (ioc * knlNTotal * typeSizeBytes + k * typeSizeBytes).toInt()
-                    val bVal: Float = if (kernelType == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                        io.github.kotlinmania.llama.ore.readFloat3(knlData, bOff)
+                    val bVal: Float = if (kernelType == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                        io.github.kotlinmania.llama.core.readFloat3(knlData, bOff)
                     } else {
-                        io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                            io.github.kotlinmania.llama.ore.readShort3(
+                        io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                            io.github.kotlinmania.llama.core.readShort3(
                                 knlData,
                                 bOff
                             ).toUShort()
@@ -1910,7 +1910,7 @@ private fun ggmlComputeForwardConv3dImpl(
                     }
                     sum += aVal * bVal
                 }
-                io.github.kotlinmania.llama.ore.writeFloat3(
+                io.github.kotlinmania.llama.core.writeFloat3(
                     tmp,
                     gemmOutputOff + (row * oc + ioc).toInt() * 4,
                     sum
@@ -1918,7 +1918,7 @@ private fun ggmlComputeForwardConv3dImpl(
             }
         }
 
-        io.github.kotlinmania.llama.ore.ggmlBarrier(threadpool)
+        io.github.kotlinmania.llama.core.ggmlBarrier(threadpool)
 
         val permutePerThread = (patchNInBatch + params.nth - 1) / params.nth
         val permuteStart = params.ith * permutePerThread
@@ -1934,25 +1934,25 @@ private fun ggmlComputeForwardConv3dImpl(
             val dstX2 = pInDepth2 % dstW
 
             for (ioc in 0 until oc) {
-                val value = io.github.kotlinmania.llama.ore.readFloat3(
+                val value = io.github.kotlinmania.llama.core.readFloat3(
                     tmp,
                     gemmOutputOff + (i * oc + ioc).toInt() * 4
                 )
                 val ocnIdx = batchIdx2 * oc + ioc
                 val dstOff = (dstX2 * dst.nb[0].toLong() + dstY2 * dst.nb[1].toLong() + dstZ2 * dst.nb[2].toLong() + ocnIdx * dst.nb[3].toLong()).toInt()
-                io.github.kotlinmania.llama.ore.writeFloat3(dstData, dstOff, value)
+                io.github.kotlinmania.llama.core.writeFloat3(dstData, dstOff, value)
             }
         }
     }
 }
 
 fun ggmlComputeForwardConv3d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
-    io.github.kotlinmania.llama.ore.ggmlComputeForwardConv3dImpl(params, src0, src1, dst, src0.type)
+    io.github.kotlinmania.llama.core.ggmlComputeForwardConv3dImpl(params, src0, src1, dst, src0.type)
 }
 
 // ============================================================================
@@ -1960,17 +1960,17 @@ fun ggmlComputeForwardConv3d(
 // ============================================================================
 
 private fun ggmlComputeForwardConvTranspose2dImplF16(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F16)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01; val ne02 = b.ne02; val ne03 = b.ne03
     val nb00 = b.nb00; val nb01 = b.nb01; val nb02 = b.nb02; val nb03 = b.nb03
     val ne10 = b.ne10; val ne11 = b.ne11; val ne12 = b.ne12
@@ -1983,7 +1983,7 @@ private fun ggmlComputeForwardConvTranspose2dImplF16(
 
     val nk = (ne00 * ne01 * ne02 * ne03).toInt()
 
-    require(nb00 == io.github.kotlinmania.llama.ore.ggmlTypeSize(src0.type).toLong())
+    require(nb00 == io.github.kotlinmania.llama.core.ggmlTypeSize(src0.type).toLong())
     require(nb10 == 4L)
 
     val wdata = params.wdata as ByteArray
@@ -2001,11 +2001,11 @@ private fun ggmlComputeForwardConvTranspose2dImplF16(
                 val dstOff = (i02 * ne01 * ne00 * ne03).toInt() * 2
                 for (i01 in 0 until ne01.toInt()) {
                     for (i00 in 0 until ne00.toInt()) {
-                        val srcVal = io.github.kotlinmania.llama.ore.readShort3(
+                        val srcVal = io.github.kotlinmania.llama.core.readShort3(
                             src0Data,
                             srcOff + (i01 * ne00.toInt() + i00) * 2
                         )
-                        io.github.kotlinmania.llama.ore.writeShort3(
+                        io.github.kotlinmania.llama.core.writeShort3(
                             wdata,
                             dstOff + (i01 * ne00.toInt() * ne03.toInt() + i00 * ne03.toInt() + i03) * 2,
                             srcVal
@@ -2024,11 +2024,11 @@ private fun ggmlComputeForwardConvTranspose2dImplF16(
                 val dstRowOff = wdataOff + (i11 * ne10.toInt() * ne12.toInt()) * 2
                 for (i10 in 0 until ne10.toInt()) {
                     val srcVal =
-                        io.github.kotlinmania.llama.ore.readFloat3(src1Data, srcRowOff + i10 * 4)
-                    io.github.kotlinmania.llama.ore.writeShort3(
+                        io.github.kotlinmania.llama.core.readFloat3(src1Data, srcRowOff + i10 * 4)
+                    io.github.kotlinmania.llama.core.writeShort3(
                         wdata,
                         dstRowOff + (i10 * ne12.toInt() + i12) * 2,
-                        io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(srcVal).toShort()
+                        io.github.kotlinmania.llama.core.ggmlFp32ToFp16(srcVal).toShort()
                     )
                 }
             }
@@ -2036,13 +2036,13 @@ private fun ggmlComputeForwardConvTranspose2dImplF16(
 
         // zero dst
         val dstData = dst.data as ByteArray
-        for (i in 0 until io.github.kotlinmania.llama.ore.ggmlNbytes(dst).toInt()) {
+        for (i in 0 until io.github.kotlinmania.llama.core.ggmlNbytes(dst).toInt()) {
             dstData[i] = 0
         }
     }
-    io.github.kotlinmania.llama.ore.ggmlBarrier(params.threadpool!!)
+    io.github.kotlinmania.llama.core.ggmlBarrier(params.threadpool!!)
 
-    val stride = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
+    val stride = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
 
     val np = ne2.toInt()
     val dp = (np + nth - 1) / nth
@@ -2060,15 +2060,15 @@ private fun ggmlComputeForwardConvTranspose2dImplF16(
                 val i1n = (i11 * ne10.toInt() * ne12.toInt() + i10 * ne12.toInt()) * 2
                 for (i01 in 0 until ne01.toInt()) {
                     for (i00 in 0 until ne00.toInt()) {
-                        val v = io.github.kotlinmania.llama.ore.ggmlVecDotF16(
+                        val v = io.github.kotlinmania.llama.core.ggmlVecDotF16(
                             ne03,
                             wdata, wdataSrcOff + i1n,
                             wdata, wdataKernelOff + (i01 * ne00.toInt() * ne03.toInt() + i00 * ne03.toInt()) * 2
                         )
                         val dstIdx = ((i11 * stride + i01) * ne0.toInt() + i10 * stride + i00) * 4
                         val prev =
-                            io.github.kotlinmania.llama.ore.readFloat3(dstData, dstRowOff + dstIdx)
-                        io.github.kotlinmania.llama.ore.writeFloat3(
+                            io.github.kotlinmania.llama.core.readFloat3(dstData, dstRowOff + dstIdx)
+                        io.github.kotlinmania.llama.core.writeFloat3(
                             dstData,
                             dstRowOff + dstIdx,
                             prev + v
@@ -2081,17 +2081,17 @@ private fun ggmlComputeForwardConvTranspose2dImplF16(
 }
 
 private fun ggmlComputeForwardConvTranspose2dImplF32(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
     val src1 = dst.src[1]!!
 
-    require(src0.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(src1.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32)
+    require(src0.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(src1.type == io.github.kotlinmania.llama.core.GGMLType.F32)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32)
 
-    val b = io.github.kotlinmania.llama.ore.binaryOpLocals3(dst)
+    val b = io.github.kotlinmania.llama.core.binaryOpLocals3(dst)
     val ne00 = b.ne00; val ne01 = b.ne01; val ne02 = b.ne02; val ne03 = b.ne03
     val nb00 = b.nb00; val nb01 = b.nb01; val nb02 = b.nb02; val nb03 = b.nb03
     val ne10 = b.ne10; val ne11 = b.ne11; val ne12 = b.ne12
@@ -2104,7 +2104,7 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
 
     val nk = (ne00 * ne01 * ne02 * ne03).toInt()
 
-    require(nb00 == io.github.kotlinmania.llama.ore.ggmlTypeSize(src0.type).toLong())
+    require(nb00 == io.github.kotlinmania.llama.core.ggmlTypeSize(src0.type).toLong())
     require(nb10 == 4L)
 
     val wdata = params.wdata as ByteArray
@@ -2122,11 +2122,11 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
                 val dstOff = (i02 * ne01 * ne00 * ne03).toInt() * 4
                 for (i01 in 0 until ne01.toInt()) {
                     for (i00 in 0 until ne00.toInt()) {
-                        val srcVal = io.github.kotlinmania.llama.ore.readFloat3(
+                        val srcVal = io.github.kotlinmania.llama.core.readFloat3(
                             src0Data,
                             srcOff + (i01 * ne00.toInt() + i00) * 4
                         )
-                        io.github.kotlinmania.llama.ore.writeFloat3(
+                        io.github.kotlinmania.llama.core.writeFloat3(
                             wdata,
                             dstOff + (i01 * ne00.toInt() * ne03.toInt() + i00 * ne03.toInt() + i03) * 4,
                             srcVal
@@ -2145,8 +2145,8 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
                 val dstRowOff = wdataOff + (i11 * ne10.toInt() * ne12.toInt()) * 4
                 for (i10 in 0 until ne10.toInt()) {
                     val srcVal =
-                        io.github.kotlinmania.llama.ore.readFloat3(src1Data, srcRowOff + i10 * 4)
-                    io.github.kotlinmania.llama.ore.writeFloat3(
+                        io.github.kotlinmania.llama.core.readFloat3(src1Data, srcRowOff + i10 * 4)
+                    io.github.kotlinmania.llama.core.writeFloat3(
                         wdata,
                         dstRowOff + (i10 * ne12.toInt() + i12) * 4,
                         srcVal
@@ -2157,13 +2157,13 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
 
         // zero dst
         val dstData = dst.data as ByteArray
-        for (i in 0 until io.github.kotlinmania.llama.ore.ggmlNbytes(dst).toInt()) {
+        for (i in 0 until io.github.kotlinmania.llama.core.ggmlNbytes(dst).toInt()) {
             dstData[i] = 0
         }
     }
-    io.github.kotlinmania.llama.ore.ggmlBarrier(params.threadpool!!)
+    io.github.kotlinmania.llama.core.ggmlBarrier(params.threadpool!!)
 
-    val stride = io.github.kotlinmania.llama.ore.ggml_get_op_params_i32(dst, 0)
+    val stride = io.github.kotlinmania.llama.core.ggml_get_op_params_i32(dst, 0)
 
     val np = ne2.toInt()
     val dp = (np + nth - 1) / nth
@@ -2183,11 +2183,11 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
                     for (i00 in 0 until ne00.toInt()) {
                         var v = 0.0f
                         for (k in 0 until ne03.toInt()) {
-                            val a = io.github.kotlinmania.llama.ore.readFloat3(
+                            val a = io.github.kotlinmania.llama.core.readFloat3(
                                 wdata,
                                 wdataSrcOff + i1n + k * 4
                             )
-                            val bVal = io.github.kotlinmania.llama.ore.readFloat3(
+                            val bVal = io.github.kotlinmania.llama.core.readFloat3(
                                 wdata,
                                 wdataKernelOff + (i01 * ne00.toInt() * ne03.toInt() + i00 * ne03.toInt() + k) * 4
                             )
@@ -2195,8 +2195,8 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
                         }
                         val dstIdx = ((i11 * stride + i01) * ne0.toInt() + i10 * stride + i00) * 4
                         val prev =
-                            io.github.kotlinmania.llama.ore.readFloat3(dstData, dstRowOff + dstIdx)
-                        io.github.kotlinmania.llama.ore.writeFloat3(
+                            io.github.kotlinmania.llama.core.readFloat3(dstData, dstRowOff + dstIdx)
+                        io.github.kotlinmania.llama.core.writeFloat3(
                             dstData,
                             dstRowOff + dstIdx,
                             prev + v
@@ -2209,17 +2209,17 @@ private fun ggmlComputeForwardConvTranspose2dImplF32(
 }
 
 fun ggmlComputeForwardConvTranspose2d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src0 = dst.src[0]!!
 
     when (src0.type) {
-        io.github.kotlinmania.llama.ore.GGMLType.F16 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardConvTranspose2dImplF16(
+        io.github.kotlinmania.llama.core.GGMLType.F16 -> io.github.kotlinmania.llama.core.ggmlComputeForwardConvTranspose2dImplF16(
             params,
             dst
         )
-        io.github.kotlinmania.llama.ore.GGMLType.F32 -> io.github.kotlinmania.llama.ore.ggmlComputeForwardConvTranspose2dImplF32(
+        io.github.kotlinmania.llama.core.GGMLType.F32 -> io.github.kotlinmania.llama.core.ggmlComputeForwardConvTranspose2dImplF32(
             params,
             dst
         )
@@ -2249,11 +2249,11 @@ data class GGMLConv2dDwParams(
 )
 
 private fun ggmlComputeForwardConv2dDwCwhn(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
-    kernel: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
-    p: io.github.kotlinmania.llama.ore.GGMLConv2dDwParams
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
+    kernel: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
+    p: io.github.kotlinmania.llama.core.GGMLConv2dDwParams
 ) {
     val c = p.channels
     val knlData = kernel.data as ByteArray
@@ -2284,13 +2284,13 @@ private fun ggmlComputeForwardConv2dDwCwhn(
                         if (srcX < 0 || srcX >= p.srcW) continue
                         val kOff = ((knlY * p.knlW + knlX) * c + cI).toInt() * 4
                         val sOff = srcBase + ((srcY * p.srcW + srcX) * c + cI).toInt() * 4
-                        sum += io.github.kotlinmania.llama.ore.readFloat3(
+                        sum += io.github.kotlinmania.llama.core.readFloat3(
                             knlData,
                             kOff
-                        ) * io.github.kotlinmania.llama.ore.readFloat3(srcDataBytes, sOff)
+                        ) * io.github.kotlinmania.llama.core.readFloat3(srcDataBytes, sOff)
                     }
                 }
-                io.github.kotlinmania.llama.ore.writeFloat3(
+                io.github.kotlinmania.llama.core.writeFloat3(
                     dstDataBytes,
                     dstBase + cI.toInt() * 4,
                     sum
@@ -2301,11 +2301,11 @@ private fun ggmlComputeForwardConv2dDwCwhn(
 }
 
 private fun ggmlComputeForwardConv2dDwWhcn(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    src: io.github.kotlinmania.llama.ore.GGMLTensor,
-    kernel: io.github.kotlinmania.llama.ore.GGMLTensor,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor,
-    p: io.github.kotlinmania.llama.ore.GGMLConv2dDwParams
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    src: io.github.kotlinmania.llama.core.GGMLTensor,
+    kernel: io.github.kotlinmania.llama.core.GGMLTensor,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor,
+    p: io.github.kotlinmania.llama.core.GGMLConv2dDwParams
 ) {
     val n = p.channels * p.batch
     val perThread = (n + params.nth - 1) / params.nth
@@ -2332,13 +2332,13 @@ private fun ggmlComputeForwardConv2dDwWhcn(
                         if (srcX < 0 || srcX >= p.srcW) continue
                         val kOff = knlBase + (knlY * p.knlW + knlX).toInt() * 4
                         val sOff = srcBase + (srcY * p.srcW + srcX).toInt() * 4
-                        sum += io.github.kotlinmania.llama.ore.readFloat3(
+                        sum += io.github.kotlinmania.llama.core.readFloat3(
                             knlData,
                             kOff
-                        ) * io.github.kotlinmania.llama.ore.readFloat3(srcData, sOff)
+                        ) * io.github.kotlinmania.llama.core.readFloat3(srcData, sOff)
                     }
                 }
-                io.github.kotlinmania.llama.ore.writeFloat3(
+                io.github.kotlinmania.llama.core.writeFloat3(
                     dstData,
                     dstBase + (dstY * p.dstW + dstX).toInt() * 4,
                     sum
@@ -2349,13 +2349,13 @@ private fun ggmlComputeForwardConv2dDwWhcn(
 }
 
 fun ggmlComputeForwardConv2dDw(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val kernel = dst.src[0]!!
     val src = dst.src[1]!!
 
-    val p = io.github.kotlinmania.llama.ore.GGMLConv2dDwParams(
+    val p = io.github.kotlinmania.llama.core.GGMLConv2dDwParams(
         channels = src.ne[2],
         batch = src.ne[3],
         srcW = src.ne[0],
@@ -2375,11 +2375,11 @@ fun ggmlComputeForwardConv2dDw(
     require(kernel.ne[3] == p.channels)
     require(dst.ne[3] == p.batch)
 
-    if (io.github.kotlinmania.llama.ore.ggmlIsContiguous(src)) {
-        io.github.kotlinmania.llama.ore.ggmlComputeForwardConv2dDwWhcn(params, src, kernel, dst, p)
-    } else if (io.github.kotlinmania.llama.ore.ggmlIsContiguousChannels(src)) {
+    if (io.github.kotlinmania.llama.core.ggmlIsContiguous(src)) {
+        io.github.kotlinmania.llama.core.ggmlComputeForwardConv2dDwWhcn(params, src, kernel, dst, p)
+    } else if (io.github.kotlinmania.llama.core.ggmlIsContiguousChannels(src)) {
         require(kernel.nb[0] >= kernel.nb[2] && kernel.nb[1] >= kernel.nb[0])
-        io.github.kotlinmania.llama.ore.ggmlComputeForwardConv2dDwCwhn(params, src, kernel, dst, p)
+        io.github.kotlinmania.llama.core.ggmlComputeForwardConv2dDwCwhn(params, src, kernel, dst, p)
     } else {
         error("non-contiguous memory layout not supported")
     }
@@ -2390,23 +2390,23 @@ fun ggmlComputeForwardConv2dDw(
 // ============================================================================
 
 private fun ggmlComputeForwardPool1dKsp(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    op: io.github.kotlinmania.llama.ore.GGMLOpPool,
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    op: io.github.kotlinmania.llama.core.GGMLOpPool,
     k: Int,
     s: Int,
     p: Int,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src = dst.src[0]!!
 
-    require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32 || src.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
+    require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32 || src.type == io.github.kotlinmania.llama.core.GGMLType.F16)
 
     if (params.ith != 0) return
 
     val IW = src.ne[0]
     val OW = dst.ne[0]
 
-    val nr = io.github.kotlinmania.llama.ore.ggmlNrows(src)
+    val nr = io.github.kotlinmania.llama.core.ggmlNrows(src)
 
     val srcData = src.data as ByteArray
     val dstData = dst.data as ByteArray
@@ -2417,9 +2417,9 @@ private fun ggmlComputeForwardPool1dKsp(
 
         for (ow in 0 until OW) {
             var res: Float = when (op) {
-                io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> 0.0f
-                io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> -Float.MAX_VALUE
-                io.github.kotlinmania.llama.ore.GGMLOpPool.COUNT -> error("fatal error")
+                io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> 0.0f
+                io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> -Float.MAX_VALUE
+                io.github.kotlinmania.llama.core.GGMLOpPool.COUNT -> error("fatal error")
             }
 
             var count = 0
@@ -2429,11 +2429,11 @@ private fun ggmlComputeForwardPool1dKsp(
                 val j = base + ki
                 if (j < 0 || j >= IW.toInt()) continue
 
-                val v: Float = if (src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                    io.github.kotlinmania.llama.ore.readFloat3(srcData, srowOff + j * 4)
+                val v: Float = if (src.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                    io.github.kotlinmania.llama.core.readFloat3(srcData, srowOff + j * 4)
                 } else {
-                    io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                        io.github.kotlinmania.llama.ore.readShort3(
+                    io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                        io.github.kotlinmania.llama.core.readShort3(
                             srcData,
                             srowOff + j * 2
                         ).toUShort()
@@ -2441,35 +2441,35 @@ private fun ggmlComputeForwardPool1dKsp(
                 }
 
                 when (op) {
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> res += v
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> res = max(v, res)
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.COUNT -> error("fatal error")
+                    io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> res += v
+                    io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> res = max(v, res)
+                    io.github.kotlinmania.llama.core.GGMLOpPool.COUNT -> error("fatal error")
                 }
 
                 ++count
             }
 
             when (op) {
-                io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> res = if (count > 0) res / count else 0.0f
-                io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> {}
-                io.github.kotlinmania.llama.ore.GGMLOpPool.COUNT -> error("fatal error")
+                io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> res = if (count > 0) res / count else 0.0f
+                io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> {}
+                io.github.kotlinmania.llama.core.GGMLOpPool.COUNT -> error("fatal error")
             }
 
-            io.github.kotlinmania.llama.ore.writeFloat3(dstData, drowOff + ow.toInt() * 4, res)
+            io.github.kotlinmania.llama.core.writeFloat3(dstData, drowOff + ow.toInt() * 4, res)
         }
     }
 }
 
 fun ggmlComputeForwardPool1d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
-    val op = io.github.kotlinmania.llama.ore.GGMLOpPool.entries[dst.opParams[0]]
+    val op = io.github.kotlinmania.llama.core.GGMLOpPool.entries[dst.opParams[0]]
     val k0 = dst.opParams[1]
     val s0 = dst.opParams[2]
     val p0 = dst.opParams[3]
 
-    io.github.kotlinmania.llama.ore.ggmlComputeForwardPool1dKsp(params, op, k0, s0, p0, dst)
+    io.github.kotlinmania.llama.core.ggmlComputeForwardPool1dKsp(params, op, k0, s0, p0, dst)
 }
 
 // ============================================================================
@@ -2477,16 +2477,16 @@ fun ggmlComputeForwardPool1d(
 // ============================================================================
 
 fun ggmlComputeForwardPool2d(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src = dst.src[0]!!
 
-    require(src.type == io.github.kotlinmania.llama.ore.GGMLType.F32 || src.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
+    require(src.type == io.github.kotlinmania.llama.core.GGMLType.F32 || src.type == io.github.kotlinmania.llama.core.GGMLType.F16)
 
     if (params.ith != 0) return
 
-    val op = io.github.kotlinmania.llama.ore.GGMLOpPool.entries[dst.opParams[0]]
+    val op = io.github.kotlinmania.llama.core.GGMLOpPool.entries[dst.opParams[0]]
     val k0 = dst.opParams[1]
     val k1 = dst.opParams[2]
     val s0 = dst.opParams[3]
@@ -2497,7 +2497,7 @@ fun ggmlComputeForwardPool2d(
     val srcData = src.data as ByteArray
     val srcNb1 = src.nb[1].toLong()
     val srcNb2 = src.nb[2].toLong()
-    val totalBytes = io.github.kotlinmania.llama.ore.ggmlNbytes(src).toLong()
+    val totalBytes = io.github.kotlinmania.llama.core.ggmlNbytes(src).toLong()
 
     val px = dst.ne[0]
     val py = dst.ne[1]
@@ -2515,9 +2515,9 @@ fun ggmlComputeForwardPool2d(
         for (oy in 0 until py.toInt()) {
             for (ox in 0 until px.toInt()) {
                 var res: Float = when (op) {
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> 0.0f
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> -Float.MAX_VALUE
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.COUNT -> error("fatal error")
+                    io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> 0.0f
+                    io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> -Float.MAX_VALUE
+                    io.github.kotlinmania.llama.core.GGMLOpPool.COUNT -> error("fatal error")
                 }
 
                 val ix = offset0 + ox * s0
@@ -2531,11 +2531,11 @@ fun ggmlComputeForwardPool2d(
                         val j = ix + kx
                         if (j < 0 || j >= src.ne[0].toInt()) continue
 
-                        val srowJ: Float = if (src.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                            io.github.kotlinmania.llama.ore.readFloat3(srcData, srowOff + j * 4)
+                        val srowJ: Float = if (src.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                            io.github.kotlinmania.llama.core.readFloat3(srcData, srowOff + j * 4)
                         } else {
-                            io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                                io.github.kotlinmania.llama.ore.readShort3(
+                            io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                                io.github.kotlinmania.llama.core.readShort3(
                                     srcData,
                                     srowOff + j * 2
                                 ).toUShort()
@@ -2543,20 +2543,20 @@ fun ggmlComputeForwardPool2d(
                         }
 
                         when (op) {
-                            io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> res += srowJ
-                            io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> res = max(srowJ, res)
-                            io.github.kotlinmania.llama.ore.GGMLOpPool.COUNT -> error("fatal error")
+                            io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> res += srowJ
+                            io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> res = max(srowJ, res)
+                            io.github.kotlinmania.llama.core.GGMLOpPool.COUNT -> error("fatal error")
                         }
                     }
                 }
 
                 when (op) {
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.AVG -> res /= ka
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.MAX -> {}
-                    io.github.kotlinmania.llama.ore.GGMLOpPool.COUNT -> error("fatal error")
+                    io.github.kotlinmania.llama.core.GGMLOpPool.AVG -> res /= ka
+                    io.github.kotlinmania.llama.core.GGMLOpPool.MAX -> {}
+                    io.github.kotlinmania.llama.core.GGMLOpPool.COUNT -> error("fatal error")
                 }
 
-                io.github.kotlinmania.llama.ore.writeFloat3(
+                io.github.kotlinmania.llama.core.writeFloat3(
                     dstData,
                     (dplaneOff + oy * px.toInt() + ox) * 4,
                     res
@@ -2574,17 +2574,17 @@ fun ggmlComputeForwardPool2d(
 // ============================================================================
 
 fun ggmlComputeForwardPool2dBack(
-    params: io.github.kotlinmania.llama.ore.GGMLComputeParams,
-    dst: io.github.kotlinmania.llama.ore.GGMLTensor
+    params: io.github.kotlinmania.llama.core.GGMLComputeParams,
+    dst: io.github.kotlinmania.llama.core.GGMLTensor
 ) {
     val src = dst.src[0]!!
     val dstf = dst.src[1]!!
 
-    require(dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32 || dst.type == io.github.kotlinmania.llama.ore.GGMLType.F16)
+    require(dst.type == io.github.kotlinmania.llama.core.GGMLType.F32 || dst.type == io.github.kotlinmania.llama.core.GGMLType.F16)
 
     if (params.ith != 0) return
 
-    val op = io.github.kotlinmania.llama.ore.GGMLOpPool.entries[dst.opParams[0]]
+    val op = io.github.kotlinmania.llama.core.GGMLOpPool.entries[dst.opParams[0]]
     val k0 = dst.opParams[1]
     val k1 = dst.opParams[2]
     val s0 = dst.opParams[3]
@@ -2594,7 +2594,7 @@ fun ggmlComputeForwardPool2dBack(
 
     val cdata = dst.data as ByteArray
     val cdataf = dstf.data as ByteArray
-    val totalBytes = io.github.kotlinmania.llama.ore.ggmlNbytes(dst).toInt()
+    val totalBytes = io.github.kotlinmania.llama.core.ggmlNbytes(dst).toInt()
 
     require(params.ith == 0)
     // memset dst to 0
@@ -2621,7 +2621,7 @@ fun ggmlComputeForwardPool2dBack(
     while (cdataOff < totalBytes) {
         for (oy in 0 until py.toInt()) {
             for (ox in 0 until px.toInt()) {
-                val grad0 = io.github.kotlinmania.llama.ore.readFloat3(
+                val grad0 = io.github.kotlinmania.llama.core.readFloat3(
                     srcData,
                     (splaneOff + oy * px.toInt() + ox) * 4
                 )
@@ -2629,7 +2629,7 @@ fun ggmlComputeForwardPool2dBack(
                 val ix = offset0 + ox * s0
                 val iy = offset1 + oy * s1
 
-                if (op == io.github.kotlinmania.llama.ore.GGMLOpPool.MAX) {
+                if (op == io.github.kotlinmania.llama.core.GGMLOpPool.MAX) {
                     var maxval = -Float.MAX_VALUE
                     var kxmax = -1
                     var kymax = -1
@@ -2641,11 +2641,11 @@ fun ggmlComputeForwardPool2dBack(
                             val j = ix + kx
                             if (j < 0 || j >= dst.ne[0].toInt()) continue
 
-                            val v = if (dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                                io.github.kotlinmania.llama.ore.readFloat3(cdataf, drowfOff + j * 4)
+                            val v = if (dst.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                                io.github.kotlinmania.llama.core.readFloat3(cdataf, drowfOff + j * 4)
                             } else {
-                                io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(
-                                    io.github.kotlinmania.llama.ore.readShort3(
+                                io.github.kotlinmania.llama.core.ggmlFp16ToFp32(
+                                    io.github.kotlinmania.llama.core.readShort3(
                                         cdataf,
                                         drowfOff + j * 2
                                     ).toUShort()
@@ -2663,27 +2663,27 @@ fun ggmlComputeForwardPool2dBack(
 
                     val drowOff = cdataOff + (dstNb1 * (iy + kymax)).toInt()
                     val j = ix + kxmax
-                    if (dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
+                    if (dst.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
                         val prev =
-                            io.github.kotlinmania.llama.ore.readFloat3(cdata, drowOff + j * 4)
-                        io.github.kotlinmania.llama.ore.writeFloat3(
+                            io.github.kotlinmania.llama.core.readFloat3(cdata, drowOff + j * 4)
+                        io.github.kotlinmania.llama.core.writeFloat3(
                             cdata,
                             drowOff + j * 4,
                             prev + grad0
                         )
                     } else {
                         val prevFp16 =
-                            io.github.kotlinmania.llama.ore.readShort3(cdata, drowOff + j * 2)
+                            io.github.kotlinmania.llama.core.readShort3(cdata, drowOff + j * 2)
                         val prevF32 =
-                            io.github.kotlinmania.llama.ore.ggmlFp16ToFp32(prevFp16.toUShort())
-                        io.github.kotlinmania.llama.ore.writeShort3(
+                            io.github.kotlinmania.llama.core.ggmlFp16ToFp32(prevFp16.toUShort())
+                        io.github.kotlinmania.llama.core.writeShort3(
                             cdata,
                             drowOff + j * 2,
-                            io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(grad0 + prevF32)
+                            io.github.kotlinmania.llama.core.ggmlFp32ToFp16(grad0 + prevF32)
                                 .toShort()
                         )
                     }
-                } else if (op == io.github.kotlinmania.llama.ore.GGMLOpPool.AVG) {
+                } else if (op == io.github.kotlinmania.llama.core.GGMLOpPool.AVG) {
                     val grad = grad0 / ka
 
                     for (ky in 0 until k1) {
@@ -2693,23 +2693,23 @@ fun ggmlComputeForwardPool2dBack(
                             val j = ix + kx
                             if (j < 0 || j >= dst.ne[0].toInt()) continue
 
-                            if (dst.type == io.github.kotlinmania.llama.ore.GGMLType.F32) {
-                                val prev = io.github.kotlinmania.llama.ore.readFloat3(
+                            if (dst.type == io.github.kotlinmania.llama.core.GGMLType.F32) {
+                                val prev = io.github.kotlinmania.llama.core.readFloat3(
                                     cdata,
                                     drowOff + j * 4
                                 )
-                                io.github.kotlinmania.llama.ore.writeFloat3(
+                                io.github.kotlinmania.llama.core.writeFloat3(
                                     cdata,
                                     drowOff + j * 4,
                                     prev + grad
                                 )
                             } else {
-                                val prevFp16 = io.github.kotlinmania.llama.ore.readShort3(
+                                val prevFp16 = io.github.kotlinmania.llama.core.readShort3(
                                     cdata,
                                     drowOff + j * 2
                                 )
-                                val sum = io.github.kotlinmania.llama.ore.ggmlFp32ToFp16(grad).toShort() + prevFp16
-                                io.github.kotlinmania.llama.ore.writeShort3(
+                                val sum = io.github.kotlinmania.llama.core.ggmlFp32ToFp16(grad).toShort() + prevFp16
+                                io.github.kotlinmania.llama.core.writeShort3(
                                     cdata,
                                     drowOff + j * 2,
                                     sum.toShort()
