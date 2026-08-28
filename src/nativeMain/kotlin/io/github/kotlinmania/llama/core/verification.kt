@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * Simple verification test for the new optimized matmul implementations.

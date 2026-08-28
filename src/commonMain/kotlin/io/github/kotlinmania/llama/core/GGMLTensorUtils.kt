@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * Centralized tensor utility functions implementing DRY principle.

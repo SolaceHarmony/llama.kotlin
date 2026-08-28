@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlin.math.round
 import kotlin.Short.Companion.SIZE_BYTES

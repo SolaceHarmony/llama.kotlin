@@ -1,7 +1,7 @@
 // port-lint: source ggml/src/ggml-quants.c
 // Static grid tables for IQ quantization init functions.
 // Extracted from kgrid_2bit_512, kgrid_1bit_2048, kgrid_2bit_1024, kgrid_256, kgrid_512
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 internal val kgrid2bit512: UShortArray = ushortArrayOf(
     0u, 2u, 5u, 8u, 10u, 17u, 20u, 22u, 25u, 32u, 34u, 37u, 40u, 65u, 68u, 70u,

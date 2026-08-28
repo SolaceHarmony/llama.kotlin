@@ -1,7 +1,7 @@
 // port-lint: source ggml/src/ggml.c
 @file:OptIn(kotlin.concurrent.atomics.ExperimentalAtomicApi::class)
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.time.TimeSource

@@ -1,7 +1,7 @@
 // port-lint: source ggml/src/ggml-backend.cpp (CPU buffer vtable, lines 2211–2293)
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer

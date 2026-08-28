@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 // port-lint: source ggml/src/ggml-cpu/traits.h + traits.cpp
 

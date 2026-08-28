@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 /**
  * JS actual for [io.github.kotlinmania.llama.core.ggml_aligned_malloc].

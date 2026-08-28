@@ -1,5 +1,5 @@
 // port-lint: source ggml/include/ggml.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 // ============================================================================
 // Constants from ggml.h (those not already in GGMLTypes.kt)

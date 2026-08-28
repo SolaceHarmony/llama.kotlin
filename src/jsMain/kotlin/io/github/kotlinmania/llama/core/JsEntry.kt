@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport

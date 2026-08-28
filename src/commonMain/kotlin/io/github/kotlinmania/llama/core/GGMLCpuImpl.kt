@@ -1,5 +1,5 @@
 // port-lint: source ggml/src/ggml-cpu/ggml-cpu-impl.h
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi

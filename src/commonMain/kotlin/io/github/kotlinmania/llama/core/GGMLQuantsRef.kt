@@ -1,6 +1,6 @@
 // port-lint: source ggml/src/ggml-quants.c
 
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 // QK constants are top-level in GGMLTypes.kt and GGMLCommon.kt — same package, no import needed.
 

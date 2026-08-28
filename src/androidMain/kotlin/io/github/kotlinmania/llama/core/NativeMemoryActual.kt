@@ -1,4 +1,4 @@
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 actual fun ggml_aligned_malloc(size: Long): Any? {
     if (size == 0L) return null

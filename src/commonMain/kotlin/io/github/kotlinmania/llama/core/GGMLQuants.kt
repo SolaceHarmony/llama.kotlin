@@ -1,5 +1,5 @@
 // port-lint: source ggml/src/ggml-cpu/quants.c
-package io.github.kotlinmania.llama.ore
+package io.github.kotlinmania.llama.core
 
 
 import io.github.kotlinmania.llama.core.readIntLE
