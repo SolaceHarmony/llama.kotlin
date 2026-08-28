@@ -29,6 +29,7 @@
 .envrc
 .idea/
 .gradle/
+.kotlin/
 .swiftpm
 .vs/
 .vscode/
